@@ -1,29 +1,47 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get("auth_token")?.value;
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get("accessToken")?.value;
   const path = request.nextUrl.pathname;
 
-  // Public paths that don't require authentication
-  const publicPaths = ["/", "/admin/login", "/user/login"];
+  console.log("Middleware - path:", path, "token:", !!token);
 
-  if (publicPaths.includes(path)) {
+  // Public paths that don't require authentication
+  const isPublicPath =
+    path === "/" ||
+    path === "/admin-login" ||
+    path === "/user-login" ||
+    path.startsWith("/reset-password");
+
+  // Allow access to public paths
+  if (isPublicPath) {
+    // If user is already logged in and tries to access login page,
+    // we still let them access it - they can login again if needed
     return NextResponse.next();
   }
 
-  if (!token) {
-    if (path.startsWith("/admin")) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
-    }
-    if (path.startsWith("/user")) {
-      return NextResponse.redirect(new URL("/user/login", request.url));
-    }
-  }
+  // For protected paths (admin/*, user/*), check if token exists
+  // if (!token) {
+  //   console.log("Middleware - no token, redirecting to home");
+  //   return NextResponse.redirect(new URL("/", request.url));
+  // }
 
+  // Token exists, allow access
+  // Let the client-side AuthContext handle role-based redirects
+  console.log("Middleware - token exists, allowing access to:", path);
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/user/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+  ],
 };

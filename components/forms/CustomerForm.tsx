@@ -1,92 +1,79 @@
 "use client";
 
 import { useState } from "react";
-import { Customer } from "@/types";
-import { apiClient } from "@/lib/api-client";
-import { useApi } from "@/hooks/useApi";
-import { toast } from "react-hot-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Input from "../ui/Input";
+import Select from "../ui/Select";
+import Button from "../ui/Button";
 
-interface CustomerFormProps {
-  branchId: string;
-  onSuccess: () => void;
-  onCancel: () => void;
-}
+const baseCustomerSchema = {
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  mobileNo: z.string().min(10, "Mobile number must be 10 digits").max(10),
+  panNo: z.string().optional(),
+  telephoneNo: z.string().optional(),
+  whatsAppNo: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  anniversaryDate: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  country: z.string().min(1, "Country is required"),
+  state: z.string().min(1, "State is required"),
+  city: z.string().min(1, "City is required"),
+  pincode: z.string().min(1, "Pincode is required"),
+};
 
-export default function CustomerForm({
-  branchId,
-  onSuccess,
-  onCancel,
-}: CustomerFormProps) {
-  const [customerType, setCustomerType] = useState<"B2B" | "B2C">("B2B");
-  const [formData, setFormData] = useState<any>({
-    type: "B2B",
-    branchId,
-    name: "",
-    email: "",
-    mobileNo: "",
-    panNo: "",
-    telephoneNo: "",
-    whatsappNo: "",
-    dateOfBirth: "",
-    anniversaryDate: "",
-    addressLine1: "",
-    addressLine2: "",
-    country: "",
-    state: "",
-    city: "",
-    pincode: "",
-    // B2C fields
-    companyName: "",
-    gstType: "",
-    gstin: "",
-    contactName: "",
-    contactNo: "",
-    contactEmail: "",
+const b2bSchema = z.object({
+  ...baseCustomerSchema,
+  customerType: z.literal("B2B"),
+});
+
+const b2cSchema = z.object({
+  ...baseCustomerSchema,
+  customerType: z.literal("B2C"),
+  companyName: z.string().min(1, "Company name is required"),
+  gstType: z.string().min(1, "GST type is required"),
+  gstin: z.string().min(1, "GSTIN is required"),
+  contactName: z.string().optional(),
+  contactNo: z.string().optional(),
+  contactEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+});
+
+const customerSchema = z.discriminatedUnion("customerType", [
+  b2bSchema,
+  b2cSchema,
+]);
+
+export default function CustomerForm({ initialData, onSubmit, isLoading }) {
+  const [customerType, setCustomerType] = useState(
+    initialData?.customerType || "B2B",
+  );
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm({
+    resolver: zodResolver(customerSchema),
+    defaultValues: { customerType, ...initialData },
   });
 
-  const { loading, execute: saveCustomer } = useApi<Customer>();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = await saveCustomer(() =>
-      apiClient.post("/user/customers", formData),
-    );
-
-    if (result.success) {
-      toast.success("Customer added successfully");
-      onSuccess();
-    } else {
-      toast.error(result.error || "Failed to add customer");
-    }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Customer Type
         </label>
-        <div className="mt-2 space-x-4">
+        <div className="flex space-x-4">
           <label className="inline-flex items-center">
             <input
               type="radio"
               value="B2B"
               checked={customerType === "B2B"}
-              onChange={() => {
-                setCustomerType("B2B");
-                setFormData({ ...formData, type: "B2B" });
-              }}
+              onChange={(e) => setCustomerType(e.target.value)}
               className="form-radio"
             />
             <span className="ml-2">B2B</span>
@@ -96,10 +83,7 @@ export default function CustomerForm({
               type="radio"
               value="B2C"
               checked={customerType === "B2C"}
-              onChange={() => {
-                setCustomerType("B2C");
-                setFormData({ ...formData, type: "B2C" });
-              }}
+              onChange={(e) => setCustomerType(e.target.value)}
               className="form-radio"
             />
             <span className="ml-2">B2C</span>
@@ -107,309 +91,155 @@ export default function CustomerForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Common fields for both B2B and B2C */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Name *
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          label="Name *"
+          {...register("name")}
+          error={errors.name?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Email *
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Email"
+          type="email"
+          {...register("email")}
+          error={errors.email?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Mobile No. *
-          </label>
-          <input
-            type="tel"
-            name="mobileNo"
-            value={formData.mobileNo}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Mobile No. *"
+          {...register("mobileNo")}
+          error={errors.mobileNo?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            PAN No.
-          </label>
-          <input
-            type="text"
-            name="panNo"
-            value={formData.panNo}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="PAN No."
+          {...register("panNo")}
+          error={errors.panNo?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Telephone No.
-          </label>
-          <input
-            type="tel"
-            name="telephoneNo"
-            value={formData.telephoneNo}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Telephone No."
+          {...register("telephoneNo")}
+          error={errors.telephoneNo?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            WhatsApp No.
-          </label>
-          <input
-            type="tel"
-            name="whatsappNo"
-            value={formData.whatsappNo}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="WhatsApp No."
+          {...register("whatsAppNo")}
+          error={errors.whatsAppNo?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Date of Birth
-          </label>
-          <input
-            type="date"
-            name="dateOfBirth"
-            value={formData.dateOfBirth}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Date of Birth"
+          type="date"
+          {...register("dateOfBirth")}
+          error={errors.dateOfBirth?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Anniversary Date
-          </label>
-          <input
-            type="date"
-            name="anniversaryDate"
-            value={formData.anniversaryDate}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Anniversary Date"
+          type="date"
+          {...register("anniversaryDate")}
+          error={errors.anniversaryDate?.message}
+        />
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Address Line 1 *
-          </label>
-          <input
-            type="text"
-            name="addressLine1"
-            value={formData.addressLine1}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Address Line 1"
+          {...register("addressLine1")}
+          error={errors.addressLine1?.message}
+          className="col-span-2"
+        />
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Address Line 2
-          </label>
-          <input
-            type="text"
-            name="addressLine2"
-            value={formData.addressLine2}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="Address Line 2"
+          {...register("addressLine2")}
+          error={errors.addressLine2?.message}
+          className="col-span-2"
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Country *
-          </label>
-          <select
-            name="country"
-            value={formData.country}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          >
-            <option value="">Select Country</option>
-            <option value="India">India</option>
-            {/* Add more countries */}
-          </select>
-        </div>
+        <Input
+          label="Country *"
+          {...register("country")}
+          error={errors.country?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            State *
-          </label>
-          <select
-            name="state"
-            value={formData.state}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          >
-            <option value="">Select State</option>
-            <option value="Maharashtra">Maharashtra</option>
-            {/* Add more states */}
-          </select>
-        </div>
+        <Input
+          label="State *"
+          {...register("state")}
+          error={errors.state?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            City *
-          </label>
-          <input
-            type="text"
-            name="city"
-            value={formData.city}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
+        <Input
+          label="City *"
+          {...register("city")}
+          error={errors.city?.message}
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Pincode *
-          </label>
-          <input
-            type="text"
-            name="pincode"
-            value={formData.pincode}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-          />
-        </div>
-
-        {/* B2C specific fields */}
-        {customerType === "B2C" && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Company Name *
-              </label>
-              <input
-                type="text"
-                name="companyName"
-                value={formData.companyName}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                GST Type *
-              </label>
-              <select
-                name="gstType"
-                value={formData.gstType}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              >
-                <option value="">Select GST Type</option>
-                <option value="Regular">Regular</option>
-                <option value="Composition">Composition</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                GSTIN *
-              </label>
-              <input
-                type="text"
-                name="gstin"
-                value={formData.gstin}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Contact Name
-              </label>
-              <input
-                type="text"
-                name="contactName"
-                value={formData.contactName}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Contact No.
-              </label>
-              <input
-                type="tel"
-                name="contactNo"
-                value={formData.contactNo}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Contact Email
-              </label>
-              <input
-                type="email"
-                name="contactEmail"
-                value={formData.contactEmail}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              />
-            </div>
-          </>
-        )}
+        <Input
+          label="Pincode *"
+          {...register("pincode")}
+          error={errors.pincode?.message}
+        />
       </div>
 
-      <div className="flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-        >
+      {customerType === "B2C" && (
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-lg font-medium mb-4">
+            B2C Additional Information
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Company Name *"
+              {...register("companyName")}
+              error={errors.companyName?.message}
+            />
+
+            <Select
+              label="GST Type *"
+              {...register("gstType")}
+              error={errors.gstType?.message}
+              options={[
+                { value: "registered", label: "Registered" },
+                { value: "unregistered", label: "Unregistered" },
+                { value: "composition", label: "Composition" },
+              ]}
+            />
+
+            <Input
+              label="GSTIN *"
+              {...register("gstin")}
+              error={errors.gstin?.message}
+            />
+
+            <Input
+              label="Contact Name"
+              {...register("contactName")}
+              error={errors.contactName?.message}
+            />
+
+            <Input
+              label="Contact No."
+              {...register("contactNo")}
+              error={errors.contactNo?.message}
+            />
+
+            <Input
+              label="Contact Email"
+              type="email"
+              {...register("contactEmail")}
+              error={errors.contactEmail?.message}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button type="button" variant="secondary">
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Save Customer"}
-        </button>
+        </Button>
+        <Button type="submit" isLoading={isLoading}>
+          {initialData ? "Update" : "Create"} Customer
+        </Button>
       </div>
     </form>
   );

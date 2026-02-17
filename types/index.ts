@@ -1,71 +1,37 @@
-export interface User {
+// User types
+export interface BaseUser {
   id: string;
   email: string;
-  name: string;
-  role: "admin" | "branch_user";
-  branchId?: string;
-}
-
-export interface Branch {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  pincode: string;
-  phone: string;
-  email: string;
-}
-
-export interface Customer {
-  id: string;
-  type: "B2B" | "B2C";
-  name: string;
-  email: string;
-  mobileNo: string;
-  panNo?: string;
-  telephoneNo?: string;
-  whatsappNo?: string;
-  dateOfBirth?: string;
-  anniversaryDate?: string;
-  addressLine1: string;
-  addressLine2?: string;
-  country: string;
-  state: string;
-  city: string;
-  pincode: string;
-  // B2C specific fields
-  companyName?: string;
-  gstType?: string;
-  gstin?: string;
+  name?: string;
   contactName?: string;
-  contactNo?: string;
-  contactEmail?: string;
-  branchId: string;
-  createdAt: string;
+  companyName?: string;
+  profilePicture?: string;
 }
 
-export interface Product {
-  id: string;
-  itemCode: string;
-  barcode: string;
-  productName: string;
-  unit: string;
-  hsnCode: string;
-  salesTax: number;
-  shortDescription?: string;
-  b2bSalePrice: number;
-  b2cSalePrice: number;
-  purchasePrice: number;
-  branchId: string;
-  createdAt: string;
+export interface AdminUser extends BaseUser {
+  type: "admin";
+  contactNumber?: string;
+  address?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
+  timeZone?: string;
 }
 
+export interface AppUser extends BaseUser {
+  type: "user";
+  branchId?: string;
+  role?: string;
+}
+
+export type User = AdminUser | AppUser;
+
+// Auth types
 export interface LoginCredentials {
   email: string;
   password: string;
-  captchaToken: string;
+  captchaToken?: string;
 }
 
 export interface ApiResponse<T> {
@@ -75,13 +41,70 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-export interface ForgotPasswordRequest {
-  email: string;
-  captchaToken: string;
+// Branch types
+export interface Branch {
+  _id: string;
+  branchName: string;
+  address: string;
+  country: string;
+  state: string;
+  city: string;
+  pincode: string;
+  timeZone: string;
+  branchCode: string;
+  branchGstNumber: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface ResetPasswordRequest {
-  token: string;
-  newPassword: string;
-  confirmPassword: string;
+// Customer types
+export interface BaseCustomer {
+  _id?: string;
+  name: string;
+  email?: string;
+  mobileNo: string;
+  panNo?: string;
+  telephoneNo?: string;
+  whatsAppNo?: string;
+  dateOfBirth?: string;
+  anniversaryDate?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  country: string;
+  state: string;
+  city: string;
+  pincode: string;
+}
+
+export interface B2BCustomer extends BaseCustomer {
+  customerType: "B2B";
+}
+
+export interface B2CCustomer extends BaseCustomer {
+  customerType: "B2C";
+  companyName: string;
+  gstType: string;
+  gstin: string;
+  contactName?: string;
+  contactNo?: string;
+  contactEmail?: string;
+}
+
+export type Customer = B2BCustomer | B2CCustomer;
+
+// Product types
+export interface Product {
+  _id?: string;
+  itemCode?: string;
+  barcode: string;
+  productName: string;
+  unit: string;
+  hsnCode?: string;
+  salesTax: string;
+  shortDescription?: string;
+  b2bSalePrice: string;
+  b2cSalePrice: string;
+  purchasePrice: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

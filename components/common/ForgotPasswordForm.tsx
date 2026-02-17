@@ -5,7 +5,7 @@ import Link from "next/link";
 import ReCAPTCHA from "react-google-recaptcha";
 import { toast } from "react-hot-toast";
 import { apiClient } from "@/lib/api-client";
-import { useApi } from "@/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 
 interface ForgotPasswordFormProps {
   role: "admin" | "user";
