@@ -1,143 +1,227 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import Link from "next/link";
-import ReCAPTCHA from "react-google-recaptcha";
-import { toast } from "react-hot-toast";
-import { apiClient } from "@/lib/api-client";
-import { useApi } from "@/lib/hooks/useApi";
+import { useRouter, useSearchParams } from "next/navigation";
+import { forgotPassword } from "@/lib/api/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import Captcha from "@/components/common/Captcha";
+import { Mail, ArrowLeft, Loader2, User } from "lucide-react";
+import toast from "react-hot-toast";
 
-interface ForgotPasswordFormProps {
-  role: "admin" | "user";
-  onBack: () => void;
-  onSuccess: (email: string) => void;
-}
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  userType: z.union([z.literal("admin"), z.literal("user")]),
+});
 
-export default function ForgotPasswordForm({
-  role,
-  onBack,
-  onSuccess,
-}: ForgotPasswordFormProps) {
-  const [email, setEmail] = useState("");
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+
+export default function ForgotPasswordForm() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const defaultType = searchParams.get("type") === "user" ? "user" : "admin";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+      userType: defaultType,
+    },
+  });
 
-    // if (!captchaToken) {
-    //   toast.error("Please complete the captcha");
-    //   return;
-    // }
+  const email = watch("email");
+  const userType = watch("userType");
 
-    // setLoading(true);
-    // try {
-    //   const response = await apiClient.post(`/auth/${role}/forgot-password`, {
-    //     email,
-    //     captchaToken,
-    //   });
+  const onSubmit = async (data: ForgotPasswordFormData) => {
+    if (!captchaToken) {
+      toast.error("Please complete the captcha");
+      return;
+    }
 
-    //   if (response.success) {
-    //     toast.success("Password reset link sent to your email!");
-    //     onSuccess(email);
-    //   } else {
-    //     toast.error(response.error || "Failed to send reset link");
-    //   }
-    // } catch (error: any) {
-    //   toast.error(error.message || "Something went wrong");
-    // } finally {
-    //   setLoading(false);
-    // }
+    setIsLoading(true);
+    try {
+      const response = await forgotPassword(data.email, data.userType);
+
+      if (response) {
+        setIsSubmitted(true);
+        toast.success(`Password reset link sent to your email!`);
+      }
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      toast.error(error.response?.data?.message || "Failed to send reset link");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  if (isSubmitted) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center text-green-600">
+            Check Your Email
+          </CardTitle>
+          <CardDescription className="text-center">
+            We've sent a password reset link to
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <p className="text-center font-medium text-green-800">{email}</p>
+            <p className="text-center text-sm text-green-600 mt-1 capitalize">
+              ({userType} account)
+            </p>
+          </div>
+          <p className="text-sm text-gray-600 text-center">
+            Click the link in the email to reset your password. If you don't see
+            it, check your spam folder.
+          </p>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(userType === "admin" ? "/admin-login" : "/user-login")
+            }
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Login
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-center text-3xl font-extrabold text-gray-900">
-          Forgot Password
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Enter your email address and we'll send you a link to reset your
-          password.
-        </p>
-      </div>
+    <Card className="w-full max-w-md">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-2xl font-bold text-center">
+          Forgot Password?
+        </CardTitle>
+        <CardDescription className="text-center">
+          Enter your email address and select account type to receive a reset
+          link.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-4">
+            {/* User Type Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Account Type
+              </label>
+              <Select
+                value={userType}
+                onValueChange={(value: "admin" | "user") =>
+                  setValue("userType", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">
+                    <div className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      Admin Account
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="user">
+                    <div className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      User Account
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.userType && (
+                <p className="text-sm text-red-500">
+                  {errors.userType.message}
+                </p>
+              )}
+            </div>
 
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Email address
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Enter your email"
+            {/* Email Input */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  type="email"
+                  {...register("email")}
+                  error={errors.email?.message}
+                  placeholder="Enter your email"
+                  autoComplete="email"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          <Captcha
+            onChange={(token: string | null) => setCaptchaToken(token)}
+            onErrored={() => setCaptchaToken(null)}
           />
-        </div>
 
-        <div className="flex justify-center py-2">
-          <ReCAPTCHA
-            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-            onChange={(token) => setCaptchaToken(token)}
-          />
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            {loading ? (
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
               <>
-                <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                </span>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Sending...
               </>
             ) : (
               "Send Reset Link"
             )}
-          </button>
-        </div>
-
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-sm text-indigo-600 hover:text-indigo-500"
-          >
-            ← Back to login
-          </button>
-        </div>
-      </form>
-    </div>
+          </Button>
+        </form>
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Link
+          href="/admin-login"
+          className="text-sm text-blue-600 hover:text-blue-500 flex items-center"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Admin Login
+        </Link>
+        <Link
+          href="/user-login"
+          className="text-sm text-green-600 hover:text-green-500 flex items-center"
+        >
+          User Login
+          <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+        </Link>
+      </CardFooter>
+    </Card>
   );
 }

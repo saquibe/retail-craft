@@ -1,66 +1,72 @@
 "use client";
 
 import { useAuth } from "@/lib/context/AuthContext";
-import Card from "@/components/ui/Card";
-import { FiUsers, FiPackage, FiShoppingCart } from "react-icons/fi";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2, User as UserIcon, Mail, Calendar } from "lucide-react";
+import { format } from "date-fns";
 
 export default function UserDashboard() {
   const { user } = useAuth();
 
-  const stats = [
-    {
-      name: "Total Customers",
-      value: "0",
-      icon: FiUsers,
-      color: "bg-blue-500",
-    },
-    {
-      name: "Total Products",
-      value: "0",
-      icon: FiPackage,
-      color: "bg-green-500",
-    },
-    {
-      name: "Total Orders",
-      value: "0",
-      icon: FiShoppingCart,
-      color: "bg-purple-500",
-    },
-  ];
-
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">User Dashboard</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {stats.map((stat) => (
-          <Card key={stat.name} className="p-6">
-            <div className="flex items-center">
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <stat.icon className="w-6 h-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">{stat.name}</p>
-                <p className="text-2xl font-semibold">{stat.value}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">User Dashboard</h1>
+        <p className="text-gray-500">Welcome back, {user?.name}!</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Customers</h2>
-          <p className="text-gray-500 text-center py-4">
-            No customers added yet
-          </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* User Profile Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserIcon className="w-5 h-5" />
+              Profile Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <UserIcon className="w-4 h-4 text-gray-400" />
+              <span className="font-medium">Name:</span>
+              <span>{user?.name}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="w-4 h-4 text-gray-400" />
+              <span className="font-medium">Email:</span>
+              <span>{user?.email}</span>
+            </div>
+          </CardContent>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Products</h2>
-          <p className="text-gray-500 text-center py-4">
-            No products added yet
-          </p>
+        {/* Branch Information Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Branch Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {user?.branchName ? (
+              <>
+                <div className="flex items-center gap-2 text-sm">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium">Branch:</span>
+                  <span>{user.branchName}</span>
+                </div>
+                {user.branchCode && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium ml-6">Code:</span>
+                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                      {user.branchCode}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No branch assigned</p>
+            )}
+          </CardContent>
         </Card>
       </div>
     </div>

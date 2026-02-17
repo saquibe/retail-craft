@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import {
   FiHome,
   FiUsers,
-  FiBriefcase,
   FiPackage,
   FiLogOut,
   FiSettings,
+  FiUser,
 } from "react-icons/fi";
 import { useAuth } from "@/lib/context/AuthContext";
 import Image from "next/image";
@@ -16,8 +16,7 @@ import { useEffect, useState } from "react";
 
 const adminMenuItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: FiHome },
-  { name: "Branches", href: "/admin/branches", icon: FiBriefcase },
-  { name: "Users", href: "/admin/users", icon: FiUsers },
+  { name: "Branches", href: "/admin/branches", icon: FiUsers },
   { name: "Profile", href: "/admin/profile", icon: FiSettings },
 ];
 
@@ -25,6 +24,7 @@ const userMenuItems = [
   { name: "Dashboard", href: "/user/dashboard", icon: FiHome },
   { name: "Customers", href: "/user/customers", icon: FiUsers },
   { name: "Products", href: "/user/products", icon: FiPackage },
+  { name: "Profile", href: "/user/profile", icon: FiUser },
 ];
 
 export default function Sidebar() {
@@ -38,11 +38,10 @@ export default function Sidebar() {
     }
   }, [user?.profilePicture]);
 
-  // Don't render sidebar if no user
   if (!user) return null;
 
   const menuItems = user?.type === "admin" ? adminMenuItems : userMenuItems;
-  const displayName = user.contactName || user.name || "User";
+  const displayName = user.name;
   const initial = displayName.charAt(0).toUpperCase();
   const profilePictureUrl = user.profilePicture
     ? `${user.profilePicture}?t=${imageKey}`
@@ -68,7 +67,9 @@ export default function Sidebar() {
                 href={item.href}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
-                    ? "bg-blue-600 text-white"
+                    ? user?.type === "admin"
+                      ? "bg-blue-600 text-white"
+                      : "bg-green-600 text-white"
                     : "text-gray-300 hover:bg-gray-800"
                 }`}
               >
@@ -102,7 +103,11 @@ export default function Sidebar() {
                 />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
+                  user?.type === "admin" ? "bg-blue-600" : "bg-green-600"
+                }`}
+              >
                 {initial}
               </div>
             )}
@@ -110,7 +115,9 @@ export default function Sidebar() {
               <p className="text-sm font-medium text-white truncate">
                 {displayName}
               </p>
-              <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+              <p className="text-xs text-gray-400 truncate">
+                {user?.type === "admin" ? "Administrator" : "Branch User"}
+              </p>
             </div>
           </div>
         </div>

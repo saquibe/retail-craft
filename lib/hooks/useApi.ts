@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { apiClient } from "@/lib/api-client";
 import { ApiResponse } from "@/types";
 
 export const useApi = <T>() => {

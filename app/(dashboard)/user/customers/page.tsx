@@ -1,161 +1,408 @@
 "use client";
 
-import { useState } from "react";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
-import CustomerForm from "@/components/forms/CustomerForm";
-import { FiEdit2, FiTrash2, FiPlus, FiUser } from "react-icons/fi";
-import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/context/AuthContext";
+import {
+  getCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  Customer,
+  CreateCustomerData,
+} from "@/lib/api/customers";
+import CustomerForm, {
+  CustomerFormData,
+} from "@/components/forms/CustomerForm";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Loader2,
+  User,
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+} from "lucide-react";
+import { format } from "date-fns";
+import toast from "react-hot-toast";
 
 export default function CustomersPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const { user } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null,
+  );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "B2B" | "B2C">("all");
 
-  const {
-    customers,
-    isLoading,
-    createCustomer,
-    updateCustomer,
-    deleteCustomer,
-  } = useCustomers(filter);
-
-  const handleSubmit = async (data) => {
-    if (selectedCustomer) {
-      await updateCustomer({ id: selectedCustomer._id, data });
-    } else {
-      await createCustomer(data);
+  // Fetch customers
+  const fetchCustomers = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getCustomers();
+      if (response.success && response.data) {
+        setCustomers(response.data);
+      }
+    } catch (error) {
+      console.error("Fetch customers error:", error);
+      toast.error("Failed to load customers");
+    } finally {
+      setIsLoading(false);
     }
-    setIsModalOpen(false);
-    setSelectedCustomer(null);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this customer?")) {
-      await deleteCustomer(id);
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  // Filter customers based on type and search
+  const filteredCustomers = customers.filter((customer: Customer) => {
+    const matchesType =
+      filterType === "all" || customer.customerType === filterType;
+    const matchesSearch =
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.mobile?.includes(searchTerm) ||
+      customer.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.customerType === "B2B" &&
+        customer.companyName?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return matchesType && matchesSearch;
+  });
+
+  // Handle create customer
+  const handleCreateCustomer = async (data: CustomerFormData) => {
+    try {
+      const response = await createCustomer(data as any);
+      if (response.success) {
+        toast.success("Customer created successfully!");
+        setIsCreateOpen(false);
+        fetchCustomers();
+      }
+    } catch (error: any) {
+      console.error("Create customer error:", error);
+      toast.error(error.response?.data?.message || "Failed to create customer");
     }
   };
 
-  const handleEdit = (customer) => {
-    setSelectedCustomer(customer);
-    setIsModalOpen(true);
+  // Handle update customer
+  const handleUpdateCustomer = async (data: CustomerFormData) => {
+    if (!selectedCustomer) return;
+
+    try {
+      const response = await updateCustomer(selectedCustomer._id, data as any);
+      if (response.success) {
+        toast.success("Customer updated successfully!");
+        setIsEditOpen(false);
+        setSelectedCustomer(null);
+        fetchCustomers();
+      }
+    } catch (error: any) {
+      console.error("Update customer error:", error);
+      toast.error(error.response?.data?.message || "Failed to update customer");
+    }
   };
 
-  const filteredCustomers =
-    filter === "all"
-      ? customers
-      : customers.filter((c) => c.customerType === filter);
+  // Handle delete customer
+  const handleDeleteCustomer = async () => {
+    if (!selectedCustomer) return;
+
+    try {
+      const response = await deleteCustomer(selectedCustomer._id);
+      if (response.success) {
+        toast.success("Customer deleted successfully!");
+        setIsDeleteOpen(false);
+        setSelectedCustomer(null);
+        fetchCustomers();
+      }
+    } catch (error: any) {
+      console.error("Delete customer error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete customer");
+    }
+  };
+
+  // Get customer type badge color
+  const getTypeBadge = (type: string) => {
+    return type === "B2B"
+      ? "bg-purple-100 text-purple-800"
+      : "bg-green-100 text-green-800";
+  };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Customers</h1>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <FiPlus className="w-4 h-4 mr-2" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Customers</h1>
+          <p className="text-gray-500">Manage your B2B and B2C customers</p>
+        </div>
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
           Add Customer
         </Button>
       </div>
 
-      <div className="mb-6 flex space-x-2">
-        <Button
-          variant={filter === "all" ? "primary" : "secondary"}
-          size="small"
-          onClick={() => setFilter("all")}
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Tabs
+          value={filterType}
+          onValueChange={(v: string) =>
+            setFilterType(v as "all" | "B2B" | "B2C")
+          }
+          className="w-full sm:w-auto"
         >
-          All
-        </Button>
-        <Button
-          variant={filter === "B2B" ? "primary" : "secondary"}
-          size="small"
-          onClick={() => setFilter("B2B")}
-        >
-          B2B
-        </Button>
-        <Button
-          variant={filter === "B2C" ? "primary" : "secondary"}
-          size="small"
-          onClick={() => setFilter("B2C")}
-        >
-          B2C
-        </Button>
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="B2B">B2B</TabsTrigger>
+            <TabsTrigger value="B2C">B2C</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Search customers by name, email, phone, city..."
+            value={searchTerm}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearchTerm(e.target.value)
+            }
+            className="pl-10"
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCustomers.map((customer) => (
-          <Card key={customer._id} className="p-6">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <FiUser className="w-5 h-5 text-blue-600" />
+      {/* Customers Grid */}
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      ) : filteredCustomers.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <User className="w-12 h-12 text-gray-400 mb-4" />
+            <p className="text-gray-500 text-lg mb-2">No customers found</p>
+            <p className="text-gray-400 text-sm">
+              {searchTerm || filterType !== "all"
+                ? "Try adjusting your filters"
+                : "Click the button above to add your first customer"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCustomers.map((customer: Customer) => (
+            <Card
+              key={customer._id}
+              className="hover:shadow-lg transition-shadow"
+            >
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    {customer.customerType === "B2B" ? (
+                      <Building2 className="w-5 h-5 text-purple-600" />
+                    ) : (
+                      <User className="w-5 h-5 text-green-600" />
+                    )}
+                    <div>
+                      <CardTitle className="text-lg">{customer.name}</CardTitle>
+                      <Badge className={getTypeBadge(customer.customerType)}>
+                        {customer.customerType}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <h3 className="font-semibold">{customer.name}</h3>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      customer.customerType === "B2B"
-                        ? "bg-purple-100 text-purple-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {customer.customerType}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Contact Info */}
+                <div className="space-y-2">
+                  {customer.email && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <span>{customer.email}</span>
+                    </div>
+                  )}
+                  {customer.mobile && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      <span>{customer.mobile}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  <span>
+                    {customer.city}, {customer.state}, {customer.country}
                   </span>
                 </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEdit(customer)}
-                  className="text-gray-500 hover:text-blue-600"
-                >
-                  <FiEdit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(customer._id)}
-                  className="text-gray-500 hover:text-red-600"
-                >
-                  <FiTrash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
 
-            <div className="space-y-2 text-sm">
-              <p className="text-gray-600">
-                <span className="font-medium">Email:</span>{" "}
-                {customer.email || "N/A"}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Mobile:</span> {customer.mobileNo}
-              </p>
-              <p className="text-gray-600">
-                <span className="font-medium">Location:</span> {customer.city},{" "}
-                {customer.country}
-              </p>
-              {customer.customerType === "B2C" && (
-                <p className="text-gray-600">
-                  <span className="font-medium">Company:</span>{" "}
-                  {customer.companyName}
+                {/* B2B Specific Info */}
+                {customer.customerType === "B2B" && customer.companyName && (
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Briefcase className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium">
+                        {customer.companyName}
+                      </span>
+                    </div>
+                    {customer.gstIn && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        GST: {customer.gstIn}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-400">
+                  Added: {format(new Date(customer.createdAt), "dd MMM yyyy")}
                 </p>
-              )}
-            </div>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+              <CardFooter className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setIsEditOpen(true);
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setIsDeleteOpen(true);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedCustomer(null);
-        }}
-        title={selectedCustomer ? "Edit Customer" : "Add New Customer"}
-        size="large"
-      >
-        <CustomerForm
-          initialData={selectedCustomer}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-        />
-      </Modal>
+      {/* Create Customer Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Customer</DialogTitle>
+          </DialogHeader>
+          <CustomerForm
+            onSubmit={handleCreateCustomer}
+            isLoading={isLoading}
+            onCancel={() => setIsCreateOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
+            <CustomerForm
+              initialData={{
+                customerType: selectedCustomer.customerType,
+                name: selectedCustomer.name,
+                email: selectedCustomer.email,
+                mobile: selectedCustomer.mobile,
+                country: selectedCustomer.country,
+                state: selectedCustomer.state,
+                city: selectedCustomer.city,
+                ...(selectedCustomer.customerType === "B2B" && {
+                  companyName: selectedCustomer.companyName,
+                  GstRegistrationType: selectedCustomer.GstRegistrationType,
+                  gstIn: selectedCustomer.gstIn,
+                  contactName: selectedCustomer.contactName,
+                  contactNumber: selectedCustomer.contactNumber,
+                  contactEmail: selectedCustomer.contactEmail,
+                }),
+              }}
+              onSubmit={handleUpdateCustomer}
+              isLoading={isLoading}
+              onCancel={() => {
+                setIsEditOpen(false);
+                setSelectedCustomer(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              customer "{selectedCustomer?.name}" and remove all associated
+              data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedCustomer(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCustomer}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

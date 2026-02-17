@@ -8,6 +8,8 @@ import {
   adminLogout,
   getAdminProfile,
   userLogin,
+  userLogout,
+  getUserProfile,
 } from "../api/auth";
 import toast from "react-hot-toast";
 
@@ -54,43 +56,66 @@ export const AuthProvider = ({ children }) => {
         const userData = JSON.parse(storedUser);
         console.log("checkAuth - userData from storage:", userData);
         setUser(userData);
-      } else if (token && userType === "admin") {
-        // If no stored user but has token, fetch profile
-        console.log("checkAuth - fetching admin profile");
+      } else if (token && userType) {
+        // If no stored user but has token, fetch profile based on user type
+        console.log(`checkAuth - fetching ${userType} profile`);
         try {
-          const profile = await getAdminProfile();
+          let profile;
+          if (userType === "admin") {
+            profile = await getAdminProfile();
+          } else {
+            profile = await getUserProfile();
+          }
+
           console.log("checkAuth - profile fetched:", profile);
-          const userData = {
-            id: profile._id,
-            email: profile.email,
-            name: profile.contactName || profile.companyName || "Admin",
-            contactName: profile.contactName,
-            companyName: profile.companyName,
-            type: "admin",
-            profilePicture: profile.profilePicture,
-            // Include other fields as needed
-            contactNumber: profile.contactNumber,
-            teliphoneNumber: profile.teliphoneNumber,
-            address: profile.address,
-            country: profile.country,
-            state: profile.state,
-            city: profile.city,
-            pincode: profile.pincode,
-            timeZone: profile.timeZone,
-            websiteLink: profile.websiteLink,
-            panNumber: profile.panNumber,
-            GstRegistrationType: profile.GstRegistrationType,
-            gstIn: profile.gstIn,
-            cinNumber: profile.cinNumber,
-            fssaiNumber: profile.fssaiNumber,
-            lutNumber: profile.lutNumber,
-            tanNumber: profile.tanNumber,
-            iecNumber: profile.iecNumber,
-          };
+
+          let userData;
+          if (userType === "admin") {
+            userData = {
+              id: profile._id,
+              email: profile.email,
+              name: profile.contactName || profile.companyName || "Admin",
+              contactName: profile.contactName,
+              companyName: profile.companyName,
+              type: "admin",
+              profilePicture: profile.profilePicture,
+              contactNumber: profile.contactNumber,
+              teliphoneNumber: profile.teliphoneNumber,
+              address: profile.address,
+              country: profile.country,
+              state: profile.state,
+              city: profile.city,
+              pincode: profile.pincode,
+              timeZone: profile.timeZone,
+              websiteLink: profile.websiteLink,
+              panNumber: profile.panNumber,
+              GstRegistrationType: profile.GstRegistrationType,
+              gstIn: profile.gstIn,
+              cinNumber: profile.cinNumber,
+              fssaiNumber: profile.fssaiNumber,
+              lutNumber: profile.lutNumber,
+              tanNumber: profile.tanNumber,
+              iecNumber: profile.iecNumber,
+              financialStartDate: profile.financialStartDate,
+              financialEndDate: profile.financialEndDate,
+            };
+          } else {
+            userData = {
+              id: profile._id,
+              email: profile.email,
+              name: profile.name,
+              type: "user",
+              profilePicture: profile.profilePicture,
+              branchId: profile.branchId?._id || profile.branchId,
+              branchName: profile.branchId?.branchName,
+              branchCode: profile.branchId?.branchCode,
+            };
+          }
+
           setUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
         } catch (error) {
-          console.error("Failed to fetch profile:", error);
+          console.error(`Failed to fetch ${userType} profile:`, error);
           logout();
         }
       } else {
@@ -135,43 +160,59 @@ export const AuthProvider = ({ children }) => {
         // Create user object based on response structure
         let userData;
         if (type === "admin") {
+          const adminData = response.admin || response;
           userData = {
-            id: response.admin?.id || response.admin?._id,
-            email: response.admin?.email,
-            name:
-              response.admin?.contactName ||
-              response.admin?.companyName ||
-              "Admin",
-            contactName: response.admin?.contactName,
-            companyName: response.admin?.companyName,
+            id: adminData.id || adminData._id,
+            email: adminData.email,
+            name: adminData.contactName || adminData.companyName || "Admin",
+            contactName: adminData.contactName,
+            companyName: adminData.companyName,
             type: "admin",
-            profilePicture: response.admin?.profilePicture,
-            contactNumber: response.admin?.contactNumber,
-            teliphoneNumber: response.admin?.teliphoneNumber,
-            address: response.admin?.address,
-            country: response.admin?.country,
-            state: response.admin?.state,
-            city: response.admin?.city,
-            pincode: response.admin?.pincode,
-            timeZone: response.admin?.timeZone,
-            websiteLink: response.admin?.websiteLink,
-            panNumber: response.admin?.panNumber,
-            GstRegistrationType: response.admin?.GstRegistrationType,
-            gstIn: response.admin?.gstIn,
-            cinNumber: response.admin?.cinNumber,
-            fssaiNumber: response.admin?.fssaiNumber,
-            lutNumber: response.admin?.lutNumber,
-            tanNumber: response.admin?.tanNumber,
-            iecNumber: response.admin?.iecNumber,
+            profilePicture: adminData.profilePicture,
+            contactNumber: adminData.contactNumber,
+            teliphoneNumber: adminData.teliphoneNumber,
+            address: adminData.address,
+            country: adminData.country,
+            state: adminData.state,
+            city: adminData.city,
+            pincode: adminData.pincode,
+            timeZone: adminData.timeZone,
+            websiteLink: adminData.websiteLink,
+            panNumber: adminData.panNumber,
+            GstRegistrationType: adminData.GstRegistrationType,
+            gstIn: adminData.gstIn,
+            cinNumber: adminData.cinNumber,
+            fssaiNumber: adminData.fssaiNumber,
+            lutNumber: adminData.lutNumber,
+            tanNumber: adminData.tanNumber,
+            iecNumber: adminData.iecNumber,
           };
         } else {
+          const userData_response = response.user || response;
+          // Normalize branch information which may be returned as `branch`, `branchId`,
+          // or nested objects with different id field names (`id` or `_id`).
+          const branchObj =
+            userData_response.branch || userData_response.branchId || null;
+          const branchId =
+            (userData_response.branch &&
+              (userData_response.branch.id || userData_response.branch._id)) ||
+            (userData_response.branchId &&
+              (userData_response.branchId._id ||
+                userData_response.branchId.id ||
+                userData_response.branchId)) ||
+            null;
+
           userData = {
-            id: response.user?.id || response.user?._id,
-            email: response.user?.email,
-            name: response.user?.name || response.user?.contactName || "User",
+            id: userData_response.id || userData_response._id,
+            email: userData_response.email,
+            name: userData_response.name,
             type: "user",
-            branchId: response.user?.branchId,
-            profilePicture: response.user?.profilePicture,
+            profilePicture: userData_response.profilePicture,
+            branchId: branchId,
+            branchName:
+              branchObj?.branchName || userData_response.branchName || null,
+            branchCode:
+              branchObj?.branchCode || userData_response.branchCode || null,
           };
         }
 
@@ -206,7 +247,12 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     console.log("logout called");
     try {
-      await adminLogout();
+      const userType = localStorage.getItem("userType");
+      if (userType === "admin") {
+        await adminLogout();
+      } else {
+        await userLogout();
+      }
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
@@ -237,7 +283,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-    updateUser, // Make sure to include this
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
