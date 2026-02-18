@@ -12,37 +12,37 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setIsClient(true);
-    console.log("AdminDashboard - Component mounted");
+    // console.log("AdminDashboard - Component mounted");
   }, []);
 
   useEffect(() => {
-    console.log("AdminDashboard - useEffect triggered", {
-      isClient,
-      loading,
-      user: user ? { id: user.id, name: user.name, type: user.type } : null,
-      path: window.location.pathname,
-    });
+    // console.log("AdminDashboard - useEffect triggered", {
+    //   isClient,
+    //   loading,
+    //   user: user ? { id: user.id, name: user.name, type: user.type } : null,
+    //   path: window.location.pathname,
+    // });
 
     // Only run this on the client side and after loading is complete
     if (isClient && !loading) {
-      console.log("AdminDashboard - checking auth state");
+      // console.log("AdminDashboard - checking auth state");
 
       // If no user and not loading, redirect to home
       if (!user) {
-        console.log("AdminDashboard - NO USER FOUND! Redirecting to home");
+        // console.log("AdminDashboard - NO USER FOUND! Redirecting to home");
         router.push("/");
       } else {
-        console.log("AdminDashboard - USER FOUND! Rendering dashboard");
+        // console.log("AdminDashboard - USER FOUND! Rendering dashboard");
       }
     }
   }, [isClient, loading, user, router]);
 
   // Show loading state
   if (loading || !isClient) {
-    console.log("AdminDashboard - rendering loading state", {
-      loading,
-      isClient,
-    });
+    // console.log("AdminDashboard - rendering loading state", {
+    //   loading,
+    //   isClient,
+    // });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -55,11 +55,11 @@ export default function AdminDashboard() {
 
   // If no user, don't render anything (will redirect)
   if (!user) {
-    console.log("AdminDashboard - no user, rendering null");
+    // console.log("AdminDashboard - no user, rendering null");
     return null;
   }
 
-  console.log("AdminDashboard - rendering with user:", user.name);
+  // console.log("AdminDashboard - rendering with user:", user.name);
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

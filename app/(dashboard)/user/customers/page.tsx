@@ -231,11 +231,11 @@ export default function CustomersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {filteredCustomers.map((customer: Customer) => (
             <Card
               key={customer._id}
-              className="hover:shadow-lg transition-shadow"
+              className="hover:shadow-lg transition-shadow flex flex-col h-full"
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -254,7 +254,7 @@ export default function CustomersPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 flex-1">
                 {/* Contact Info */}
                 <div className="space-y-2">
                   {customer.email && (
@@ -300,7 +300,7 @@ export default function CustomersPage() {
                   Added: {format(new Date(customer.createdAt), "dd MMM yyyy")}
                 </p>
               </CardContent>
-              <CardFooter className="flex justify-end space-x-2">
+              <CardFooter className="flex justify-end space-x-2 mt-auto border-t pt-4">
                 <Button
                   variant="outline"
                   size="sm"

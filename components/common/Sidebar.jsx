@@ -9,9 +9,9 @@ import {
   FiLogOut,
   FiSettings,
   FiUser,
+  FiX,
 } from "react-icons/fi";
 import { useAuth } from "@/lib/context/AuthContext";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const adminMenuItems = [
@@ -27,101 +27,82 @@ const userMenuItems = [
   { name: "Profile", href: "/user/profile", icon: FiUser },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const [imageKey, setImageKey] = useState(Date.now());
-
-  useEffect(() => {
-    if (user?.profilePicture) {
-      setImageKey(Date.now());
-    }
-  }, [user?.profilePicture]);
 
   if (!user) return null;
 
   const menuItems = user?.type === "admin" ? adminMenuItems : userMenuItems;
-  const displayName = user.name;
-  const initial = displayName.charAt(0).toUpperCase();
-  const profilePictureUrl = user.profilePicture
-    ? `${user.profilePicture}?t=${imageKey}`
-    : null;
 
   const handleLogout = async () => {
     await logout();
   };
 
   return (
-    <div className="h-screen w-64 bg-gray-900 text-white fixed left-0 top-0 overflow-y-auto">
-      <div className="p-4 flex flex-col h-full">
-        <h1 className="text-2xl font-bold text-center mb-8 text-white">
-          RetailCraft
-        </h1>
+    <>
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        <nav className="space-y-2 flex-1">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
-                    ? user?.type === "admin"
-                      ? "bg-blue-600 text-white"
-                      : "bg-green-600 text-white"
-                    : "text-gray-300 hover:bg-gray-800"
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Sidebar */}
+      <div
+        className={`
+          fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-50
+          transform transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+        `}
+      >
+        <div className="p-4 flex flex-col h-full">
+          {/* Mobile Close */}
+          <div className="flex justify-between items-center mb-6 lg:hidden">
+            <h1 className="text-xl font-bold">RetailCraft</h1>
+            <button onClick={() => setSidebarOpen(false)}>
+              <FiX size={22} />
+            </button>
+          </div>
 
-        {/* User info at bottom of sidebar */}
-        <div className="pt-4 border-t border-gray-800">
+          <h1 className="text-2xl font-bold text-center mb-8 hidden lg:block">
+            RetailCraft
+          </h1>
+
+          <nav className="space-y-2 flex-1">
+            {menuItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive
+                      ? user?.type === "admin"
+                        ? "bg-blue-600"
+                        : "bg-green-600"
+                      : "hover:bg-gray-800 text-gray-300"
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-800 transition-colors mb-4"
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-800 text-gray-300"
           >
             <FiLogOut className="w-5 h-5" />
             <span>Logout</span>
           </button>
-
-          <div className="flex items-center space-x-3 px-2">
-            {profilePictureUrl ? (
-              <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                <Image
-                  src={profilePictureUrl}
-                  alt="Profile"
-                  width={32}
-                  height={32}
-                  className="rounded-full object-cover"
-                  key={imageKey}
-                />
-              </div>
-            ) : (
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                  user?.type === "admin" ? "bg-blue-600" : "bg-green-600"
-                }`}
-              >
-                {initial}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {displayName}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {user?.type === "admin" ? "Administrator" : "Branch User"}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

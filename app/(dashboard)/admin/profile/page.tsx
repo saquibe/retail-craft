@@ -97,7 +97,7 @@ export default function AdminProfile() {
       try {
         setIsFetching(true);
         const response = await getAdminProfile();
-        console.log("Fetched profile:", response);
+        // console.log("Fetched profile:", response);
         setProfileData(response);
 
         // Map the response to form fields
@@ -197,7 +197,7 @@ export default function AdminProfile() {
         formData.append("profilePicture", profileImage);
       }
 
-      console.log("Submitting form data:", Object.fromEntries(formData));
+      // console.log("Submitting form data:", Object.fromEntries(formData));
 
       const response = await updateAdminProfile(formData);
 

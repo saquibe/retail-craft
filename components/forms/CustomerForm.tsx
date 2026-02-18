@@ -281,7 +281,7 @@ export default function CustomerForm({
             control={control}
             render={({ field }) => (
               <SearchSelect
-                label="Country *"
+                label="Country"
                 options={countries}
                 value={field.value}
                 onChange={field.onChange}
@@ -298,7 +298,7 @@ export default function CustomerForm({
             control={control}
             render={({ field }) => (
               <SearchSelect
-                label="State *"
+                label="State"
                 options={states}
                 value={field.value}
                 onChange={field.onChange}
@@ -318,7 +318,7 @@ export default function CustomerForm({
             control={control}
             render={({ field }) => (
               <SearchSelect
-                label="City *"
+                label="City"
                 options={cities}
                 value={field.value}
                 onChange={field.onChange}

@@ -35,18 +35,38 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const response = await axios.get(`${baseURL}/admin/refresh-token`, {
+        const userType = localStorage.getItem("userType");
+
+        const refreshUrl =
+          userType === "admin"
+            ? `${baseURL}/admin/refresh-token`
+            : `${baseURL}/users/refresh-token`;
+
+        const response = await axios.get(refreshUrl, {
           withCredentials: true,
         });
 
         if (response.data.accessToken) {
-          Cookies.set("accessToken", response.data.accessToken);
+          Cookies.set("accessToken", response.data.accessToken, {
+            expires: 7,
+            sameSite: "strict",
+            path: "/",
+          });
+
           originalRequest.headers.Authorization = `Bearer ${response.data.accessToken}`;
+
           return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
-        // Redirect to login
-        window.location.href = "/admin-login";
+        // Redirect based on type
+        const userType = localStorage.getItem("userType");
+
+        if (userType === "admin") {
+          window.location.href = "/admin-login";
+        } else {
+          window.location.href = "/user-login";
+        }
+
         return Promise.reject(refreshError);
       }
     }

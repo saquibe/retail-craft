@@ -30,35 +30,35 @@ export const AuthProvider = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("AuthProvider mounted");
+    // console.log("AuthProvider mounted");
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
-    console.log("checkAuth started");
+    // console.log("checkAuth started");
     try {
       const token = Cookies.get("accessToken");
       const userType = localStorage.getItem("userType");
       const storedUser = localStorage.getItem("user");
 
-      console.log(
-        "checkAuth - token:",
-        !!token,
-        "userType:",
-        userType,
-        "storedUser:",
-        !!storedUser,
-      );
-      console.log("Current path:", window.location.pathname);
+      // console.log(
+      //   "checkAuth - token:",
+      //   !!token,
+      //   "userType:",
+      //   userType,
+      //   "storedUser:",
+      //   !!storedUser,
+      // );
+      // console.log("Current path:", window.location.pathname);
 
       if (token && userType && storedUser) {
         // If we have stored user data, use it
         const userData = JSON.parse(storedUser);
-        console.log("checkAuth - userData from storage:", userData);
+        // console.log("checkAuth - userData from storage:", userData);
         setUser(userData);
       } else if (token && userType) {
         // If no stored user but has token, fetch profile based on user type
-        console.log(`checkAuth - fetching ${userType} profile`);
+        // console.log(`checkAuth - fetching ${userType} profile`);
         try {
           let profile;
           if (userType === "admin") {
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
             profile = await getUserProfile();
           }
 
-          console.log("checkAuth - profile fetched:", profile);
+          // console.log("checkAuth - profile fetched:", profile);
 
           let userData;
           if (userType === "admin") {
@@ -100,18 +100,33 @@ export const AuthProvider = ({ children }) => {
               financialEndDate: profile.financialEndDate,
             };
           } else {
+            // For users, we need to preserve branch info
+            // Check if storedUser exists and has branch info
+            let branchName = null;
+            let branchCode = null;
+            let branchId = null;
+
+            if (storedUser) {
+              const oldUserData = JSON.parse(storedUser);
+              branchName = oldUserData.branchName;
+              branchCode = oldUserData.branchCode;
+              branchId = oldUserData.branchId;
+            }
+
             userData = {
               id: profile._id,
               email: profile.email,
               name: profile.name,
               type: "user",
               profilePicture: profile.profilePicture,
-              branchId: profile.branchId?._id || profile.branchId,
-              branchName: profile.branchId?.branchName,
-              branchCode: profile.branchId?.branchCode,
+              // Use stored branch info if available, otherwise try to get from profile
+              branchId: branchId || profile.branchId?._id || profile.branchId,
+              branchName: branchName || profile.branchId?.branchName,
+              branchCode: branchCode || profile.branchId?.branchCode,
             };
           }
 
+          // console.log("Setting user data from checkAuth:", userData);
           setUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
         } catch (error) {
@@ -119,7 +134,7 @@ export const AuthProvider = ({ children }) => {
           logout();
         }
       } else {
-        console.log("checkAuth - no valid auth found");
+        // console.log("checkAuth - no valid auth found");
         // Clear any invalid data
         if (token) Cookies.remove("accessToken", { path: "/" });
         localStorage.removeItem("userType");
@@ -129,12 +144,12 @@ export const AuthProvider = ({ children }) => {
       console.error("Auth check failed:", error);
     } finally {
       setLoading(false);
-      console.log("checkAuth completed, loading set to false");
+      // console.log("checkAuth completed, loading set to false");
     }
   };
 
   const login = async (email, password, captchaToken, type = "admin") => {
-    console.log("login function called with type:", type);
+    // console.log("login function called with type:", type);
     try {
       let response;
       if (type === "admin") {
@@ -143,10 +158,10 @@ export const AuthProvider = ({ children }) => {
         response = await userLogin(email, password, captchaToken);
       }
 
-      console.log("Login response:", response);
+      // console.log("Login response:", response);
 
       if (response.accessToken) {
-        console.log("Access token received, setting cookies and storage");
+        // console.log("Access token received, setting cookies and storage");
 
         // Set cookie with proper options
         Cookies.set("accessToken", response.accessToken, {
@@ -188,42 +203,70 @@ export const AuthProvider = ({ children }) => {
             iecNumber: adminData.iecNumber,
           };
         } else {
-          const userData_response = response.user || response;
-          // Normalize branch information which may be returned as `branch`, `branchId`,
-          // or nested objects with different id field names (`id` or `_id`).
-          const branchObj =
-            userData_response.branch || userData_response.branchId || null;
-          const branchId =
-            (userData_response.branch &&
-              (userData_response.branch.id || userData_response.branch._id)) ||
-            (userData_response.branchId &&
-              (userData_response.branchId._id ||
-                userData_response.branchId.id ||
-                userData_response.branchId)) ||
-            null;
+          const loginUserData = response.user;
 
+          // console.log("User login data:", loginUserData);
+
+          // Extract branch info from login response
+          let branchId = null;
+          let branchName = null;
+          let branchCode = null;
+
+          if (loginUserData?.branch) {
+            branchId = loginUserData.branch.id;
+            branchName = loginUserData.branch.branchName;
+            branchCode = loginUserData.branch.branchCode;
+            // console.log("Branch info from login:", {
+            //   branchId,
+            //   branchName,
+            //   branchCode,
+            // });
+          }
+
+          // Create user data from login response first
           userData = {
-            id: userData_response.id || userData_response._id,
-            email: userData_response.email,
-            name: userData_response.name,
+            id: loginUserData.id,
+            email: loginUserData.email,
+            name: loginUserData.name,
             type: "user",
-            profilePicture: userData_response.profilePicture,
+            profilePicture: loginUserData.profilePicture || null,
             branchId: branchId,
-            branchName:
-              branchObj?.branchName || userData_response.branchName || null,
-            branchCode:
-              branchObj?.branchCode || userData_response.branchCode || null,
+            branchName: branchName,
+            branchCode: branchCode,
           };
+
+          // Optionally fetch full profile to get additional data like profile picture
+          try {
+            const profile = await getUserProfile();
+            // console.log("Profile data:", profile);
+            if (profile) {
+              // Merge profile data with login data, preserving branch info
+              userData = {
+                ...userData,
+                id: profile._id || userData.id,
+                email: profile.email || userData.email,
+                name: profile.name || userData.name,
+                profilePicture:
+                  profile.profilePicture || userData.profilePicture,
+                // Keep branch info from login response if profile doesn't have it
+                branchId: profile.branchId?._id || profile.branchId || branchId,
+                branchName: profile.branchId?.branchName || branchName,
+                branchCode: profile.branchId?.branchCode || branchCode,
+              };
+            }
+          } catch (profileError) {
+            // console.log("Could not fetch profile, using login data only");
+          }
         }
 
-        console.log("Setting user data:", userData);
+        // console.log("Setting user data:", userData);
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
 
         toast.success("Login successful!");
 
         // Use window.location for hard redirect
-        console.log("Redirecting to dashboard with window.location");
+        // console.log("Redirecting to dashboard with window.location");
 
         if (type === "admin") {
           window.location.href = "/admin/dashboard";
@@ -245,7 +288,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    console.log("logout called");
+    // console.log("logout called");
     try {
       const userType = localStorage.getItem("userType");
       if (userType === "admin") {
@@ -269,7 +312,7 @@ export const AuthProvider = ({ children }) => {
 
   // Add updateUser function
   const updateUser = (updatedData) => {
-    console.log("Updating user with:", updatedData);
+    // console.log("Updating user with:", updatedData);
     setUser((prevUser) => {
       const newUser = { ...prevUser, ...updatedData };
       // Update localStorage

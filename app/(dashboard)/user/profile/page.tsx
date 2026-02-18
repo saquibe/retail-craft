@@ -54,7 +54,30 @@ export default function UserProfile() {
         setIsFetching(true);
         const response = await getUserProfile();
         console.log("Fetched user profile:", response);
-        setProfileData(response);
+
+        // Get current branch info from user context (from login)
+        const currentBranchName = user?.branchName;
+        const currentBranchCode = user?.branchCode;
+        const currentBranchId = user?.branchId;
+
+        console.log("Current branch info from user context:", {
+          currentBranchName,
+          currentBranchCode,
+          currentBranchId,
+        });
+
+        // Merge profile data with existing branch info from user context
+        const mergedProfile = {
+          ...response,
+          // Preserve branch info from user context (which came from login)
+          branchName: currentBranchName || response.branchId?.branchName,
+          branchCode: currentBranchCode || response.branchId?.branchCode,
+          branchId:
+            currentBranchId || response.branchId?._id || response.branchId,
+        };
+
+        console.log("Merged profile:", mergedProfile);
+        setProfileData(mergedProfile);
 
         reset({
           name: response.name || "",
@@ -71,8 +94,10 @@ export default function UserProfile() {
       }
     };
 
-    fetchProfile();
-  }, [reset]);
+    if (user) {
+      fetchProfile();
+    }
+  }, [reset, user]);
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,8 +126,7 @@ export default function UserProfile() {
         formData.append("profilePicture", profileImage);
       }
 
-      console.log("Submitting form data:", Object.fromEntries(formData));
-
+      console.log("Submitting form data");
       const response = await updateUserProfile(formData);
 
       if (response) {
@@ -110,15 +134,36 @@ export default function UserProfile() {
 
         // Refresh profile data
         const updatedProfile = await getUserProfile();
-        setProfileData(updatedProfile);
 
-        // Update user in context
+        // Get current branch info from user context (preserve it)
+        const currentBranchName = user?.branchName;
+        const currentBranchCode = user?.branchCode;
+        const currentBranchId = user?.branchId;
+
+        console.log("Preserving branch info:", {
+          currentBranchName,
+          currentBranchCode,
+          currentBranchId,
+        });
+
+        // Update user in context while preserving branch info
         if (updateUser) {
           updateUser({
             name: updatedProfile.name,
             profilePicture: updatedProfile.profilePicture,
+            // Preserve branch info from user context
+            branchName: currentBranchName,
+            branchCode: currentBranchCode,
+            branchId: currentBranchId,
           });
         }
+
+        // Update local profile data
+        setProfileData({
+          ...updatedProfile,
+          branchName: currentBranchName,
+          branchCode: currentBranchCode,
+        });
 
         setProfileImage(null);
       }
@@ -130,13 +175,48 @@ export default function UserProfile() {
     }
   };
 
+  // Helper function to get branch info from various sources
+  const getBranchInfo = () => {
+    console.log("Getting branch info from:", { profileData, user });
+
+    // Try from profileData first (merged data)
+    if (profileData) {
+      if (profileData.branchName || profileData.branchCode) {
+        return {
+          name: profileData.branchName,
+          code: profileData.branchCode,
+        };
+      }
+      // Check if branchId is an object with branch details
+      if (profileData.branchId && typeof profileData.branchId === "object") {
+        return {
+          name: profileData.branchId.branchName,
+          code: profileData.branchId.branchCode,
+        };
+      }
+    }
+
+    // Then try from user context (which has branch info from login)
+    if (user) {
+      return {
+        name: user.branchName,
+        code: user.branchCode,
+      };
+    }
+
+    return { name: null, code: null };
+  };
+
   if (isFetching) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
+
+  const branchInfo = getBranchInfo();
+  console.log("Branch info to display:", branchInfo);
 
   return (
     <div className="space-y-6">
@@ -158,7 +238,7 @@ export default function UserProfile() {
               <Avatar className="w-24 h-24">
                 <AvatarImage src={imagePreview || ""} />
                 <AvatarFallback className="text-2xl bg-green-100 text-green-600">
-                  {profileData?.name?.charAt(0) || "U"}
+                  {profileData?.name?.charAt(0) || user?.name?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -194,75 +274,67 @@ export default function UserProfile() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Full Name"
-                {...register("name")}
-                error={errors.name?.message}
-                placeholder="Enter your name"
-                required
-              />
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    {...register("name")}
+                    error={errors.name?.message}
+                    placeholder="Enter your name"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
 
-              <Input
-                label="Email"
-                type="email"
-                value={profileData?.email || ""}
-                placeholder="Email cannot be changed"
-                disabled
-                className="bg-gray-50"
-              />
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="email"
+                    value={profileData?.email || user?.email || ""}
+                    placeholder="Email cannot be changed"
+                    disabled
+                    className="pl-10 bg-gray-50"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Branch Information (Read-only) */}
-            {(() => {
-              const branchName =
-                profileData?.branchId?.branchName ||
-                profileData?.branch?.branchName ||
-                user?.branchName ||
-                profileData?.branchName ||
-                null;
-
-              const branchCode =
-                profileData?.branchId?.branchCode ||
-                profileData?.branch?.branchCode ||
-                user?.branchCode ||
-                profileData?.branchCode ||
-                null;
-
-              if (!branchName && !branchCode) return null;
-
-              return (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    Branch Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Branch Name</p>
-                      <p className="text-sm font-medium">
-                        {branchName || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Branch Code</p>
-                      <p className="text-sm font-medium">
-                        {branchCode || "N/A"}
-                      </p>
-                    </div>
+            {(branchInfo.name || branchInfo.code) && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Branch Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Branch Name</p>
+                    <p className="text-sm font-medium">
+                      {branchInfo.name || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Branch Code</p>
+                    <p className="text-sm font-medium">
+                      {branchInfo.code || "N/A"}
+                    </p>
                   </div>
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Submit Button */}
         <div className="flex justify-end">
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="min-w-[120px] bg-green-600 hover:bg-green-700"
-          >
+          <Button type="submit" disabled={isLoading} className="min-w-[120px]">
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

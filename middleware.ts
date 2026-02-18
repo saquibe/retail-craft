@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get("accessToken")?.value;
   const path = request.nextUrl.pathname;
 
-  console.log("Middleware - path:", path, "token:", !!token);
+  // console.log("Middleware - path:", path, "token:", !!token);
 
   // Public paths that don't require authentication
   const isPublicPath =
@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   // Token exists, allow access
   // Let the client-side AuthContext handle role-based redirects
-  console.log("Middleware - token exists, allowing access to:", path);
+  // console.log("Middleware - token exists, allowing access to:", path);
   return NextResponse.next();
 }
 

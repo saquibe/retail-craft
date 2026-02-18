@@ -198,11 +198,11 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {filteredProducts.map((product) => (
             <Card
               key={product._id}
-              className="hover:shadow-lg transition-shadow"
+              className="hover:shadow-lg transition-shadow flex flex-col h-full"
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -234,7 +234,7 @@ export default function ProductsPage() {
                   )}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 flex-1">
                 <div className="flex items-center gap-2 text-sm">
                   <Scale className="w-4 h-4 text-gray-400" />
                   <span>Unit: {product.unit}</span>
@@ -268,8 +268,8 @@ export default function ProductsPage() {
                 </div>
 
                 {product.shortDescription && (
-                  <p className="text-xs text-gray-500 line-clamp-2 mt-2">
-                    {product.shortDescription}
+                  <p className="text-xs text-gray-500 line-clamp-2 mt-2 min-h-[32px]">
+                    {product.shortDescription || "No description available"}
                   </p>
                 )}
 
@@ -277,7 +277,7 @@ export default function ProductsPage() {
                   Added: {format(new Date(product.createdAt), "dd MMM yyyy")}
                 </p>
               </CardContent>
-              <CardFooter className="flex justify-end space-x-2">
+              <CardFooter className="flex justify-end space-x-2 mt-auto border-t pt-4">
                 <Button
                   variant="outline"
                   size="sm"
