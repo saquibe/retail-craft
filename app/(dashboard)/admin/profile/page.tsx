@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/lib/context/AuthContext";
@@ -12,8 +12,38 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { SearchSelect } from "@/components/ui/search-select";
 import { toast } from "react-hot-toast";
-import { Camera, Save, Loader2 } from "lucide-react";
+import {
+  Camera,
+  Save,
+  Loader2,
+  User,
+  Building,
+  Phone,
+  MapPin,
+  Globe,
+  Clock,
+  Link as LinkIcon,
+  FileText,
+  Calendar,
+  Hash,
+} from "lucide-react";
+import { Country, State, City } from "country-state-city";
+import moment from "moment-timezone";
+
+// Get all countries
+const countries = Country.getAllCountries().map((country) => ({
+  value: country.name,
+  label: country.name,
+  isoCode: country.isoCode,
+}));
+
+// Get all timezones
+const timezones = moment.tz.names().map((tz) => ({
+  value: tz,
+  label: tz.replace(/_/g, " "),
+}));
 
 // Profile schema based on backend fields
 const profileSchema = z.object({
@@ -58,10 +88,15 @@ export default function AdminProfile() {
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
+  const [states, setStates] = useState<{ value: string; label: string }[]>([]);
+  const [cities, setCities] = useState<{ value: string; label: string }[]>([]);
 
   const {
     register,
     handleSubmit,
+    control,
+    watch,
+    setValue,
     formState: { errors },
     reset,
   } = useForm<ProfileFormData>({
@@ -91,13 +126,16 @@ export default function AdminProfile() {
     },
   });
 
+  const selectedCountry = watch("country");
+  const selectedState = watch("state");
+
   // Fetch full profile data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         setIsFetching(true);
         const response = await getAdminProfile();
-        // console.log("Fetched profile:", response);
+        console.log("Fetched profile:", response);
         setProfileData(response);
 
         // Map the response to form fields
@@ -142,6 +180,90 @@ export default function AdminProfile() {
 
     fetchProfile();
   }, [reset]);
+
+  // Update states when country changes
+  useEffect(() => {
+    if (selectedCountry) {
+      const countryObj = Country.getAllCountries().find(
+        (c) => c.name === selectedCountry,
+      );
+
+      if (!countryObj) return;
+
+      const countryStates = State.getStatesOfCountry(countryObj.isoCode).map(
+        (state) => ({
+          value: state.name,
+          label: state.name,
+          isoCode: state.isoCode,
+        }),
+      );
+
+      setStates(countryStates);
+
+      // Only reset state and city if they don't match the current profile data
+      if (profileData?.state && profileData.country === selectedCountry) {
+        // Keep the state from profile data
+        setValue("state", profileData.state);
+
+        // Load cities for this state
+        const stateObj = countryStates.find(
+          (s) => s.value === profileData.state,
+        );
+        if (stateObj) {
+          const stateCities = City.getCitiesOfState(
+            countryObj.isoCode,
+            stateObj.isoCode,
+          ).map((city) => ({
+            value: city.name,
+            label: city.name,
+          }));
+          setCities(stateCities);
+          setValue("city", profileData.city || "");
+        }
+      } else {
+        setValue("state", "");
+        setValue("city", "");
+        setCities([]);
+      }
+    } else {
+      setStates([]);
+      setCities([]);
+    }
+  }, [selectedCountry, setValue, profileData]);
+
+  // Update cities when state changes
+  useEffect(() => {
+    if (selectedCountry && selectedState) {
+      const countryObj = Country.getAllCountries().find(
+        (c) => c.name === selectedCountry,
+      );
+
+      if (!countryObj) return;
+
+      const stateObj = State.getStatesOfCountry(countryObj.isoCode).find(
+        (s) => s.name === selectedState,
+      );
+
+      if (!stateObj) return;
+
+      const stateCities = City.getCitiesOfState(
+        countryObj.isoCode,
+        stateObj.isoCode,
+      ).map((city) => ({
+        value: city.name,
+        label: city.name,
+      }));
+
+      setCities(stateCities);
+
+      // Only reset city if it doesn't match profile data
+      if (!profileData?.city || profileData.state !== selectedState) {
+        setValue("city", "");
+      }
+    } else {
+      setCities([]);
+    }
+  }, [selectedCountry, selectedState, setValue, profileData]);
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,7 +319,7 @@ export default function AdminProfile() {
         formData.append("profilePicture", profileImage);
       }
 
-      // console.log("Submitting form data:", Object.fromEntries(formData));
+      console.log("Submitting form data:", Object.fromEntries(formData));
 
       const response = await updateAdminProfile(formData);
 
@@ -266,7 +388,7 @@ export default function AdminProfile() {
               <div className="flex items-center space-x-6">
                 <Avatar className="w-24 h-24">
                   <AvatarImage src={imagePreview || ""} />
-                  <AvatarFallback className="text-2xl">
+                  <AvatarFallback className="text-2xl bg-blue-100 text-blue-600">
                     {profileData?.contactName?.charAt(0) || "A"}
                   </AvatarFallback>
                 </Avatar>
@@ -300,39 +422,81 @@ export default function AdminProfile() {
               <h2 className="text-lg font-semibold mb-4">
                 Personal Information
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Contact Name"
-                  {...register("contactName")}
-                  error={errors.contactName?.message}
-                  placeholder="Enter contact name"
-                />
-                <Input
-                  label="Company Name"
-                  {...register("companyName")}
-                  error={errors.companyName?.message}
-                  placeholder="Enter company name"
-                />
-                <Input
-                  label="Email"
-                  type="email"
-                  value={profileData?.email || ""}
-                  placeholder="Email cannot be changed"
-                  disabled
-                  className="bg-gray-50"
-                />
-                <Input
-                  label="Contact Number"
-                  {...register("contactNumber")}
-                  error={errors.contactNumber?.message}
-                  placeholder="Enter contact number"
-                />
-                <Input
-                  label="Telephone Number"
-                  {...register("teliphoneNumber")}
-                  error={errors.teliphoneNumber?.message}
-                  placeholder="Enter telephone number"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Contact Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("contactName")}
+                      error={errors.contactName?.message}
+                      placeholder="Enter contact name"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Company Name *
+                  </label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("companyName")}
+                      error={errors.companyName?.message}
+                      placeholder="Enter company name"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="email"
+                      value={profileData?.email || ""}
+                      placeholder="Email cannot be changed"
+                      disabled
+                      className="pl-3 bg-gray-50"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Contact Number *
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("contactNumber")}
+                      error={errors.contactNumber?.message}
+                      placeholder="Enter contact number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Telephone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("teliphoneNumber")}
+                      error={errors.teliphoneNumber?.message}
+                      placeholder="Enter telephone number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
               </div>
             </Card>
 
@@ -341,50 +505,135 @@ export default function AdminProfile() {
               <h2 className="text-lg font-semibold mb-4">
                 Address Information
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Address"
-                  {...register("address")}
-                  error={errors.address?.message}
-                  placeholder="Enter address"
-                  className="col-span-2"
-                />
-                <Input
-                  label="Country"
-                  {...register("country")}
-                  error={errors.country?.message}
-                  placeholder="Enter country"
-                />
-                <Input
-                  label="State"
-                  {...register("state")}
-                  error={errors.state?.message}
-                  placeholder="Enter state"
-                />
-                <Input
-                  label="City"
-                  {...register("city")}
-                  error={errors.city?.message}
-                  placeholder="Enter city"
-                />
-                <Input
-                  label="Pincode"
-                  {...register("pincode")}
-                  error={errors.pincode?.message}
-                  placeholder="Enter pincode"
-                />
-                <Input
-                  label="Time Zone"
-                  {...register("timeZone")}
-                  error={errors.timeZone?.message}
-                  placeholder="e.g., Asia/Kolkata"
-                />
-                <Input
-                  label="Website Link"
-                  {...register("websiteLink")}
-                  error={errors.websiteLink?.message}
-                  placeholder="https://example.com"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Address *
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("address")}
+                      error={errors.address?.message}
+                      placeholder="Enter address"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Controller
+                    name="country"
+                    control={control}
+                    render={({ field }) => (
+                      <SearchSelect
+                        label="Country *"
+                        options={countries}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select country"
+                        searchPlaceholder="Search country..."
+                        error={errors.country?.message}
+                        // required
+                      />
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <Controller
+                    name="state"
+                    control={control}
+                    render={({ field }) => (
+                      <SearchSelect
+                        label="State *"
+                        options={states}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={
+                          selectedCountry
+                            ? "Select state"
+                            : "Select country first"
+                        }
+                        searchPlaceholder="Search state..."
+                        error={errors.state?.message}
+                        disabled={!selectedCountry}
+                        // required
+                      />
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <Controller
+                    name="city"
+                    control={control}
+                    render={({ field }) => (
+                      <SearchSelect
+                        label="City *"
+                        options={cities}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={
+                          selectedState ? "Select city" : "Select state first"
+                        }
+                        searchPlaceholder="Search city..."
+                        error={errors.city?.message}
+                        disabled={!selectedState}
+                        // required
+                      />
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Pincode *
+                  </label>
+                  <div className="relative">
+                    {/* <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
+                    <Input
+                      {...register("pincode")}
+                      error={errors.pincode?.message}
+                      placeholder="Enter pincode"
+                      // className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Controller
+                    name="timeZone"
+                    control={control}
+                    render={({ field }) => (
+                      <SearchSelect
+                        label="Time Zone *"
+                        options={timezones}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select time zone"
+                        searchPlaceholder="Search timezone..."
+                        error={errors.timeZone?.message}
+                        // required
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Website Link
+                  </label>
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("websiteLink")}
+                      error={errors.websiteLink?.message}
+                      placeholder="https://example.com"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
               </div>
             </Card>
           </TabsContent>
@@ -394,43 +643,96 @@ export default function AdminProfile() {
               <h2 className="text-lg font-semibold mb-4">
                 Business Information
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="PAN Number"
-                  {...register("panNumber")}
-                  error={errors.panNumber?.message}
-                  placeholder="Enter PAN number"
-                />
-                <Input
-                  label="CIN Number"
-                  {...register("cinNumber")}
-                  error={errors.cinNumber?.message}
-                  placeholder="Enter CIN number"
-                />
-                <Input
-                  label="FSSAI Number"
-                  {...register("fssaiNumber")}
-                  error={errors.fssaiNumber?.message}
-                  placeholder="Enter FSSAI number"
-                />
-                <Input
-                  label="LUT Number"
-                  {...register("lutNumber")}
-                  error={errors.lutNumber?.message}
-                  placeholder="Enter LUT number"
-                />
-                <Input
-                  label="TAN Number"
-                  {...register("tanNumber")}
-                  error={errors.tanNumber?.message}
-                  placeholder="Enter TAN number"
-                />
-                <Input
-                  label="IEC Number"
-                  {...register("iecNumber")}
-                  error={errors.iecNumber?.message}
-                  placeholder="Enter IEC number"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    PAN Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("panNumber")}
+                      error={errors.panNumber?.message}
+                      placeholder="Enter PAN number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    CIN Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("cinNumber")}
+                      error={errors.cinNumber?.message}
+                      placeholder="Enter CIN number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    FSSAI Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("fssaiNumber")}
+                      error={errors.fssaiNumber?.message}
+                      placeholder="Enter FSSAI number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    LUT Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("lutNumber")}
+                      error={errors.lutNumber?.message}
+                      placeholder="Enter LUT number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    TAN Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("tanNumber")}
+                      error={errors.tanNumber?.message}
+                      placeholder="Enter TAN number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    IEC Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("iecNumber")}
+                      error={errors.iecNumber?.message}
+                      placeholder="Enter IEC number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
               </div>
             </Card>
           </TabsContent>
@@ -440,33 +742,49 @@ export default function AdminProfile() {
               <h2 className="text-lg font-semibold mb-4">
                 Financial Information
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Financial Start Date"
-                  type="date"
-                  value={
-                    profileData?.financialStartDate
-                      ? new Date(profileData.financialStartDate)
-                          .toISOString()
-                          .split("T")[0]
-                      : ""
-                  }
-                  disabled
-                  className="bg-gray-50"
-                />
-                <Input
-                  label="Financial End Date"
-                  type="date"
-                  value={
-                    profileData?.financialEndDate
-                      ? new Date(profileData.financialEndDate)
-                          .toISOString()
-                          .split("T")[0]
-                      : ""
-                  }
-                  disabled
-                  className="bg-gray-50"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Financial Start Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      type="date"
+                      value={
+                        profileData?.financialStartDate
+                          ? new Date(profileData.financialStartDate)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      disabled
+                      className="pl-10 bg-gray-50"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Financial End Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      type="date"
+                      value={
+                        profileData?.financialEndDate
+                          ? new Date(profileData.financialEndDate)
+                              .toISOString()
+                              .split("T")[0]
+                          : ""
+                      }
+                      disabled
+                      className="pl-10 bg-gray-50"
+                    />
+                  </div>
+                </div>
+
                 <p className="text-sm text-gray-500 col-span-2">
                   Financial dates cannot be modified after registration.
                 </p>
@@ -477,19 +795,36 @@ export default function AdminProfile() {
           <TabsContent value="tax" className="space-y-6">
             <Card className="p-6">
               <h2 className="text-lg font-semibold mb-4">Tax Information</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="GST Number"
-                  {...register("gstIn")}
-                  error={errors.gstIn?.message}
-                  placeholder="Enter GST number"
-                />
-                <Input
-                  label="GST Registration Type"
-                  {...register("GstRegistrationType")}
-                  error={errors.GstRegistrationType?.message}
-                  placeholder="Enter GST registration type"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    GST Number *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("gstIn")}
+                      error={errors.gstIn?.message}
+                      placeholder="Enter GST number"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    GST Registration Type *
+                  </label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      {...register("GstRegistrationType")}
+                      error={errors.GstRegistrationType?.message}
+                      placeholder="Enter GST registration type"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
               </div>
             </Card>
           </TabsContent>

@@ -27,6 +27,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -151,6 +152,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, captchaToken, type = "admin") => {
     // console.log("login function called with type:", type);
     try {
+      setAuthLoading(true);
       let response;
       if (type === "admin") {
         response = await adminLogin(email, password, captchaToken);
@@ -176,31 +178,36 @@ export const AuthProvider = ({ children }) => {
         let userData;
         if (type === "admin") {
           const adminData = response.admin || response;
+          const profile = await getAdminProfile();
           userData = {
-            id: adminData.id || adminData._id,
-            email: adminData.email,
-            name: adminData.contactName || adminData.companyName || "Admin",
-            contactName: adminData.contactName,
-            companyName: adminData.companyName,
+            id: profile._id || adminData.id,
+            email: profile.email || adminData.email,
+            name:
+              profile.contactName ||
+              profile.companyName ||
+              adminData.contactName ||
+              "Admin",
+            contactName: profile.contactName,
+            companyName: profile.companyName,
             type: "admin",
-            profilePicture: adminData.profilePicture,
-            contactNumber: adminData.contactNumber,
-            teliphoneNumber: adminData.teliphoneNumber,
-            address: adminData.address,
-            country: adminData.country,
-            state: adminData.state,
-            city: adminData.city,
-            pincode: adminData.pincode,
-            timeZone: adminData.timeZone,
-            websiteLink: adminData.websiteLink,
-            panNumber: adminData.panNumber,
-            GstRegistrationType: adminData.GstRegistrationType,
-            gstIn: adminData.gstIn,
-            cinNumber: adminData.cinNumber,
-            fssaiNumber: adminData.fssaiNumber,
-            lutNumber: adminData.lutNumber,
-            tanNumber: adminData.tanNumber,
-            iecNumber: adminData.iecNumber,
+            profilePicture: profile.profilePicture,
+            contactNumber: profile.contactNumber,
+            teliphoneNumber: profile.teliphoneNumber,
+            address: profile.address,
+            country: profile.country,
+            state: profile.state,
+            city: profile.city,
+            pincode: profile.pincode,
+            timeZone: profile.timeZone,
+            websiteLink: profile.websiteLink,
+            panNumber: profile.panNumber,
+            GstRegistrationType: profile.GstRegistrationType,
+            gstIn: profile.gstIn,
+            cinNumber: profile.cinNumber,
+            fssaiNumber: profile.fssaiNumber,
+            lutNumber: profile.lutNumber,
+            tanNumber: profile.tanNumber,
+            iecNumber: profile.iecNumber,
           };
         } else {
           const loginUserData = response.user;
@@ -284,6 +291,8 @@ export const AuthProvider = ({ children }) => {
         error.response?.data?.message || error.message || "Login failed";
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -324,6 +333,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    authLoading,
     login,
     logout,
     updateUser,

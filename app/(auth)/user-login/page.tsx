@@ -34,7 +34,7 @@ const formSchema = z.object({
 
 export default function UserLogin() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const { login, loading } = useAuth();
+  const { login, authLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -120,8 +120,12 @@ export default function UserLogin() {
                 onErrored={() => setCaptchaToken(null)}
               />
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in"}
+              <Button
+                type="submit"
+                className="w-full cursor-pointer"
+                disabled={authLoading}
+              >
+                {authLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </Form>

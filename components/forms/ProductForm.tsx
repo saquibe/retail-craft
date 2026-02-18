@@ -15,6 +15,7 @@ import {
   DollarSign,
   Tag,
   FileText,
+  IndianRupee,
 } from "lucide-react";
 
 // Define the product schema with proper type coercion
@@ -189,7 +190,7 @@ export default function ProductForm({
               B2B Sale Price *
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 type="number"
                 step="0.01"
@@ -207,7 +208,7 @@ export default function ProductForm({
               B2C Sale Price *
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 type="number"
                 step="0.01"
@@ -225,7 +226,7 @@ export default function ProductForm({
               Purchase Price *
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 type="number"
                 step="0.01"
