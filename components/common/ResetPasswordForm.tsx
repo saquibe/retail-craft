@@ -42,23 +42,26 @@ const resetPasswordSchema = z
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPasswordForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [userType, setUserType] = useState<"admin" | "user">("admin");
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const token = params.token as string;
 
-  useEffect(() => {
-    // Get user type from URL query parameter
-    const type = searchParams.get("type");
-    if (type === "user" || type === "admin") {
-      setUserType(type);
-    }
-  }, [searchParams]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [userType, setUserType] = useState<"admin" | "user">(
+    (searchParams.get("type") as "admin" | "user") || "admin",
+  );
+
+  // useEffect(() => {
+  //   // Get user type from URL query parameter
+  //   const type = searchParams.get("type");
+  //   if (type === "user" || type === "admin") {
+  //     setUserType(type);
+  //   }
+  // }, [searchParams]);
 
   const {
     register,
