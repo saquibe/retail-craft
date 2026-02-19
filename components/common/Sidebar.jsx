@@ -24,6 +24,7 @@ const userMenuItems = [
   { name: "Dashboard", href: "/user/dashboard", icon: FiHome },
   { name: "Customers", href: "/user/customers", icon: FiUsers },
   { name: "Products", href: "/user/products", icon: FiPackage },
+  { name: "Inventory", href: "/user/inventory", icon: FiPackage },
   { name: "Profile", href: "/user/profile", icon: FiUser },
 ];
 

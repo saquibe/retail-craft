@@ -23,7 +23,9 @@ const productSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
   itemCode: z.string().optional().default(""),
   barCode: z.string().min(1, "Barcode is required"),
-  unit: z.coerce.number().min(1, "Unit must be at least 1"),
+  sizes: z
+    .array(z.enum(["S", "M", "L", "XL", "XXL"]))
+    .min(1, "At least one size is required"),
   hsnCode: z.string().optional().default(""),
   salesTax: z.string().min(1, "Sales tax is required"),
   shortDescription: z.string().optional().default(""),
@@ -59,13 +61,13 @@ export default function ProductForm({
       productName: initialData?.productName || "",
       itemCode: initialData?.itemCode || "",
       barCode: initialData?.barCode || "",
-      unit: initialData?.unit || 1,
       hsnCode: initialData?.hsnCode || "",
       salesTax: initialData?.salesTax || "",
       shortDescription: initialData?.shortDescription || "",
       b2bSalePrice: initialData?.b2bSalePrice || 0,
       b2cSalePrice: initialData?.b2cSalePrice || 0,
       purchasePrice: initialData?.purchasePrice || 0,
+      sizes: initialData?.sizes || [],
     },
   });
 
@@ -95,6 +97,26 @@ export default function ProductForm({
             </div>
           </div>
 
+          {/* Sizes */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Sizes *
+            </label>
+            <div className="flex gap-4 flex-wrap">
+              {["S", "M", "L", "XL", "XXL"].map((size) => (
+                <label key={size} className="flex items-center gap-2">
+                  <input type="checkbox" value={size} {...register("sizes")} />
+                  {size}
+                </label>
+              ))}
+            </div>
+            {errors.sizes && (
+              <p className="text-red-500 text-sm mt-1">
+                {errors.sizes.message}
+              </p>
+            )}
+          </div>
+
           {/* Item Code with Icon */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -122,23 +144,6 @@ export default function ProductForm({
                 {...register("barCode")}
                 error={errors.barCode?.message}
                 placeholder="Enter barcode"
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {/* Unit with Icon */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Unit *
-            </label>
-            <div className="relative">
-              <Scale className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="number"
-                {...register("unit")}
-                error={errors.unit?.message}
-                placeholder="Enter unit (e.g., 1, 5, 10)"
                 className="pl-10"
               />
             </div>

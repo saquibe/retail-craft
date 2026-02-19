@@ -8,7 +8,6 @@ import {
   updateProduct,
   deleteProduct,
   Product,
-  CreateProductData, // Use CreateProductData instead
 } from "@/lib/api/products";
 import ProductForm, { ProductFormData } from "@/components/forms/ProductForm"; // Import from form
 import { Button } from "@/components/ui/button";
@@ -51,9 +50,12 @@ import {
   Hash,
   Percent,
   Scale,
+  Ruler,
+  Box,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import { StockManager } from "@/components/inventory/StockManager";
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -64,6 +66,7 @@ export default function ProductsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
 
   // Fetch products
   const fetchProducts = async () => {
@@ -236,8 +239,8 @@ export default function ProductsPage() {
               </CardHeader>
               <CardContent className="space-y-3 flex-1">
                 <div className="flex items-center gap-2 text-sm">
-                  <Scale className="w-4 h-4 text-gray-400" />
-                  <span>Unit: {product.unit}</span>
+                  <Ruler className="w-4 h-4 text-gray-400" />
+                  <span>Size: {product.sizes.join(", ")}</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
@@ -277,29 +280,43 @@ export default function ProductsPage() {
                   Added: {format(new Date(product.createdAt), "dd MMM yyyy")}
                 </p>
               </CardContent>
-              <CardFooter className="flex justify-end space-x-2 mt-auto border-t pt-4">
+              <CardFooter className="flex justify-between items-center">
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   onClick={() => {
                     setSelectedProduct(product);
-                    setIsEditOpen(true);
+                    setIsStockDialogOpen(true);
                   }}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
+                  <Box className="w-4 h-4 mr-1" />
+                  Manage Stock
                 </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedProduct(product);
-                    setIsDeleteOpen(true);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setIsEditOpen(true);
+                    }}
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setIsDeleteOpen(true);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
@@ -332,7 +349,13 @@ export default function ProductsPage() {
                 productName: selectedProduct.productName,
                 itemCode: selectedProduct.itemCode,
                 barCode: selectedProduct.barCode,
-                unit: selectedProduct.unit,
+                sizes: selectedProduct.sizes as (
+                  | "S"
+                  | "M"
+                  | "L"
+                  | "XL"
+                  | "XXL"
+                )[],
                 hsnCode: selectedProduct.hsnCode,
                 salesTax: selectedProduct.salesTax,
                 shortDescription: selectedProduct.shortDescription,
@@ -346,6 +369,22 @@ export default function ProductsPage() {
                 setIsEditOpen(false);
                 setSelectedProduct(null);
               }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Stock Management</DialogTitle>
+          </DialogHeader>
+          {selectedProduct && user?.branchId && (
+            <StockManager
+              productId={selectedProduct._id}
+              productName={selectedProduct.productName}
+              branchId={user.branchId}
+              sizes={[]}
             />
           )}
         </DialogContent>

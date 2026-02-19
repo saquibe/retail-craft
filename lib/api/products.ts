@@ -3,10 +3,12 @@ import axiosInstance from "./axios";
 export interface Product {
   _id: string;
   userId: string;
+  branchId: string;
   productName: string;
   itemCode?: string;
   barCode: string;
-  unit: number;
+  sizes: string[];
+  // unit: number;
   hsnCode?: string;
   salesTax: string;
   shortDescription?: string;
@@ -21,7 +23,8 @@ export interface CreateProductData {
   productName: string;
   itemCode?: string;
   barCode: string;
-  unit: number;
+  sizes: string[];
+  // unit: number;
   hsnCode?: string;
   salesTax: string;
   shortDescription?: string;
