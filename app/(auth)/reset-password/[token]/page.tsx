@@ -1,3 +1,4 @@
+//app/(auth)/reset-password/[token]/page.tsx
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import ResetPasswordForm from "@/components/common/ResetPasswordForm";

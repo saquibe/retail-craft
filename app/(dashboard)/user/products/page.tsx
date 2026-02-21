@@ -6,10 +6,13 @@ import {
   getProducts,
   createProduct,
   updateProduct,
-  deleteProduct,
   Product,
+  ProductFormData,
+  getLowStockProducts,
+  getStockSummary,
 } from "@/lib/api/products";
-import ProductForm, { ProductFormData } from "@/components/forms/ProductForm"; // Import from form
+import ProductForm from "@/components/forms/ProductForm";
+import { StockManager } from "@/components/inventory/StockManager";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,25 +40,43 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus,
   Search,
   Edit,
-  Trash2,
   Loader2,
   Package,
   Barcode,
-  DollarSign,
   Tag,
   Hash,
   Percent,
-  Scale,
-  Ruler,
   Box,
+  AlertTriangle,
+  Palette,
+  Ruler,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { StockManager } from "@/components/inventory/StockManager";
+import AppPagination from "@/components/common/AppPagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// Size colors for visual distinction
+const SIZE_COLORS: Record<string, string> = {
+  S: "bg-blue-100 text-blue-800",
+  M: "bg-green-100 text-green-800",
+  L: "bg-yellow-100 text-yellow-800",
+  XL: "bg-purple-100 text-purple-800",
+  XXL: "bg-red-100 text-red-800",
+};
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -63,16 +84,38 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<
+    "Active" | "Inactive" | "All"
+  >("Active");
+  const [stockSummary, setStockSummary] = useState({
+    totalProducts: 0,
+    totalStock: 0,
+  });
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
 
-  // Fetch products
+  // const itemsPerPage = 6;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
+
+  // Fetch products with status filter
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await getProducts();
+      const status =
+        statusFilter === "All"
+          ? "All"
+          : statusFilter === "Inactive"
+          ? "Inactive"
+          : undefined;
+      const response = await getProducts(status);
+      console.log("Fetched products:", response.data);
       if (response.success && response.data) {
         setProducts(response.data);
       }
@@ -84,19 +127,58 @@ export default function ProductsPage() {
     }
   };
 
+  // Fetch stock summary
+  const fetchStockSummary = async () => {
+    try {
+      const response = await getStockSummary();
+      console.log("Stock summary response:", response);
+      if (response.success) {
+        setStockSummary({
+          totalProducts: response.totalProducts,
+          totalStock: response.totalStock,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading stock summary:", error);
+    }
+  };
+
+  // Fetch low stock count
+  const fetchLowStockCount = async () => {
+    try {
+      const response = await getLowStockProducts();
+      if (response.success) {
+        setLowStockCount(response.data?.length || 0);
+      }
+    } catch (error) {
+      console.error("Error loading low stock:", error);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
-  }, []);
+    fetchStockSummary();
+    fetchLowStockCount();
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   // Filter products based on search
   const filteredProducts = products.filter((product) => {
     return (
       product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.barCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.color?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.itemCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.hsnCode?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   // Handle create product
   const handleCreateProduct = async (data: ProductFormData) => {
@@ -106,6 +188,7 @@ export default function ProductsPage() {
         toast.success("Product created successfully!");
         setIsCreateOpen(false);
         fetchProducts();
+        fetchStockSummary();
       }
     } catch (error: any) {
       console.error("Create product error:", error);
@@ -131,21 +214,31 @@ export default function ProductsPage() {
     }
   };
 
-  // Handle delete product
-  const handleDeleteProduct = async () => {
+  // Handle toggle product status (Active/Inactive)
+  const handleToggleStatus = async () => {
     if (!selectedProduct) return;
 
+    const newStatus =
+      selectedProduct.status === "Active" ? "Inactive" : "Active";
+
     try {
-      const response = await deleteProduct(selectedProduct._id);
+      const response = await updateProduct(selectedProduct._id, {
+        status: newStatus,
+      });
+
       if (response.success) {
-        toast.success("Product deleted successfully!");
-        setIsDeleteOpen(false);
+        toast.success(
+          `Product ${
+            newStatus === "Active" ? "activated" : "inactivated"
+          } successfully!`,
+        );
+        setIsStatusDialogOpen(false);
         setSelectedProduct(null);
         fetchProducts();
       }
     } catch (error: any) {
-      console.error("Delete product error:", error);
-      toast.error(error.response?.data?.message || "Failed to delete product");
+      console.error("Toggle status error:", error);
+      toast.error(error.response?.data?.message || "Failed to update status");
     }
   };
 
@@ -158,13 +251,21 @@ export default function ProductsPage() {
     }).format(amount);
   };
 
+  // Get stock badge color
+  const getStockBadgeColor = (stock: number) => {
+    if (stock === 0) return "bg-gray-100 text-gray-500";
+    if (stock <= 5) return "bg-red-100 text-red-800";
+    if (stock <= 10) return "bg-yellow-100 text-yellow-800";
+    return "bg-green-100 text-green-800";
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Stats */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold">Products</h1>
-          <p className="text-gray-500">Manage your product inventory</p>
+          <p className="text-gray-500">Manage your products and inventory</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
@@ -172,15 +273,103 @@ export default function ProductsPage() {
         </Button>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <Input
-          placeholder="Search products by name, barcode, item code, or HSN code..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Total Products
+                </p>
+                <p className="text-3xl font-bold">
+                  {stockSummary.totalProducts}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <Package className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Units</p>
+                <p className="text-3xl font-bold">{stockSummary.totalStock}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <Box className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Low Stock</p>
+                <p className="text-3xl font-bold text-yellow-600">
+                  {lowStockCount}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">
+                  Active Products
+                </p>
+                <p className="text-3xl font-bold text-green-600">
+                  {products.filter((p) => p.status === "Active").length}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <Power className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Status Filter Tabs */}
+        <Tabs
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as any)}
+          className="w-full sm:w-auto"
+        >
+          <TabsList>
+            <TabsTrigger value="Active">Active</TabsTrigger>
+            <TabsTrigger value="Inactive">Inactive</TabsTrigger>
+            <TabsTrigger value="All">All</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Search Bar */}
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Search products by name, barcode, color, or item code..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Products Grid */}
@@ -201,11 +390,13 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-          {filteredProducts.map((product) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch w-full">
+          {paginatedProducts.map((product) => (
             <Card
               key={product._id}
-              className="hover:shadow-lg transition-shadow flex flex-col h-full"
+              className={`hover:shadow-lg transition-shadow flex flex-col h-full min-w-0 ${
+                product.status === "Inactive" ? "opacity-75 bg-gray-50" : ""
+              }`}
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -215,6 +406,36 @@ export default function ProductsPage() {
                       {product.productName}
                     </CardTitle>
                   </div>
+                  <div className="flex gap-1">
+                    {/* Status Badge */}
+                    <Badge
+                      className={
+                        product.status === "Active"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }
+                    >
+                      {product.status === "Active" ? (
+                        <Power className="w-3 h-3 mr-1" />
+                      ) : (
+                        <PowerOff className="w-3 h-3 mr-1" />
+                      )}
+                      {product.status}
+                    </Badge>
+
+                    {/* Low Stock Badge */}
+                    {product.quantity <= 5 && product.quantity > 0 && (
+                      <Badge className="bg-yellow-100 text-yellow-800">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Low
+                      </Badge>
+                    )}
+                    {product.quantity === 0 && (
+                      <Badge className="bg-red-100 text-red-800">
+                        Out of Stock
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <CardDescription className="space-y-1 mt-2">
                   <div className="flex items-center gap-2 text-xs">
@@ -222,6 +443,18 @@ export default function ProductsPage() {
                     <span className="font-mono">
                       Barcode: {product.barCode}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Palette className="w-3 h-3" />
+                    <span>Color: {product.color}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <Ruler className="w-3 h-3" />
+                    <Badge
+                      className={SIZE_COLORS[product.size] || "bg-gray-100"}
+                    >
+                      Size {product.size}
+                    </Badge>
                   </div>
                   {product.itemCode && (
                     <div className="flex items-center gap-2 text-xs">
@@ -238,9 +471,14 @@ export default function ProductsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 flex-1">
-                <div className="flex items-center gap-2 text-sm">
-                  <Ruler className="w-4 h-4 text-gray-400" />
-                  <span>Size: {product.sizes.join(", ")}</span>
+                {/* Stock Quantity */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-600">
+                    Stock:
+                  </span>
+                  <Badge className={getStockBadgeColor(product.quantity)}>
+                    {product.quantity} units
+                  </Badge>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
@@ -251,13 +489,13 @@ export default function ProductsPage() {
                 {/* Pricing */}
                 <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t">
                   <div className="text-center">
-                    <p className="text-xs text-gray-500">B2B Price</p>
+                    <p className="text-xs text-gray-500">B2B</p>
                     <p className="text-sm font-semibold text-blue-600">
                       {formatCurrency(product.b2bSalePrice)}
                     </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-gray-500">B2C Price</p>
+                    <p className="text-xs text-gray-500">B2C</p>
                     <p className="text-sm font-semibold text-green-600">
                       {formatCurrency(product.b2cSalePrice)}
                     </p>
@@ -272,15 +510,19 @@ export default function ProductsPage() {
 
                 {product.shortDescription && (
                   <p className="text-xs text-gray-500 line-clamp-2 mt-2 min-h-[32px]">
-                    {product.shortDescription || "No description available"}
+                    {product.shortDescription}
                   </p>
                 )}
 
                 <p className="text-xs text-gray-400 mt-2">
-                  Added: {format(new Date(product.createdAt), "dd MMM yyyy")}
+                  Added:{" "}
+                  {product.createdAt &&
+                  !isNaN(new Date(product.createdAt).getTime())
+                    ? format(new Date(product.createdAt), "dd MMM yyyy")
+                    : "N/A"}
                 </p>
               </CardContent>
-              <CardFooter className="flex justify-between items-center">
+              <CardFooter className="flex justify-between items-center mt-auto border-t pt-4">
                 <Button
                   variant="default"
                   size="sm"
@@ -288,10 +530,11 @@ export default function ProductsPage() {
                     setSelectedProduct(product);
                     setIsStockDialogOpen(true);
                   }}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                  disabled={product.status === "Inactive"}
                 >
                   <Box className="w-4 h-4 mr-1" />
-                  Manage Stock
+                  Stock
                 </Button>
                 <div className="flex space-x-2">
                   <Button
@@ -301,20 +544,37 @@ export default function ProductsPage() {
                       setSelectedProduct(product);
                       setIsEditOpen(true);
                     }}
+                    className="cursor-pointer"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-4 h-4 mr-1" />
                     Edit
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant={
+                      product.status === "Active" ? "destructive" : "default"
+                    }
                     size="sm"
                     onClick={() => {
                       setSelectedProduct(product);
-                      setIsDeleteOpen(true);
+                      setIsStatusDialogOpen(true);
                     }}
+                    className={`cursor-pointer ${
+                      product.status === "Inactive"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : ""
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
+                    {product.status === "Active" ? (
+                      <>
+                        <PowerOff className="w-4 h-4 mr-1" />
+                        Inactive
+                      </>
+                    ) : (
+                      <>
+                        <Power className="w-4 h-4 mr-1" />
+                        Activate
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardFooter>
@@ -322,6 +582,37 @@ export default function ProductsPage() {
           ))}
         </div>
       )}
+
+      <div className="mt-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-center relative gap-4">
+          {/* Pagination (Always Centered) */}
+          <div className="flex justify-center w-full md:w-auto">
+            <AppPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+
+          {/* Items Per Page */}
+          <div className="flex justify-center md:justify-end md:absolute md:right-0 mt-6">
+            <Select
+              value={String(itemsPerPage)}
+              onValueChange={(value) => setItemsPerPage(Number(value))}
+            >
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Items per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">6 / page</SelectItem>
+                <SelectItem value="12">12 / page</SelectItem>
+                <SelectItem value="24">24 / page</SelectItem>
+                <SelectItem value="48">48 / page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
 
       {/* Create Product Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -349,19 +640,15 @@ export default function ProductsPage() {
                 productName: selectedProduct.productName,
                 itemCode: selectedProduct.itemCode,
                 barCode: selectedProduct.barCode,
-                sizes: selectedProduct.sizes as (
-                  | "S"
-                  | "M"
-                  | "L"
-                  | "XL"
-                  | "XXL"
-                )[],
+                color: selectedProduct.color,
+                size: selectedProduct.size,
                 hsnCode: selectedProduct.hsnCode,
                 salesTax: selectedProduct.salesTax,
                 shortDescription: selectedProduct.shortDescription,
                 b2bSalePrice: selectedProduct.b2bSalePrice,
                 b2cSalePrice: selectedProduct.b2cSalePrice,
                 purchasePrice: selectedProduct.purchasePrice,
+                status: selectedProduct.status,
               }}
               onSubmit={handleUpdateProduct}
               isLoading={isLoading}
@@ -374,31 +661,45 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Stock Management Dialog */}
       <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Stock Management</DialogTitle>
+            <DialogTitle>
+              Manage Stock - {selectedProduct?.productName}
+            </DialogTitle>
           </DialogHeader>
           {selectedProduct && user?.branchId && (
             <StockManager
               productId={selectedProduct._id}
               productName={selectedProduct.productName}
-              branchId={user.branchId}
-              sizes={[]}
+              currentStock={selectedProduct.quantity}
+              onStockUpdate={() => {
+                fetchProducts();
+                fetchStockSummary();
+                fetchLowStockCount();
+              }}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+      {/* Toggle Status Dialog */}
+      <AlertDialog
+        open={isStatusDialogOpen}
+        onOpenChange={setIsStatusDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {selectedProduct?.status === "Active"
+                ? "Deactivate Product?"
+                : "Activate Product?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              product "{selectedProduct?.productName}" and remove all associated
-              data.
+              {selectedProduct?.status === "Active"
+                ? "This product will be hidden from active inventory and cannot be used in transactions."
+                : "This product will be visible in active inventory and can be used in transactions."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -406,10 +707,14 @@ export default function ProductsPage() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteProduct}
-              className="bg-red-600 hover:bg-red-700"
+              onClick={handleToggleStatus}
+              className={
+                selectedProduct?.status === "Active"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-green-600 hover:bg-green-700"
+              }
             >
-              Delete
+              {selectedProduct?.status === "Active" ? "Deactivate" : "Activate"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

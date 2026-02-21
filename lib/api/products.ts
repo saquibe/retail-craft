@@ -7,14 +7,16 @@ export interface Product {
   productName: string;
   itemCode?: string;
   barCode: string;
-  sizes: string[];
-  // unit: number;
+  color: string;
+  size: "S" | "M" | "L" | "XL" | "XXL";
+  quantity: number;
   hsnCode?: string;
   salesTax: string;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;
   purchasePrice: number;
+  status: "Active" | "Inactive";
   createdAt: string;
   updatedAt: string;
 }
@@ -23,19 +25,29 @@ export interface CreateProductData {
   productName: string;
   itemCode?: string;
   barCode: string;
-  sizes: string[];
-  // unit: number;
+  color: string;
+  size: "S" | "M" | "L" | "XL" | "XXL";
   hsnCode?: string;
   salesTax: string;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;
   purchasePrice: number;
+  status?: "Active" | "Inactive";
 }
 
-export type ProductFormData = CreateProductData;
-
 export interface UpdateProductData extends Partial<CreateProductData> {}
+
+export interface StockOperation {
+  productId: string;
+  quantity: number;
+}
+
+export interface StockSummary {
+  success: boolean;
+  totalProducts: number;
+  totalStock: number;
+}
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -45,10 +57,21 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
-// Get all products
-export const getProducts = async (): Promise<ApiResponse<Product[]>> => {
+// Export form data type
+export type ProductFormData = CreateProductData;
+
+// =====================================================
+// GET /api/products - Get products with status filter
+// Default: Active only
+// ?status=All - All products
+// ?status=Inactive - Inactive only
+// =====================================================
+export const getProducts = async (
+  status?: "All" | "Inactive",
+): Promise<ApiResponse<Product[]>> => {
   try {
-    const response = await axiosInstance.get("/products");
+    const params = status ? { status } : {};
+    const response = await axiosInstance.get("/products", { params });
     return response.data;
   } catch (error) {
     console.error("Get products error:", error);
@@ -56,7 +79,9 @@ export const getProducts = async (): Promise<ApiResponse<Product[]>> => {
   }
 };
 
-// Get product by ID
+// =====================================================
+// GET /api/products/:id - Get product by ID
+// =====================================================
 export const getProductById = async (
   id: string,
 ): Promise<ApiResponse<Product>> => {
@@ -69,7 +94,9 @@ export const getProductById = async (
   }
 };
 
-// Create product
+// =====================================================
+// POST /api/products - Create product
+// =====================================================
 export const createProduct = async (
   data: CreateProductData,
 ): Promise<ApiResponse<Product>> => {
@@ -82,7 +109,9 @@ export const createProduct = async (
   }
 };
 
-// Update product
+// =====================================================
+// PUT /api/products/:id - Update product
+// =====================================================
 export const updateProduct = async (
   id: string,
   data: UpdateProductData,
@@ -96,13 +125,60 @@ export const updateProduct = async (
   }
 };
 
-// Delete product
-export const deleteProduct = async (id: string): Promise<ApiResponse<null>> => {
+// =====================================================
+// POST /api/products/add-stock - Add stock to product
+// =====================================================
+export const addStock = async (
+  data: StockOperation,
+): Promise<ApiResponse<Product>> => {
   try {
-    const response = await axiosInstance.delete(`/products/${id}`);
+    const response = await axiosInstance.post("/products/add-stock", data);
     return response.data;
   } catch (error) {
-    console.error("Delete product error:", error);
+    console.error("Add stock error:", error);
+    throw error;
+  }
+};
+
+// =====================================================
+// POST /api/products/reduce-stock - Reduce stock from product
+// =====================================================
+export const reduceStock = async (
+  data: StockOperation,
+): Promise<ApiResponse<Product>> => {
+  try {
+    const response = await axiosInstance.post("/products/reduce-stock", data);
+    return response.data;
+  } catch (error) {
+    console.error("Reduce stock error:", error);
+    throw error;
+  }
+};
+
+// =====================================================
+// GET /api/products/low-stock - Get products with stock <=5
+// =====================================================
+export const getLowStockProducts = async (): Promise<
+  ApiResponse<Product[]>
+> => {
+  try {
+    const response = await axiosInstance.get("/products/low-stock");
+    return response.data;
+  } catch (error) {
+    console.error("Get low stock products error:", error);
+    throw error;
+  }
+};
+
+// =====================================================
+// GET /api/products/stock-summary - Get branch stock summary
+// =====================================================
+export const getStockSummary = async (): Promise<StockSummary> => {
+  try {
+    const response = await axiosInstance.get("/products/stock-summary");
+    return response.data;
+  } catch (error) {
+    console.error("Get stock summary error:", error);
     throw error;
   }
 };
