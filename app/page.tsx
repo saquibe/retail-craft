@@ -26,9 +26,6 @@ export default function Home() {
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
             Welcome to RetailCraft
           </h1>
-          <p className="text-xl text-gray-600">
-            Complete Retail Management Solution
-          </p>
         </div>
 
         <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">

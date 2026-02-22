@@ -97,7 +97,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
           <button
             onClick={handleLogout}
-            className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-800 text-gray-300"
+            className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-800 text-gray-300 cursor-pointer"
           >
             <FiLogOut className="w-5 h-5" />
             <span>Logout</span>
