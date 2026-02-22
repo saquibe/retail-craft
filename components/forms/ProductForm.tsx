@@ -12,12 +12,12 @@ import {
   Barcode,
   Hash,
   Percent,
-  DollarSign,
   Tag,
   FileText,
   IndianRupee,
   Palette,
   Ruler,
+  Box,
 } from "lucide-react";
 
 // Size options
@@ -29,28 +29,24 @@ const SIZE_OPTIONS = [
   { value: "XXL", label: "Double Extra Large (XXL)" },
 ];
 
-// Status options
-const STATUS_OPTIONS = [
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" },
-];
-
 // Define the product schema
 const productSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
   itemCode: z.string().optional().default(""),
   barCode: z.string().min(1, "Barcode is required"),
   color: z.string().min(1, "Color is required"),
-  size: z.enum(["S", "M", "L", "XL", "XXL"], {
-    message: "Size is required",
-  }),
+  size: z.enum(["S", "M", "L", "XL", "XXL"]),
+  quantity: z.coerce
+    .number()
+    .min(0, "Quantity cannot be negative")
+    .optional()
+    .default(0),
   hsnCode: z.string().optional().default(""),
   salesTax: z.string().min(1, "Sales tax is required"),
   shortDescription: z.string().optional().default(""),
   b2bSalePrice: z.coerce.number().min(0, "Price must be a positive number"),
   b2cSalePrice: z.coerce.number().min(0, "Price must be a positive number"),
   purchasePrice: z.coerce.number().min(0, "Price must be a positive number"),
-  status: z.enum(["Active", "Inactive"]).optional().default("Active"),
 });
 
 // Infer the type from the schema
@@ -83,13 +79,13 @@ export default function ProductForm({
       barCode: initialData?.barCode || "",
       color: initialData?.color || "",
       size: initialData?.size || "M",
+      quantity: initialData?.quantity || 0,
       hsnCode: initialData?.hsnCode || "",
       salesTax: initialData?.salesTax || "",
       shortDescription: initialData?.shortDescription || "",
       b2bSalePrice: initialData?.b2bSalePrice || 0,
       b2cSalePrice: initialData?.b2cSalePrice || 0,
       purchasePrice: initialData?.purchasePrice || 0,
-      status: initialData?.status || "Active",
     },
   });
 
@@ -172,7 +168,6 @@ export default function ProductForm({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Size *
             </label>
-
             <Controller
               name="size"
               control={control}
@@ -186,6 +181,28 @@ export default function ProductForm({
                 />
               )}
             />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Initial Quantity
+            </label>
+            <div className="relative">
+              <Box className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                {...register("quantity")}
+                error={errors.quantity?.message}
+                placeholder="Enter initial quantity (optional)"
+                className="pl-10"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Leave as 0 to create product without stock
+            </p>
           </div>
 
           {/* HSN Code */}
@@ -218,27 +235,6 @@ export default function ProductForm({
                 className="pl-10"
               />
             </div>
-          </div>
-
-          {/* Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-
-            <Controller
-              name="status"
-              control={control}
-              render={({ field }) => (
-                <SearchSelect
-                  options={STATUS_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select status"
-                  error={errors.status?.message}
-                />
-              )}
-            />
           </div>
         </div>
       </div>

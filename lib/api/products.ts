@@ -27,13 +27,13 @@ export interface CreateProductData {
   barCode: string;
   color: string;
   size: "S" | "M" | "L" | "XL" | "XXL";
+  quantity?: number;
   hsnCode?: string;
   salesTax: string;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;
   purchasePrice: number;
-  status?: "Active" | "Inactive";
 }
 
 export interface UpdateProductData extends Partial<CreateProductData> {}

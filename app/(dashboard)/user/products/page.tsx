@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/context/AuthContext";
 import {
   getProducts,
@@ -28,16 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -80,11 +70,10 @@ const SIZE_COLORS: Record<string, string> = {
 
 export default function ProductsPage() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]); // Store all products
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -99,25 +88,18 @@ export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
 
-  // const itemsPerPage = 6;
   useEffect(() => {
     setCurrentPage(1);
   }, [itemsPerPage]);
 
-  // Fetch products with status filter
-  const fetchProducts = async () => {
+  // Fetch ALL products (no status filter from API)
+  const fetchAllProducts = async () => {
     try {
       setIsLoading(true);
-      const status =
-        statusFilter === "All"
-          ? "All"
-          : statusFilter === "Inactive"
-          ? "Inactive"
-          : undefined;
-      const response = await getProducts(status);
-      // console.log("Fetched products:", response.data);
+      // Pass "All" to get all products regardless of status
+      const response = await getProducts("All");
       if (response.success && response.data) {
-        setProducts(response.data);
+        setAllProducts(response.data);
       }
     } catch (error) {
       console.error("Fetch products error:", error);
@@ -131,7 +113,6 @@ export default function ProductsPage() {
   const fetchStockSummary = async () => {
     try {
       const response = await getStockSummary();
-      // console.log("Stock summary response:", response);
       if (response.success) {
         setStockSummary({
           totalProducts: response.totalProducts,
@@ -156,25 +137,47 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchAllProducts();
     fetchStockSummary();
     fetchLowStockCount();
-    setCurrentPage(1);
-  }, [statusFilter]);
+  }, []); // Remove statusFilter dependency
 
-  // Filter products based on search
-  const filteredProducts = products.filter((product) => {
-    return (
-      product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.color?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.itemCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.hsnCode?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+  // Calculate counts for tabs based on actual data
+  const activeCount = useMemo(
+    () => allProducts.filter((p) => p.quantity > 0).length,
+    [allProducts],
+  );
+
+  const inactiveCount = useMemo(
+    () => allProducts.filter((p) => p.quantity === 0).length,
+    [allProducts],
+  );
+
+  const allCount = allProducts.length;
+
+  // Filter products based on search AND status (frontend filtering)
+  const filteredProducts = useMemo(() => {
+    return allProducts.filter((product) => {
+      // First apply status filter based on QUANTITY (not API status)
+      if (statusFilter === "Active") {
+        if (product.quantity === 0) return false; // Only show products with quantity > 0
+      } else if (statusFilter === "Inactive") {
+        if (product.quantity > 0) return false; // Only show products with quantity = 0
+      }
+      // 'All' shows everything, no filtering
+
+      // Then apply search filter
+      return (
+        product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.barCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.color?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.itemCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.hsnCode?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
+  }, [allProducts, statusFilter, searchTerm]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
@@ -187,8 +190,9 @@ export default function ProductsPage() {
       if (response.success) {
         toast.success("Product created successfully!");
         setIsCreateOpen(false);
-        fetchProducts();
+        fetchAllProducts(); // Refresh all products
         fetchStockSummary();
+        fetchLowStockCount();
       }
     } catch (error: any) {
       console.error("Create product error:", error);
@@ -201,44 +205,19 @@ export default function ProductsPage() {
     if (!selectedProduct) return;
 
     try {
-      const response = await updateProduct(selectedProduct._id, data);
+      // Remove fields that cannot be updated directly
+      const { quantity, ...updateData } = data;
+
+      const response = await updateProduct(selectedProduct._id, updateData);
       if (response.success) {
         toast.success("Product updated successfully!");
         setIsEditOpen(false);
         setSelectedProduct(null);
-        fetchProducts();
+        fetchAllProducts(); // Refresh all products
       }
     } catch (error: any) {
       console.error("Update product error:", error);
       toast.error(error.response?.data?.message || "Failed to update product");
-    }
-  };
-
-  // Handle toggle product status (Active/Inactive)
-  const handleToggleStatus = async () => {
-    if (!selectedProduct) return;
-
-    const newStatus =
-      selectedProduct.status === "Active" ? "Inactive" : "Active";
-
-    try {
-      const response = await updateProduct(selectedProduct._id, {
-        status: newStatus,
-      });
-
-      if (response.success) {
-        toast.success(
-          `Product ${
-            newStatus === "Active" ? "activated" : "inactivated"
-          } successfully!`,
-        );
-        setIsStatusDialogOpen(false);
-        setSelectedProduct(null);
-        fetchProducts();
-      }
-    } catch (error: any) {
-      console.error("Toggle status error:", error);
-      toast.error(error.response?.data?.message || "Failed to update status");
     }
   };
 
@@ -328,10 +307,10 @@ export default function ProductsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">
-                  Active Products
+                  In Stock Products
                 </p>
                 <p className="text-3xl font-bold text-green-600">
-                  {products.filter((p) => p.status === "Active").length}
+                  {activeCount}
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
@@ -344,16 +323,40 @@ export default function ProductsPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Status Filter Tabs */}
+        {/* Status Filter Tabs with Counts */}
         <Tabs
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as any)}
           className="w-full sm:w-auto"
         >
-          <TabsList>
-            <TabsTrigger value="Active">Active</TabsTrigger>
-            <TabsTrigger value="Inactive">Inactive</TabsTrigger>
-            <TabsTrigger value="All">All</TabsTrigger>
+          <TabsList className="grid grid-cols-3 w-[500px]">
+            <TabsTrigger value="Active" className="relative">
+              In Stock
+              <Badge
+                variant="secondary"
+                className="ml-2 bg-green-100 text-green-800"
+              >
+                {activeCount}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="Inactive" className="relative">
+              Out of Stock
+              <Badge
+                variant="secondary"
+                className="ml-2 bg-gray-100 text-gray-800"
+              >
+                {inactiveCount}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="All" className="relative">
+              All
+              <Badge
+                variant="secondary"
+                className="ml-2 bg-blue-100 text-blue-800"
+              >
+                {allCount}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -381,7 +384,15 @@ export default function ProductsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Package className="w-12 h-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 text-lg mb-2">No products found</p>
+            <p className="text-gray-500 text-lg mb-2">
+              {searchTerm
+                ? "No products match your search"
+                : statusFilter === "Active"
+                ? "No products in stock"
+                : statusFilter === "Inactive"
+                ? "No out of stock products"
+                : "No products found"}
+            </p>
             <p className="text-gray-400 text-sm">
               {searchTerm
                 ? "Try a different search term"
@@ -391,152 +402,240 @@ export default function ProductsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch w-full">
-          {paginatedProducts.map((product) => (
-            <Card
-              key={product._id}
-              className={`hover:shadow-lg transition-shadow flex flex-col h-full min-w-0 ${
-                product.status === "Inactive" ? "opacity-75 bg-gray-50" : ""
-              }`}
-            >
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-blue-600" />
-                    <CardTitle className="text-lg">
-                      {product.productName}
-                    </CardTitle>
-                  </div>
-                  <div className="flex gap-1">
-                    {/* Status Badge */}
-                    <Badge
-                      className={
-                        product.status === "Active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }
-                    >
-                      {product.status === "Active" ? (
-                        <Power className="w-3 h-3 mr-1" />
-                      ) : (
-                        <PowerOff className="w-3 h-3 mr-1" />
-                      )}
-                      {product.status}
-                    </Badge>
+          {paginatedProducts.map((product) => {
+            const isInactive = product.quantity === 0;
 
-                    {/* Low Stock Badge */}
-                    {product.quantity <= 5 && product.quantity > 0 && (
-                      <Badge className="bg-yellow-100 text-yellow-800">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Low
-                      </Badge>
-                    )}
-                    {product.quantity === 0 && (
-                      <Badge className="bg-red-100 text-red-800">
-                        Out of Stock
-                      </Badge>
-                    )}
+            return (
+              <Card
+                key={product._id}
+                className={`hover:shadow-lg transition-shadow flex flex-col h-full min-w-0 ${
+                  isInactive ? "opacity-60 bg-gray-50 border-gray-200" : ""
+                }`}
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <Package
+                        className={`w-5 h-5 ${
+                          isInactive ? "text-gray-400" : "text-blue-600"
+                        }`}
+                      />
+                      <CardTitle
+                        className={`text-lg ${
+                          isInactive ? "text-gray-500" : ""
+                        }`}
+                      >
+                        {product.productName}
+                      </CardTitle>
+                    </div>
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      {/* Status Badge - based on quantity */}
+                      {product.quantity === 0 ? (
+                        <Badge className="bg-gray-200 text-gray-700 border-gray-300">
+                          <PowerOff className="w-3 h-3 mr-1" />
+                          Out of Stock
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-green-100 text-green-800">
+                          <Power className="w-3 h-3 mr-1" />
+                          In Stock
+                        </Badge>
+                      )}
+
+                      {/* Low Stock Badge (only if in stock but low) */}
+                      {product.quantity > 0 && product.quantity <= 5 && (
+                        <Badge className="bg-yellow-100 text-yellow-800">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Low
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <CardDescription className="space-y-1 mt-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <Barcode className="w-3 h-3" />
-                    <span className="font-mono">
-                      Barcode: {product.barCode}
+                  <CardDescription className="space-y-1 mt-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Barcode
+                        className={`w-3 h-3 ${
+                          isInactive ? "text-gray-400" : ""
+                        }`}
+                      />
+                      <span
+                        className={`font-mono ${
+                          isInactive ? "text-gray-500" : ""
+                        }`}
+                      >
+                        Barcode: {product.barCode}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Palette
+                        className={`w-3 h-3 ${
+                          isInactive ? "text-gray-400" : ""
+                        }`}
+                      />
+                      <span className={isInactive ? "text-gray-500" : ""}>
+                        Color: {product.color}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Ruler
+                        className={`w-3 h-3 ${
+                          isInactive ? "text-gray-400" : ""
+                        }`}
+                      />
+                      <Badge
+                        className={`${
+                          SIZE_COLORS[product.size] || "bg-gray-100"
+                        } ${isInactive ? "opacity-50" : ""}`}
+                      >
+                        Size {product.size}
+                      </Badge>
+                    </div>
+                    {product.itemCode && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Tag
+                          className={`w-3 h-3 ${
+                            isInactive ? "text-gray-400" : ""
+                          }`}
+                        />
+                        <span className={isInactive ? "text-gray-500" : ""}>
+                          Item Code: {product.itemCode}
+                        </span>
+                      </div>
+                    )}
+                    {product.hsnCode && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Hash
+                          className={`w-3 h-3 ${
+                            isInactive ? "text-gray-400" : ""
+                          }`}
+                        />
+                        <span className={isInactive ? "text-gray-500" : ""}>
+                          HSN: {product.hsnCode}
+                        </span>
+                      </div>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 flex-1">
+                  {/* Stock Quantity */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-sm font-medium ${
+                        isInactive ? "text-gray-500" : "text-gray-600"
+                      }`}
+                    >
+                      Stock:
+                    </span>
+                    <Badge className={getStockBadgeColor(product.quantity)}>
+                      {product.quantity} units
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <Percent
+                      className={`w-4 h-4 ${
+                        isInactive ? "text-gray-400" : "text-gray-400"
+                      }`}
+                    />
+                    <span className={isInactive ? "text-gray-500" : ""}>
+                      Sales Tax: {product.salesTax}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Palette className="w-3 h-3" />
-                    <span>Color: {product.color}</span>
+
+                  {/* Pricing */}
+                  <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t">
+                    <div className="text-center">
+                      <p
+                        className={`text-xs ${
+                          isInactive ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      >
+                        B2B
+                      </p>
+                      <p
+                        className={`text-sm font-semibold ${
+                          isInactive ? "text-gray-500" : "text-blue-600"
+                        }`}
+                      >
+                        {formatCurrency(product.b2bSalePrice)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p
+                        className={`text-xs ${
+                          isInactive ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      >
+                        B2C
+                      </p>
+                      <p
+                        className={`text-sm font-semibold ${
+                          isInactive ? "text-gray-500" : "text-green-600"
+                        }`}
+                      >
+                        {formatCurrency(product.b2cSalePrice)}
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p
+                        className={`text-xs ${
+                          isInactive ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      >
+                        Purchase
+                      </p>
+                      <p
+                        className={`text-sm font-semibold ${
+                          isInactive ? "text-gray-500" : "text-gray-600"
+                        }`}
+                      >
+                        {formatCurrency(product.purchasePrice)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Ruler className="w-3 h-3" />
-                    <Badge
-                      className={SIZE_COLORS[product.size] || "bg-gray-100"}
+
+                  {product.shortDescription && (
+                    <p
+                      className={`text-xs line-clamp-2 mt-2 min-h-[32px] ${
+                        isInactive ? "text-gray-400" : "text-gray-500"
+                      }`}
                     >
-                      Size {product.size}
-                    </Badge>
-                  </div>
-                  {product.itemCode && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <Tag className="w-3 h-3" />
-                      <span>Item Code: {product.itemCode}</span>
-                    </div>
+                      {product.shortDescription}
+                    </p>
                   )}
-                  {product.hsnCode && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <Hash className="w-3 h-3" />
-                      <span>HSN: {product.hsnCode}</span>
-                    </div>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 flex-1">
-                {/* Stock Quantity */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">
-                    Stock:
-                  </span>
-                  <Badge className={getStockBadgeColor(product.quantity)}>
-                    {product.quantity} units
-                  </Badge>
-                </div>
 
-                <div className="flex items-center gap-2 text-sm">
-                  <Percent className="w-4 h-4 text-gray-400" />
-                  <span>Sales Tax: {product.salesTax}</span>
-                </div>
-
-                {/* Pricing */}
-                <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500">B2B</p>
-                    <p className="text-sm font-semibold text-blue-600">
-                      {formatCurrency(product.b2bSalePrice)}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500">B2C</p>
-                    <p className="text-sm font-semibold text-green-600">
-                      {formatCurrency(product.b2cSalePrice)}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500">Purchase</p>
-                    <p className="text-sm font-semibold text-gray-600">
-                      {formatCurrency(product.purchasePrice)}
-                    </p>
-                  </div>
-                </div>
-
-                {product.shortDescription && (
-                  <p className="text-xs text-gray-500 line-clamp-2 mt-2 min-h-[32px]">
-                    {product.shortDescription}
+                  <p
+                    className={`text-xs mt-2 ${
+                      isInactive ? "text-gray-400" : "text-gray-400"
+                    }`}
+                  >
+                    Added:{" "}
+                    {product.createdAt &&
+                    !isNaN(new Date(product.createdAt).getTime())
+                      ? format(new Date(product.createdAt), "dd MMM yyyy")
+                      : "N/A"}
                   </p>
-                )}
+                </CardContent>
+                <CardFooter className="flex justify-between items-center mt-auto border-t pt-4">
+                  {/* Always show Stock button, even for inactive products */}
+                  <Button
+                    variant={isInactive ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setIsStockDialogOpen(true);
+                    }}
+                    className={
+                      !isInactive
+                        ? "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                        : "cursor-pointer border-blue-300 text-blue-600 hover:bg-blue-50"
+                    }
+                  >
+                    <Box className="w-4 h-4 mr-1" />
+                    {isInactive ? "Add Stock" : "Manage Stock"}
+                  </Button>
 
-                <p className="text-xs text-gray-400 mt-2">
-                  Added:{" "}
-                  {product.createdAt &&
-                  !isNaN(new Date(product.createdAt).getTime())
-                    ? format(new Date(product.createdAt), "dd MMM yyyy")
-                    : "N/A"}
-                </p>
-              </CardContent>
-              <CardFooter className="flex justify-between items-center mt-auto border-t pt-4">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedProduct(product);
-                    setIsStockDialogOpen(true);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
-                  disabled={product.status === "Inactive"}
-                >
-                  <Box className="w-4 h-4 mr-1" />
-                  Stock
-                </Button>
-                <div className="flex space-x-2">
+                  {/* Edit button - always visible but with appropriate styling */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -549,43 +648,16 @@ export default function ProductsPage() {
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
                   </Button>
-                  <Button
-                    variant={
-                      product.status === "Active" ? "destructive" : "default"
-                    }
-                    size="sm"
-                    onClick={() => {
-                      setSelectedProduct(product);
-                      setIsStatusDialogOpen(true);
-                    }}
-                    className={`cursor-pointer ${
-                      product.status === "Inactive"
-                        ? "bg-green-600 hover:bg-green-700"
-                        : ""
-                    }`}
-                  >
-                    {product.status === "Active" ? (
-                      <>
-                        <PowerOff className="w-4 h-4 mr-1" />
-                        Inactive
-                      </>
-                    ) : (
-                      <>
-                        <Power className="w-4 h-4 mr-1" />
-                        Activate
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       <div className="mt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-center relative gap-4">
-          {/* Pagination (Always Centered) */}
+          {/* Pagination */}
           <div className="flex justify-center w-full md:w-auto">
             <AppPagination
               currentPage={currentPage}
@@ -648,7 +720,6 @@ export default function ProductsPage() {
                 b2bSalePrice: selectedProduct.b2bSalePrice,
                 b2cSalePrice: selectedProduct.b2cSalePrice,
                 purchasePrice: selectedProduct.purchasePrice,
-                status: selectedProduct.status,
               }}
               onSubmit={handleUpdateProduct}
               isLoading={isLoading}
@@ -675,7 +746,7 @@ export default function ProductsPage() {
               productName={selectedProduct.productName}
               currentStock={selectedProduct.quantity}
               onStockUpdate={() => {
-                fetchProducts();
+                fetchAllProducts();
                 fetchStockSummary();
                 fetchLowStockCount();
               }}
@@ -683,42 +754,6 @@ export default function ProductsPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Toggle Status Dialog */}
-      <AlertDialog
-        open={isStatusDialogOpen}
-        onOpenChange={setIsStatusDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {selectedProduct?.status === "Active"
-                ? "Deactivate Product?"
-                : "Activate Product?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {selectedProduct?.status === "Active"
-                ? "This product will be hidden from active inventory and cannot be used in transactions."
-                : "This product will be visible in active inventory and can be used in transactions."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleToggleStatus}
-              className={
-                selectedProduct?.status === "Active"
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "bg-green-600 hover:bg-green-700"
-              }
-            >
-              {selectedProduct?.status === "Active" ? "Deactivate" : "Activate"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
