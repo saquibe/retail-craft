@@ -246,7 +246,10 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold">Products</h1>
           <p className="text-gray-500">Manage your products and inventory</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="cursor-pointer"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Product
         </Button>
@@ -330,7 +333,7 @@ export default function ProductsPage() {
           className="w-full sm:w-auto"
         >
           <TabsList className="grid grid-cols-3 w-[500px]">
-            <TabsTrigger value="Active" className="relative">
+            <TabsTrigger value="Active" className="relative cursor-pointer">
               In Stock
               <Badge
                 variant="secondary"
@@ -339,7 +342,7 @@ export default function ProductsPage() {
                 {activeCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="Inactive" className="relative">
+            <TabsTrigger value="Inactive" className="relative cursor-pointer">
               Out of Stock
               <Badge
                 variant="secondary"
@@ -348,7 +351,7 @@ export default function ProductsPage() {
                 {inactiveCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="All" className="relative">
+            <TabsTrigger value="All" className="relative cursor-pointer">
               All
               <Badge
                 variant="secondary"
@@ -714,6 +717,7 @@ export default function ProductsPage() {
                 barCode: selectedProduct.barCode,
                 color: selectedProduct.color,
                 size: selectedProduct.size,
+                quantity: selectedProduct.quantity,
                 hsnCode: selectedProduct.hsnCode,
                 salesTax: selectedProduct.salesTax,
                 shortDescription: selectedProduct.shortDescription,
@@ -727,6 +731,7 @@ export default function ProductsPage() {
                 setIsEditOpen(false);
                 setSelectedProduct(null);
               }}
+              isEditMode={true}
             />
           )}
         </DialogContent>

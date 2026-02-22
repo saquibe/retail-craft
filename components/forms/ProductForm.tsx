@@ -58,6 +58,7 @@ interface ProductFormProps {
   onSubmit: (data: ProductFormData) => Promise<void> | void;
   isLoading?: boolean;
   onCancel?: () => void;
+  isEditMode?: boolean; // Add this prop to identify if we're in edit mode
 }
 
 export default function ProductForm({
@@ -65,6 +66,7 @@ export default function ProductForm({
   onSubmit,
   isLoading = false,
   onCancel,
+  isEditMode = false, // Default to false for create mode
 }: ProductFormProps) {
   const {
     register,
@@ -90,7 +92,13 @@ export default function ProductForm({
   });
 
   const handleFormSubmit = (data: ProductFormData) => {
-    onSubmit(data);
+    // If in edit mode, remove quantity from the data before submitting
+    if (isEditMode) {
+      const { quantity, ...restData } = data;
+      onSubmit(restData as ProductFormData);
+    } else {
+      onSubmit(data);
+    }
   };
 
   return (
@@ -183,10 +191,10 @@ export default function ProductForm({
             />
           </div>
 
-          {/* Quantity */}
+          {/* Quantity - Disabled in edit mode */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Initial Quantity
+              {isEditMode ? "Current Quantity" : "Initial Quantity"}
             </label>
             <div className="relative">
               <Box className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -196,13 +204,26 @@ export default function ProductForm({
                 step="1"
                 {...register("quantity")}
                 error={errors.quantity?.message}
-                placeholder="Enter initial quantity (optional)"
-                className="pl-10"
+                placeholder={
+                  isEditMode
+                    ? "Manage stock via Stock Manager"
+                    : "Enter initial quantity"
+                }
+                className={`pl-10 ${
+                  isEditMode ? "bg-gray-50 text-gray-500" : ""
+                }`}
+                disabled={isEditMode}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Leave as 0 to create product without stock
-            </p>
+            {isEditMode ? (
+              <p className="text-xs text-blue-600 mt-1">
+                Use the Stock Manager button to update quantity
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1">
+                Leave as 0 to create product without stock
+              </p>
+            )}
           </div>
 
           {/* HSN Code */}
@@ -326,11 +347,16 @@ export default function ProductForm({
       {/* Form Actions */}
       <div className="flex justify-end space-x-3 pt-4">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="cursor-pointer"
+          >
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading} className="cursor-pointer">
           {isLoading
             ? "Saving..."
             : initialData
