@@ -8,7 +8,6 @@ import {
   updateCustomer,
   deleteCustomer,
   Customer,
-  CreateCustomerData,
 } from "@/lib/api/customers";
 import CustomerForm, {
   CustomerFormData,
@@ -23,7 +22,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -38,15 +36,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus,
@@ -178,7 +169,10 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold">Customers</h1>
           <p className="text-gray-500">Manage your B2B and B2C customers</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="cursor-pointer"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Customer
         </Button>
@@ -302,6 +296,7 @@ export default function CustomersPage() {
               </CardContent>
               <CardFooter className="flex justify-end space-x-2 mt-auto border-t pt-4">
                 <Button
+                  className="cursor-pointer"
                   variant="outline"
                   size="sm"
                   onClick={() => {
@@ -313,6 +308,7 @@ export default function CustomersPage() {
                   Edit
                 </Button>
                 <Button
+                  className="cursor-pointer"
                   variant="destructive"
                   size="sm"
                   onClick={() => {

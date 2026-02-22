@@ -182,3 +182,16 @@ export const getStockSummary = async (): Promise<StockSummary> => {
     throw error;
   }
 };
+
+// =====================================================
+// DELETE /api/products/:id - Delete product
+// =====================================================
+export const deleteProduct = async (id: string): Promise<ApiResponse<null>> => {
+  try {
+    const response = await axiosInstance.delete(`/products/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Delete product error:", error);
+    throw error;
+  }
+};

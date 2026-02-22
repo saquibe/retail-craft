@@ -10,6 +10,7 @@ import {
   ProductFormData,
   getLowStockProducts,
   getStockSummary,
+  deleteProduct,
 } from "@/lib/api/products";
 import ProductForm from "@/components/forms/ProductForm";
 import { StockManager } from "@/components/inventory/StockManager";
@@ -47,6 +48,7 @@ import {
   Ruler,
   Power,
   PowerOff,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -58,6 +60,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Size colors for visual distinction
 const SIZE_COLORS: Record<string, string> = {
@@ -87,6 +99,28 @@ export default function ProductsPage() {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Handle delete product
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      // Call your delete API endpoint here
+      const response = await deleteProduct(selectedProduct._id);
+      if (response.success) {
+        toast.success("Product deleted successfully!");
+        setIsDeleteDialogOpen(false);
+        setSelectedProduct(null);
+        fetchAllProducts(); // Refresh the product list
+        fetchStockSummary();
+        fetchLowStockCount();
+      }
+    } catch (error: any) {
+      console.error("Delete product error:", error);
+      toast.error(error.response?.data?.message || "Failed to delete product");
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -651,6 +685,21 @@ export default function ProductsPage() {
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
                   </Button>
+                  {/* Delete button - only visible when quantity is 0 */}
+                  {product.quantity === 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             );
@@ -736,6 +785,34 @@ export default function ProductsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              product "{selectedProduct?.productName}" and remove all associated
+              data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProduct}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Stock Management Dialog */}
       <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>

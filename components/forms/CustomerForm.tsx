@@ -425,11 +425,16 @@ export default function CustomerForm({
       {/* Form Actions */}
       <div className="flex justify-end space-x-3 pt-4">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            className="cursor-pointer"
+          >
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading} className="cursor-pointer">
           {isLoading
             ? "Saving..."
             : initialData
