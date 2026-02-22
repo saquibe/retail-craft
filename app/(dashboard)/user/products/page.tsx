@@ -115,7 +115,7 @@ export default function ProductsPage() {
           ? "Inactive"
           : undefined;
       const response = await getProducts(status);
-      console.log("Fetched products:", response.data);
+      // console.log("Fetched products:", response.data);
       if (response.success && response.data) {
         setProducts(response.data);
       }
@@ -131,7 +131,7 @@ export default function ProductsPage() {
   const fetchStockSummary = async () => {
     try {
       const response = await getStockSummary();
-      console.log("Stock summary response:", response);
+      // console.log("Stock summary response:", response);
       if (response.success) {
         setStockSummary({
           totalProducts: response.totalProducts,
