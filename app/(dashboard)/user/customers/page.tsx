@@ -188,9 +188,15 @@ export default function CustomersPage() {
           className="w-full sm:w-auto"
         >
           <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="B2B">B2B</TabsTrigger>
-            <TabsTrigger value="B2C">B2C</TabsTrigger>
+            <TabsTrigger value="all" className="cursor-pointer">
+              All
+            </TabsTrigger>
+            <TabsTrigger value="B2B" className="cursor-pointer">
+              B2B
+            </TabsTrigger>
+            <TabsTrigger value="B2C" className="cursor-pointer">
+              B2C
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
