@@ -26,11 +26,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
   Barcode,
@@ -45,6 +44,8 @@ import {
   X,
   Check,
   AlertCircle,
+  User,
+  Building2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getProducts, Product } from "@/lib/api/products";
@@ -71,14 +72,12 @@ export default function BillingPage() {
   );
   const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
-  console.log("Customers loaded:", customers);
-  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
 
   const [barcode, setBarcode] = useState("");
   const [cart, setCart] = useState<BillingItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  console.log("Products loaded:", products);
   const [loading, setLoading] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "upi">(
@@ -87,7 +86,7 @@ export default function BillingPage() {
   const [discount, setDiscount] = useState(0);
   const [paidAmount, setPaidAmount] = useState<number>(0);
 
-  // Load products on mount
+  // Load products and customers on mount
   useEffect(() => {
     loadProducts();
     loadCustomers();
@@ -124,19 +123,36 @@ export default function BillingPage() {
     }
   };
 
-  // Filter customers based on search and type
+  // Filter customers based on search term - NO TYPE FILTERING
   const filteredCustomers = customers.filter((customer) => {
-    const matchesType = customer.customerType === customerType;
-    const matchesSearch =
-      customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      customer.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    if (!customerSearch.trim()) return false; // Don't show all when empty
+
+    const searchLower = customerSearch.toLowerCase();
+    return (
+      customer.name.toLowerCase().includes(searchLower) ||
+      customer.email?.toLowerCase().includes(searchLower) ||
       customer.mobile?.includes(customerSearch) ||
       (customer.customerType === "B2B" &&
-        customer.companyName
-          ?.toLowerCase()
-          .includes(customerSearch.toLowerCase()));
-    return matchesType && matchesSearch;
+        (customer.companyName?.toLowerCase().includes(searchLower) ||
+          customer.gstIn?.toLowerCase().includes(searchLower) ||
+          customer.contactName?.toLowerCase().includes(searchLower)))
+    );
   });
+
+  // Get customer type badge color
+  const getTypeBadge = (type: string) => {
+    return type === "B2B"
+      ? "bg-purple-100 text-purple-800"
+      : "bg-green-100 text-green-800";
+  };
+
+  // Handle customer selection
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerType(customer.customerType); // Auto-set customer type
+    setCustomerSearch("");
+    setShowCustomerResults(false);
+  };
 
   // Handle barcode scan
   const handleBarcodeScan = async (e: React.FormEvent) => {
@@ -146,7 +162,6 @@ export default function BillingPage() {
 
     setLoading(true);
     try {
-      // Find product by barcode
       const product = products.find((p) => p.barCode === barcode);
 
       if (!product) {
@@ -155,18 +170,15 @@ export default function BillingPage() {
         return;
       }
 
-      // Check stock
       if (product.quantity <= 0) {
         toast.error(`${product.productName} is out of stock`);
         setBarcode("");
         return;
       }
 
-      // Add to cart
       const existingItem = cart.find((item) => item._id === product._id);
 
       if (existingItem) {
-        // Check if enough stock
         if (existingItem.quantity < existingItem.cartQuantity + 1) {
           toast.error(`Only ${existingItem.quantity} items in stock`);
           setBarcode("");
@@ -200,7 +212,7 @@ export default function BillingPage() {
     }
   };
 
-  // Manual product search
+  // Manual product add
   const handleManualAdd = (product: Product) => {
     if (product.quantity <= 0) {
       toast.error(`${product.productName} is out of stock`);
@@ -278,9 +290,9 @@ export default function BillingPage() {
         setShowNewCustomerDialog(false);
         await loadCustomers();
 
-        // Auto-select the new customer
         if (response.data) {
           setSelectedCustomer(response.data);
+          setCustomerType(response.data.customerType);
         }
       }
     } catch (error: any) {
@@ -328,7 +340,6 @@ export default function BillingPage() {
       return;
     }
 
-    // Here you would call your billing API
     toast.success("Invoice created successfully!");
     handlePrint();
   };
@@ -374,127 +385,160 @@ export default function BillingPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {customerType === "B2B" ? (
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        placeholder="Search B2B customers..."
-                        value={customerSearch}
-                        onChange={(e) => setCustomerSearch(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    <Dialog
-                      open={showCustomerDialog}
-                      onOpenChange={setShowCustomerDialog}
-                    >
-                      <DialogTrigger asChild>
-                        <Button variant="outline">
-                          <Search className="w-4 h-4 mr-2" />
-                          Browse
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Select B2B Customer</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <Input
-                            placeholder="Search customers..."
-                            value={customerSearch}
-                            onChange={(e) => setCustomerSearch(e.target.value)}
-                            className="w-full"
-                          />
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {isLoadingCustomers ? (
-                              <div className="col-span-2 flex justify-center py-8">
-                                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                              </div>
-                            ) : filteredCustomers.length === 0 ? (
-                              <div className="col-span-2 text-center py-8 text-gray-500">
-                                No customers found.{" "}
-                                <button
-                                  onClick={() => {
-                                    setShowCustomerDialog(false);
-                                    setShowNewCustomerDialog(true);
-                                  }}
-                                  className="text-indigo-600 hover:underline"
-                                >
-                                  Create new
-                                </button>
-                              </div>
-                            ) : (
-                              filteredCustomers.map((customer) => (
-                                <Card
-                                  key={customer._id}
-                                  className="cursor-pointer hover:border-indigo-500 transition-colors"
-                                  onClick={() => {
-                                    setSelectedCustomer(customer);
-                                    setShowCustomerDialog(false);
-                                  }}
-                                >
-                                  <CardContent className="p-4">
-                                    <div className="font-medium">
-                                      {customer.name}
-                                    </div>
-                                    {customer.companyName && (
-                                      <div className="text-sm text-gray-500">
-                                        {customer.companyName}
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-gray-400 mt-2">
-                                      {customer.city}, {customer.state}
-                                    </div>
-                                    {customer.gstIn && (
-                                      <Badge className="mt-2 bg-purple-100 text-purple-800">
-                                        GST: {customer.gstIn}
-                                      </Badge>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                    <Button onClick={() => setShowNewCustomerDialog(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      New
-                    </Button>
-                  </div>
+              {/* Customer Search - Always visible */}
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search customer by name, email, phone, company, GST..."
+                    value={customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setShowCustomerResults(true);
+                    }}
+                    onFocus={() => setShowCustomerResults(true)}
+                    className="pl-10"
+                  />
 
-                  {selectedCustomer && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{selectedCustomer.name}</p>
-                          <p className="text-sm text-gray-600">
-                            {selectedCustomer.companyName}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            GST: {selectedCustomer.gstIn}
-                          </p>
+                  {/* Search Results Dropdown */}
+                  {showCustomerResults && customerSearch.trim() !== "" && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      {isLoadingCustomers ? (
+                        <div className="p-4 text-center">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedCustomer(null)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      ) : filteredCustomers.length > 0 ? (
+                        filteredCustomers.map((customer) => (
+                          <div
+                            key={customer._id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            onClick={() => handleSelectCustomer(customer)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {customer.customerType === "B2B" ? (
+                                  <Building2 className="w-4 h-4 text-purple-600" />
+                                ) : (
+                                  <User className="w-4 h-4 text-green-600" />
+                                )}
+                                <div>
+                                  <span className="font-medium">
+                                    {customer.name}
+                                  </span>
+                                  {customer.customerType === "B2B" &&
+                                    customer.companyName && (
+                                      <span className="text-sm text-gray-500 ml-2">
+                                        {customer.companyName}
+                                      </span>
+                                    )}
+                                </div>
+                              </div>
+                              <Badge
+                                className={getTypeBadge(customer.customerType)}
+                              >
+                                {customer.customerType}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              {customer.email && (
+                                <span>{customer.email} • </span>
+                              )}
+                              {customer.mobile && (
+                                <span>{customer.mobile}</span>
+                              )}
+                            </div>
+                            {customer.customerType === "B2B" &&
+                              customer.gstIn && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  GST: {customer.gstIn}
+                                </div>
+                              )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          No customers found.{" "}
+                          <button
+                            onClick={() => {
+                              setShowCustomerResults(false);
+                              setShowNewCustomerDialog(true);
+                            }}
+                            className="text-indigo-600 hover:underline"
+                          >
+                            Create new customer
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              ) : (
-                <Input
-                  placeholder="Customer Name (Optional for B2C)"
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                />
+
+                {/* Add New Customer Button - Always visible */}
+                <Button onClick={() => setShowNewCustomerDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Customer
+                </Button>
+              </div>
+
+              {/* Selected Customer Display */}
+              {selectedCustomer && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`p-2 rounded-full ${
+                          selectedCustomer.customerType === "B2B"
+                            ? "bg-purple-100"
+                            : "bg-green-100"
+                        }`}
+                      >
+                        {selectedCustomer.customerType === "B2B" ? (
+                          <Building2 className="w-5 h-5 text-purple-600" />
+                        ) : (
+                          <User className="w-5 h-5 text-green-600" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-lg">
+                            {selectedCustomer.name}
+                          </p>
+                          <Badge
+                            className={getTypeBadge(
+                              selectedCustomer.customerType,
+                            )}
+                          >
+                            {selectedCustomer.customerType}
+                          </Badge>
+                        </div>
+                        {selectedCustomer.customerType === "B2B" && (
+                          <>
+                            <p className="text-sm text-gray-600">
+                              {selectedCustomer.companyName}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              GST: {selectedCustomer.gstIn}
+                            </p>
+                          </>
+                        )}
+                        <p className="text-sm text-gray-500 mt-1">
+                          {selectedCustomer.email} • {selectedCustomer.mobile}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {selectedCustomer.city}, {selectedCustomer.state},{" "}
+                          {selectedCustomer.country}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedCustomer(null)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -832,10 +876,10 @@ export default function BillingPage() {
       >
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New {customerType} Customer</DialogTitle>
+            <DialogTitle>Add New Customer</DialogTitle>
           </DialogHeader>
           <CustomerForm
-            initialData={{ customerType }}
+            // initialData={{ customerType }}
             onSubmit={handleCreateCustomer}
             isLoading={isLoadingCustomers}
             onCancel={() => setShowNewCustomerDialog(false)}
@@ -856,12 +900,17 @@ export default function BillingPage() {
           {selectedCustomer ? (
             <div className="text-sm">
               <p>Name: {selectedCustomer.name}</p>
-              <p>Company: {selectedCustomer.companyName}</p>
-              <p>GST: {selectedCustomer.gstIn}</p>
+              {selectedCustomer.customerType === "B2B" && (
+                <>
+                  <p>Company: {selectedCustomer.companyName}</p>
+                  <p>GST: {selectedCustomer.gstIn}</p>
+                </>
+              )}
+              <p>Type: {selectedCustomer.customerType}</p>
             </div>
           ) : (
             <p className="text-sm">
-              Customer: {customerSearch || "Walk-in Customer"}
+              Customer: Walk-in Customer ({customerType})
             </p>
           )}
         </div>

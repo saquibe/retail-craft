@@ -10,6 +10,7 @@ import {
   FiSettings,
   FiUser,
   FiX,
+  FiCreditCard,
 } from "react-icons/fi";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -24,7 +25,7 @@ const userMenuItems = [
   { name: "Dashboard", href: "/user/dashboard", icon: FiHome },
   { name: "Customers", href: "/user/customers", icon: FiUsers },
   { name: "Products", href: "/user/products", icon: FiPackage },
-  { name: "Billing", href: "/user/billing", icon: FiPackage },
+  { name: "Billing", href: "/user/billing", icon: FiCreditCard },
   { name: "Profile", href: "/user/profile", icon: FiUser },
 ];
 
