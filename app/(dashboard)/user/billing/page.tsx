@@ -262,7 +262,7 @@ export default function BillingPage() {
         selectedCustomer.customerType === "B2B"
           ? item.b2bSalePrice
           : item.b2cSalePrice;
-      const tax = parseFloat(item.salesTax) || 0;
+      const tax = item.salesTax || 0;
       return sum + (price * item.cartQuantity * tax) / 100;
     }, 0);
   }, [cart, selectedCustomer]);
@@ -685,7 +685,7 @@ export default function BillingPage() {
                           selectedCustomer?.customerType === "B2B"
                             ? item.b2bSalePrice
                             : item.b2cSalePrice;
-                        const tax = parseFloat(item.salesTax) || 0;
+                        const tax = item.salesTax || 0;
                         const itemTotal =
                           price * item.cartQuantity +
                           (price * item.cartQuantity * tax) / 100;
@@ -974,7 +974,7 @@ export default function BillingPage() {
                 selectedCustomer?.customerType === "B2B"
                   ? item.b2bSalePrice
                   : item.b2cSalePrice;
-              const tax = parseFloat(item.salesTax) || 0;
+              const tax = item.salesTax || 0;
               const itemTotal =
                 price * item.cartQuantity +
                 (price * item.cartQuantity * tax) / 100;

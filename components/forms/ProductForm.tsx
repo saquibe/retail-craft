@@ -19,14 +19,34 @@ import {
   Ruler,
   Box,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 // Size options
 const SIZE_OPTIONS = [
+  { value: "XXXS", label: "Triple Extra Small (XXXS)" },
+  { value: "XXS", label: "Double Extra Small (XXS)" },
+  { value: "XS", label: "Extra Small (XS)" },
   { value: "S", label: "Small (S)" },
   { value: "M", label: "Medium (M)" },
   { value: "L", label: "Large (L)" },
   { value: "XL", label: "Extra Large (XL)" },
   { value: "XXL", label: "Double Extra Large (XXL)" },
+  { value: "XXXL", label: "Triple Extra Large (XXXL)" },
+  { value: "4XL", label: "Quadruple Extra Large (4XL)" },
+  { value: "5XL", label: "Quintuple Extra Large (5XL)" },
+  { value: "6XL", label: "Sextuple Extra Large (6XL)" },
+  { value: "7XL", label: "Septuple Extra Large (7XL)" },
+  { value: "8XL", label: "Octuple Extra Large (8XL)" },
+  { value: "9XL", label: "Nonuple Extra Large (9XL)" },
+  { value: "10XL", label: "Decuple Extra Large (10XL)" },
+  { value: "FREE", label: "Free Size" },
+  { value: "CUSTOM", label: "Custom Size" },
 ];
 
 // Define the product schema
@@ -35,14 +55,33 @@ const productSchema = z.object({
   itemCode: z.string().optional().default(""),
   barCode: z.string().min(1, "Barcode is required"),
   color: z.string().min(1, "Color is required"),
-  size: z.enum(["S", "M", "L", "XL", "XXL"]),
+  size: z.enum([
+    "XXXS",
+    "XXS",
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "XXL",
+    "XXXL",
+    "4XL",
+    "5XL",
+    "6XL",
+    "7XL",
+    "8XL",
+    "9XL",
+    "10XL",
+    "FREE",
+    "CUSTOM",
+  ]),
   quantity: z.coerce
     .number()
     .min(0, "Quantity cannot be negative")
     .optional()
     .default(0),
   hsnCode: z.string().optional().default(""),
-  salesTax: z.string().min(1, "Sales tax is required"),
+  salesTax: z.coerce.number().min(0, "Sales tax must be a positive number"),
   shortDescription: z.string().optional().default(""),
   b2bSalePrice: z.coerce.number().min(0, "Price must be a positive number"),
   b2cSalePrice: z.coerce.number().min(0, "Price must be a positive number"),
@@ -83,7 +122,7 @@ export default function ProductForm({
       size: initialData?.size || "M",
       quantity: initialData?.quantity || 0,
       hsnCode: initialData?.hsnCode || "",
-      salesTax: initialData?.salesTax || "",
+      salesTax: initialData?.salesTax || 0,
       shortDescription: initialData?.shortDescription || "",
       b2bSalePrice: initialData?.b2bSalePrice || 0,
       b2cSalePrice: initialData?.b2cSalePrice || 0,
@@ -176,19 +215,30 @@ export default function ProductForm({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Size *
             </label>
+
             <Controller
               name="size"
               control={control}
               render={({ field }) => (
-                <SearchSelect
-                  options={SIZE_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Select size"
-                  error={errors.size?.message}
-                />
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className="cursor-pointer w-full">
+                    <SelectValue placeholder="Select size" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {SIZE_OPTIONS.map((size) => (
+                      <SelectItem key={size.value} value={size.value}>
+                        {size.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             />
+
+            {errors.size && (
+              <p className="text-sm text-red-500 mt-1">{errors.size.message}</p>
+            )}
           </div>
 
           {/* Quantity - Disabled in edit mode */}
@@ -250,9 +300,10 @@ export default function ProductForm({
             <div className="relative">
               <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
+                type="number"
+                step="0.01"
                 {...register("salesTax")}
                 error={errors.salesTax?.message}
-                placeholder="e.g., 18%, GST"
                 className="pl-10"
               />
             </div>

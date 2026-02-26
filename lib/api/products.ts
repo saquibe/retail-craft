@@ -8,10 +8,28 @@ export interface Product {
   itemCode?: string;
   barCode: string;
   color: string;
-  size: "S" | "M" | "L" | "XL" | "XXL";
+  size:
+    | "XXXS"
+    | "XXS"
+    | "XS"
+    | "S"
+    | "M"
+    | "L"
+    | "XL"
+    | "XXL"
+    | "XXXL"
+    | "4XL"
+    | "5XL"
+    | "6XL"
+    | "7XL"
+    | "8XL"
+    | "9XL"
+    | "10XL"
+    | "FREE"
+    | "CUSTOM";
   quantity: number;
   hsnCode?: string;
-  salesTax: string;
+  salesTax: number;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;
@@ -26,10 +44,28 @@ export interface CreateProductData {
   itemCode?: string;
   barCode: string;
   color: string;
-  size: "S" | "M" | "L" | "XL" | "XXL";
+  size:
+    | "XXXS"
+    | "XXS"
+    | "XS"
+    | "S"
+    | "M"
+    | "L"
+    | "XL"
+    | "XXL"
+    | "XXXL"
+    | "4XL"
+    | "5XL"
+    | "6XL"
+    | "7XL"
+    | "8XL"
+    | "9XL"
+    | "10XL"
+    | "FREE"
+    | "CUSTOM";
   quantity?: number;
   hsnCode?: string;
-  salesTax: string;
+  salesTax: number;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;
