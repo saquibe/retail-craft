@@ -58,6 +58,7 @@ import {
 } from "@/lib/api/customers";
 import CustomerForm from "@/components/forms/CustomerForm";
 import { useBillingStore } from "@/lib/hooks/useBillingStore";
+import { completeBilling } from "@/lib/api/billing";
 
 interface BillingItem extends Product {
   cartQuantity: number;
@@ -66,8 +67,6 @@ interface BillingItem extends Product {
 export default function BillingPage() {
   const { user } = useAuth();
   const barcodeInputRef = useRef<HTMLInputElement>(null);
-
-  // Use billing store for persistence
   const {
     selectedCustomer,
     cart,
@@ -84,6 +83,7 @@ export default function BillingPage() {
     removeFromCart,
     clearCart,
     clearSession,
+    generateInvoice, // Add this
   } = useBillingStore();
 
   // Local state (non-persistent)
@@ -96,6 +96,8 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Add this with other useState declarations
+  const [isLoading, setIsLoading] = useState(false);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -196,7 +198,7 @@ export default function BillingPage() {
       }
 
       addToCart(product);
-      toast.success(`${product.productName} added to cart`);
+      // toast.success(`${product.productName} added to cart`);
       setBarcode("");
     } catch (error) {
       console.error("Error scanning barcode:", error);
@@ -271,8 +273,13 @@ export default function BillingPage() {
   const grandTotal = subtotal + taxTotal - discountAmount;
   const balance = paidAmount - grandTotal;
 
-  // Handle payment
-  const handlePayment = () => {
+  // Print invoice
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Handle generate invoice
+  const handleGenerateInvoice = async () => {
     if (!selectedCustomer) {
       toast.error("Please select a customer first");
       return;
@@ -288,14 +295,22 @@ export default function BillingPage() {
       return;
     }
 
-    toast.success("Invoice created successfully!");
-    handlePrint();
-    clearSession(); // Clear session after successful payment
-  };
-
-  // Print invoice
-  const handlePrint = () => {
-    window.print();
+    setIsLoading(true);
+    try {
+      const success = await generateInvoice();
+      if (success) {
+        handlePrint();
+        // Clear session after successful invoice generation
+        setTimeout(() => {
+          clearSession();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Invoice generation error:", error);
+      toast.error("Failed to generate invoice");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Show loading while restoring session
@@ -323,9 +338,13 @@ export default function BillingPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                if (window.confirm("Clear current billing session?")) {
-                  clearSession();
+              onClick={async () => {
+                if (
+                  window.confirm(
+                    "Clear current billing session? This will delete the draft.",
+                  )
+                ) {
+                  await clearSession();
                   toast.success("Session cleared");
                 }
               }}
@@ -518,9 +537,15 @@ export default function BillingPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setSelectedCustomer(null);
-                        clearCart();
+                      onClick={async () => {
+                        if (
+                          window.confirm(
+                            "Changing customer will delete the current draft. Continue?",
+                          )
+                        ) {
+                          await setSelectedCustomer(null);
+                          clearCart();
+                        }
                       }}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
@@ -826,7 +851,7 @@ export default function BillingPage() {
               </div>
 
               {/* Payment Method */}
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label>Payment Method</Label>
                 <Select
                   value={paymentMethod}
@@ -844,7 +869,7 @@ export default function BillingPage() {
                     <SelectItem value="upi">UPI</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
               {/* Paid Amount */}
               <div className="space-y-2">
@@ -889,24 +914,25 @@ export default function BillingPage() {
                 <Button
                   className="w-full"
                   size="lg"
-                  onClick={handlePayment}
+                  onClick={handleGenerateInvoice}
                   disabled={
                     !selectedCustomer ||
                     cart.length === 0 ||
-                    paidAmount < grandTotal
+                    paidAmount < grandTotal ||
+                    isLoading
                   }
                 >
-                  <Check className="w-4 h-4 mr-2" />
-                  Complete Payment
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handlePrint}
-                  disabled={!selectedCustomer || cart.length === 0}
-                >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print Invoice
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Generate Invoice
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
