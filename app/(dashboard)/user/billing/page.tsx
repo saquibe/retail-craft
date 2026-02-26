@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
   Barcode,
@@ -46,6 +45,8 @@ import {
   AlertCircle,
   User,
   Building2,
+  Lock,
+  RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getProducts, Product } from "@/lib/api/products";
@@ -56,6 +57,7 @@ import {
   CustomerFormData,
 } from "@/lib/api/customers";
 import CustomerForm from "@/components/forms/CustomerForm";
+import { useBillingStore } from "@/lib/hooks/useBillingStore";
 
 interface BillingItem extends Product {
   cartQuantity: number;
@@ -65,26 +67,35 @@ export default function BillingPage() {
   const { user } = useAuth();
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  // State
-  const [customerType, setCustomerType] = useState<"B2B" | "B2C">("B2C");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null,
-  );
+  // Use billing store for persistence
+  const {
+    selectedCustomer,
+    cart,
+    discount,
+    paymentMethod,
+    paidAmount,
+    isLoaded,
+    setSelectedCustomer,
+    setDiscount,
+    setPaymentMethod,
+    setPaidAmount,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    clearSession,
+  } = useBillingStore();
+
+  // Local state (non-persistent)
   const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
-
   const [barcode, setBarcode] = useState("");
-  const [cart, setCart] = useState<BillingItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "upi">(
-    "cash",
-  );
-  const [discount, setDiscount] = useState(0);
-  const [paidAmount, setPaidAmount] = useState<number>(0);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -92,10 +103,14 @@ export default function BillingPage() {
     loadCustomers();
   }, []);
 
-  // Focus barcode input on mount
+  // Focus barcode input when customer is selected
   useEffect(() => {
-    barcodeInputRef.current?.focus();
-  }, []);
+    if (selectedCustomer && isLoaded) {
+      setTimeout(() => {
+        barcodeInputRef.current?.focus();
+      }, 100);
+    }
+  }, [selectedCustomer, isLoaded]);
 
   const loadProducts = async () => {
     try {
@@ -123,9 +138,9 @@ export default function BillingPage() {
     }
   };
 
-  // Filter customers based on search term - NO TYPE FILTERING
+  // Filter customers based on search term
   const filteredCustomers = customers.filter((customer) => {
-    if (!customerSearch.trim()) return false; // Don't show all when empty
+    if (!customerSearch.trim()) return false;
 
     const searchLower = customerSearch.toLowerCase();
     return (
@@ -149,7 +164,6 @@ export default function BillingPage() {
   // Handle customer selection
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
-    setCustomerType(customer.customerType); // Auto-set customer type
     setCustomerSearch("");
     setShowCustomerResults(false);
   };
@@ -157,6 +171,11 @@ export default function BillingPage() {
   // Handle barcode scan
   const handleBarcodeScan = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedCustomer) {
+      toast.error("Please select a customer first");
+      return;
+    }
 
     if (!barcode.trim()) return;
 
@@ -176,32 +195,7 @@ export default function BillingPage() {
         return;
       }
 
-      const existingItem = cart.find((item) => item._id === product._id);
-
-      if (existingItem) {
-        if (existingItem.quantity < existingItem.cartQuantity + 1) {
-          toast.error(`Only ${existingItem.quantity} items in stock`);
-          setBarcode("");
-          return;
-        }
-
-        setCart(
-          cart.map((item) =>
-            item._id === product._id
-              ? { ...item, cartQuantity: item.cartQuantity + 1 }
-              : item,
-          ),
-        );
-      } else {
-        setCart([
-          ...cart,
-          {
-            ...product,
-            cartQuantity: 1,
-          },
-        ]);
-      }
-
+      addToCart(product);
       toast.success(`${product.productName} added to cart`);
       setBarcode("");
     } catch (error) {
@@ -214,71 +208,18 @@ export default function BillingPage() {
 
   // Manual product add
   const handleManualAdd = (product: Product) => {
+    if (!selectedCustomer) {
+      toast.error("Please select a customer first");
+      return;
+    }
+
     if (product.quantity <= 0) {
       toast.error(`${product.productName} is out of stock`);
       return;
     }
 
-    const existingItem = cart.find((item) => item._id === product._id);
-
-    if (existingItem) {
-      if (existingItem.quantity < existingItem.cartQuantity + 1) {
-        toast.error(`Only ${existingItem.quantity} items in stock`);
-        return;
-      }
-
-      setCart(
-        cart.map((item) =>
-          item._id === product._id
-            ? { ...item, cartQuantity: item.cartQuantity + 1 }
-            : item,
-        ),
-      );
-    } else {
-      setCart([
-        ...cart,
-        {
-          ...product,
-          cartQuantity: 1,
-        },
-      ]);
-    }
-
+    addToCart(product);
     toast.success(`${product.productName} added to cart`);
-  };
-
-  // Update quantity
-  const updateQuantity = (productId: string, newQuantity: number) => {
-    const product = cart.find((item) => item._id === productId);
-    if (!product) return;
-
-    if (newQuantity < 1) {
-      removeItem(productId);
-      return;
-    }
-
-    if (newQuantity > product.quantity) {
-      toast.error(`Only ${product.quantity} items available`);
-      return;
-    }
-
-    setCart(
-      cart.map((item) =>
-        item._id === productId ? { ...item, cartQuantity: newQuantity } : item,
-      ),
-    );
-  };
-
-  // Remove item
-  const removeItem = (productId: string) => {
-    setCart(cart.filter((item) => item._id !== productId));
-    toast.success("Item removed from cart");
-  };
-
-  // Clear cart
-  const clearCart = () => {
-    setCart([]);
-    toast.success("Cart cleared");
   };
 
   // Handle new customer creation
@@ -292,7 +233,6 @@ export default function BillingPage() {
 
         if (response.data) {
           setSelectedCustomer(response.data);
-          setCustomerType(response.data.customerType);
         }
       }
     } catch (error: any) {
@@ -303,21 +243,29 @@ export default function BillingPage() {
 
   // Calculate totals
   const subtotal = useMemo(() => {
+    if (!selectedCustomer) return 0;
+
     return cart.reduce((sum, item) => {
       const price =
-        customerType === "B2B" ? item.b2bSalePrice : item.b2cSalePrice;
+        selectedCustomer.customerType === "B2B"
+          ? item.b2bSalePrice
+          : item.b2cSalePrice;
       return sum + price * item.cartQuantity;
     }, 0);
-  }, [cart, customerType]);
+  }, [cart, selectedCustomer]);
 
   const taxTotal = useMemo(() => {
+    if (!selectedCustomer) return 0;
+
     return cart.reduce((sum, item) => {
       const price =
-        customerType === "B2B" ? item.b2bSalePrice : item.b2cSalePrice;
+        selectedCustomer.customerType === "B2B"
+          ? item.b2bSalePrice
+          : item.b2cSalePrice;
       const tax = parseFloat(item.salesTax) || 0;
       return sum + (price * item.cartQuantity * tax) / 100;
     }, 0);
-  }, [cart, customerType]);
+  }, [cart, selectedCustomer]);
 
   const discountAmount = (subtotal * discount) / 100;
   const grandTotal = subtotal + taxTotal - discountAmount;
@@ -325,13 +273,13 @@ export default function BillingPage() {
 
   // Handle payment
   const handlePayment = () => {
-    if (cart.length === 0) {
-      toast.error("Cart is empty");
+    if (!selectedCustomer) {
+      toast.error("Please select a customer first");
       return;
     }
 
-    if (!selectedCustomer && customerType === "B2B") {
-      toast.error("Please select a B2B customer");
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
       return;
     }
 
@@ -342,6 +290,7 @@ export default function BillingPage() {
 
     toast.success("Invoice created successfully!");
     handlePrint();
+    clearSession(); // Clear session after successful payment
   };
 
   // Print invoice
@@ -349,43 +298,70 @@ export default function BillingPage() {
     window.print();
   };
 
+  // Show loading while restoring session
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto" />
+          <p className="mt-4 text-gray-600">Restoring your session...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 print:p-0">
-      {/* Header */}
+      {/* Header with Reset Button */}
       <div className="flex justify-between items-center print:hidden">
         <h1 className="text-2xl md:text-3xl font-bold">Billing</h1>
-        <Badge variant="outline" className="text-sm">
-          {format(new Date(), "dd MMM yyyy, hh:mm a")}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-sm">
+            {format(new Date(), "dd MMM yyyy, hh:mm a")}
+          </Badge>
+          {(selectedCustomer || cart.length > 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (window.confirm("Clear current billing session?")) {
+                  clearSession();
+                  toast.success("Session cleared");
+                }
+              }}
+              className="text-red-600 hover:text-red-700"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              New Bill
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Customer & Products */}
         <div className="lg:col-span-2 space-y-6">
           {/* Customer Selection Card */}
-          <Card className="print:hidden">
+          <Card
+            className={`print:hidden border-2 ${
+              !selectedCustomer ? "border-red-200 bg-red-50/50" : ""
+            }`}
+          >
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <UserPlus className="w-5 h-5" />
                   Customer Details
+                  {!selectedCustomer && (
+                    <Badge variant="destructive" className="ml-2">
+                      Required
+                    </Badge>
+                  )}
                 </CardTitle>
-                <Tabs
-                  value={customerType}
-                  onValueChange={(v) => {
-                    setCustomerType(v as "B2B" | "B2C");
-                    setSelectedCustomer(null);
-                  }}
-                >
-                  <TabsList>
-                    <TabsTrigger value="B2C">B2C</TabsTrigger>
-                    <TabsTrigger value="B2B">B2B</TabsTrigger>
-                  </TabsList>
-                </Tabs>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Customer Search - Always visible */}
+              {/* Customer Search */}
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -398,83 +374,92 @@ export default function BillingPage() {
                     }}
                     onFocus={() => setShowCustomerResults(true)}
                     className="pl-10"
+                    disabled={!!selectedCustomer}
                   />
 
                   {/* Search Results Dropdown */}
-                  {showCustomerResults && customerSearch.trim() !== "" && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
-                      {isLoadingCustomers ? (
-                        <div className="p-4 text-center">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-                        </div>
-                      ) : filteredCustomers.length > 0 ? (
-                        filteredCustomers.map((customer) => (
-                          <div
-                            key={customer._id}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => handleSelectCustomer(customer)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {customer.customerType === "B2B" ? (
-                                  <Building2 className="w-4 h-4 text-purple-600" />
-                                ) : (
-                                  <User className="w-4 h-4 text-green-600" />
-                                )}
-                                <div>
-                                  <span className="font-medium">
-                                    {customer.name}
-                                  </span>
-                                  {customer.customerType === "B2B" &&
-                                    customer.companyName && (
-                                      <span className="text-sm text-gray-500 ml-2">
-                                        {customer.companyName}
-                                      </span>
-                                    )}
-                                </div>
-                              </div>
-                              <Badge
-                                className={getTypeBadge(customer.customerType)}
-                              >
-                                {customer.customerType}
-                              </Badge>
-                            </div>
-                            <div className="text-sm text-gray-500 mt-1">
-                              {customer.email && (
-                                <span>{customer.email} • </span>
-                              )}
-                              {customer.mobile && (
-                                <span>{customer.mobile}</span>
-                              )}
-                            </div>
-                            {customer.customerType === "B2B" &&
-                              customer.gstIn && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  GST: {customer.gstIn}
-                                </div>
-                              )}
+                  {showCustomerResults &&
+                    customerSearch.trim() !== "" &&
+                    !selectedCustomer && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                        {isLoadingCustomers ? (
+                          <div className="p-4 text-center">
+                            <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                           </div>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-gray-500">
-                          No customers found.{" "}
-                          <button
-                            onClick={() => {
-                              setShowCustomerResults(false);
-                              setShowNewCustomerDialog(true);
-                            }}
-                            className="text-indigo-600 hover:underline"
-                          >
-                            Create new customer
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        ) : filteredCustomers.length > 0 ? (
+                          filteredCustomers.map((customer) => (
+                            <div
+                              key={customer._id}
+                              className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                              onClick={() => handleSelectCustomer(customer)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {customer.customerType === "B2B" ? (
+                                    <Building2 className="w-4 h-4 text-purple-600" />
+                                  ) : (
+                                    <User className="w-4 h-4 text-green-600" />
+                                  )}
+                                  <div>
+                                    <span className="font-medium">
+                                      {customer.name}
+                                    </span>
+                                    {customer.customerType === "B2B" &&
+                                      customer.companyName && (
+                                        <span className="text-sm text-gray-500 ml-2">
+                                          {customer.companyName}
+                                        </span>
+                                      )}
+                                  </div>
+                                </div>
+                                <Badge
+                                  className={getTypeBadge(
+                                    customer.customerType,
+                                  )}
+                                >
+                                  {customer.customerType}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                {customer.email && (
+                                  <span>{customer.email} • </span>
+                                )}
+                                {customer.mobile && (
+                                  <span>{customer.mobile}</span>
+                                )}
+                              </div>
+                              {customer.customerType === "B2B" &&
+                                customer.gstIn && (
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    GST: {customer.gstIn}
+                                  </div>
+                                )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center text-gray-500">
+                            No customers found.{" "}
+                            <button
+                              onClick={() => {
+                                setShowCustomerResults(false);
+                                setShowNewCustomerDialog(true);
+                              }}
+                              className="text-indigo-600 hover:underline"
+                            >
+                              Create new customer
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </div>
 
-                {/* Add New Customer Button - Always visible */}
-                <Button onClick={() => setShowNewCustomerDialog(true)}>
+                {/* Add New Customer Button */}
+                <Button
+                  onClick={() => setShowNewCustomerDialog(true)}
+                  disabled={!!selectedCustomer}
+                  variant={selectedCustomer ? "outline" : "default"}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   New Customer
                 </Button>
@@ -482,7 +467,7 @@ export default function BillingPage() {
 
               {/* Selected Customer Display */}
               {selectedCustomer && (
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <div className="flex justify-between items-start">
                     <div className="flex items-start gap-3">
                       <div
@@ -533,22 +518,42 @@ export default function BillingPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedCustomer(null)}
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        clearCart();
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 mr-1" />
+                      Change
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Customer Required Message */}
+              {!selectedCustomer && (
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
+                  <AlertCircle className="w-4 h-4" />
+                  <p className="text-sm">
+                    Please select a customer to start billing
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Barcode Scanner Card */}
-          <Card className="print:hidden">
+          <Card
+            className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
+          >
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Barcode className="w-5 h-5" />
                 Scan Barcode
+                {!selectedCustomer && (
+                  <Lock className="w-4 h-4 text-gray-400 ml-2" />
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -558,14 +563,22 @@ export default function BillingPage() {
                   <Input
                     ref={barcodeInputRef}
                     type="text"
-                    placeholder="Scan or enter barcode..."
+                    placeholder={
+                      selectedCustomer
+                        ? "Scan or enter barcode..."
+                        : "Select a customer first"
+                    }
                     value={barcode}
                     onChange={(e) => setBarcode(e.target.value)}
                     className="pl-10"
-                    disabled={loading}
+                    disabled={!selectedCustomer || loading}
                   />
                 </div>
-                <Button type="submit" disabled={loading}>
+                <Button
+                  type="submit"
+                  disabled={!selectedCustomer || loading}
+                  variant={selectedCustomer ? "default" : "outline"}
+                >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
@@ -577,11 +590,16 @@ export default function BillingPage() {
           </Card>
 
           {/* Quick Products Card */}
-          <Card className="print:hidden">
+          <Card
+            className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
+          >
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Package className="w-5 h-5" />
                 Quick Products
+                {!selectedCustomer && (
+                  <Lock className="w-4 h-4 text-gray-400 ml-2" />
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -592,14 +610,14 @@ export default function BillingPage() {
                     variant="outline"
                     className="h-auto py-3 flex flex-col items-center gap-1"
                     onClick={() => handleManualAdd(product)}
-                    disabled={product.quantity === 0}
+                    disabled={!selectedCustomer || product.quantity === 0}
                   >
                     <span className="font-medium text-sm">
                       {product.productName}
                     </span>
                     <span className="text-xs text-gray-500">
                       ₹
-                      {customerType === "B2B"
+                      {selectedCustomer?.customerType === "B2B"
                         ? product.b2bSalePrice
                         : product.b2cSalePrice}
                     </span>
@@ -640,7 +658,11 @@ export default function BillingPage() {
                 <div className="text-center py-12 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
                   <p>No items in cart</p>
-                  <p className="text-sm">Scan barcode to add products</p>
+                  <p className="text-sm">
+                    {selectedCustomer
+                      ? "Scan barcode to add products"
+                      : "Select a customer to start"}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -660,7 +682,7 @@ export default function BillingPage() {
                     <TableBody>
                       {cart.map((item) => {
                         const price =
-                          customerType === "B2B"
+                          selectedCustomer?.customerType === "B2B"
                             ? item.b2bSalePrice
                             : item.b2cSalePrice;
                         const tax = parseFloat(item.salesTax) || 0;
@@ -726,9 +748,9 @@ export default function BillingPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-red-600"
-                                onClick={() => removeItem(item._id)}
+                                onClick={() => removeFromCart(item._id)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -749,6 +771,22 @@ export default function BillingPage() {
               <CardTitle className="text-lg">Payment Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Customer Type Badge */}
+              {selectedCustomer && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Customer Type:</span>
+                  <Badge
+                    className={
+                      selectedCustomer.customerType === "B2B"
+                        ? "bg-purple-100 text-purple-800"
+                        : "bg-green-100 text-green-800"
+                    }
+                  >
+                    {selectedCustomer.customerType}
+                  </Badge>
+                </div>
+              )}
+
               {/* Price Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -771,6 +809,7 @@ export default function BillingPage() {
                       className="w-20 h-8 text-right"
                       min="0"
                       max="100"
+                      disabled={!selectedCustomer}
                     />
                     <span className="font-medium">
                       -₹{discountAmount.toFixed(2)}
@@ -794,6 +833,7 @@ export default function BillingPage() {
                   onValueChange={(v: typeof paymentMethod) =>
                     setPaymentMethod(v)
                   }
+                  disabled={!selectedCustomer}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -816,11 +856,12 @@ export default function BillingPage() {
                     setPaidAmount(parseFloat(e.target.value) || 0)
                   }
                   placeholder="Enter amount"
+                  disabled={!selectedCustomer}
                 />
               </div>
 
               {/* Balance */}
-              {paidAmount > 0 && (
+              {paidAmount > 0 && selectedCustomer && (
                 <div
                   className={`p-3 rounded-lg ${
                     balance >= 0
@@ -849,7 +890,11 @@ export default function BillingPage() {
                   className="w-full"
                   size="lg"
                   onClick={handlePayment}
-                  disabled={cart.length === 0 || paidAmount < grandTotal}
+                  disabled={
+                    !selectedCustomer ||
+                    cart.length === 0 ||
+                    paidAmount < grandTotal
+                  }
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Complete Payment
@@ -858,7 +903,7 @@ export default function BillingPage() {
                   variant="outline"
                   className="w-full"
                   onClick={handlePrint}
-                  disabled={cart.length === 0}
+                  disabled={!selectedCustomer || cart.length === 0}
                 >
                   <Printer className="w-4 h-4 mr-2" />
                   Print Invoice
@@ -879,7 +924,6 @@ export default function BillingPage() {
             <DialogTitle>Add New Customer</DialogTitle>
           </DialogHeader>
           <CustomerForm
-            // initialData={{ customerType }}
             onSubmit={handleCreateCustomer}
             isLoading={isLoadingCustomers}
             onCancel={() => setShowNewCustomerDialog(false)}
@@ -907,11 +951,10 @@ export default function BillingPage() {
                 </>
               )}
               <p>Type: {selectedCustomer.customerType}</p>
+              <p>Mobile: {selectedCustomer.mobile}</p>
             </div>
           ) : (
-            <p className="text-sm">
-              Customer: Walk-in Customer ({customerType})
-            </p>
+            <p className="text-sm">No customer selected</p>
           )}
         </div>
 
@@ -928,7 +971,9 @@ export default function BillingPage() {
           <tbody>
             {cart.map((item) => {
               const price =
-                customerType === "B2B" ? item.b2bSalePrice : item.b2cSalePrice;
+                selectedCustomer?.customerType === "B2B"
+                  ? item.b2bSalePrice
+                  : item.b2cSalePrice;
               const tax = parseFloat(item.salesTax) || 0;
               const itemTotal =
                 price * item.cartQuantity +
