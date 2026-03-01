@@ -262,7 +262,10 @@ export default function BranchDetailsPage() {
                 Manage users assigned to this branch
               </p>
             </div>
-            <Button onClick={() => setIsCreateOpen(true)}>
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="cursor-pointer"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add User to Branch
             </Button>
@@ -324,6 +327,7 @@ export default function BranchDetailsPage() {
                   </CardContent>
                   <CardFooter className="flex justify-end space-x-2">
                     <Button
+                      className="cursor-pointer"
                       variant="outline"
                       size="sm"
                       onClick={() => {
@@ -335,6 +339,7 @@ export default function BranchDetailsPage() {
                       Edit
                     </Button>
                     <Button
+                      className="cursor-pointer"
                       variant="destructive"
                       size="sm"
                       onClick={() => {
@@ -475,12 +480,15 @@ export default function BranchDetailsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedUser(null)}>
+            <AlertDialogCancel
+              onClick={() => setSelectedUser(null)}
+              className="cursor-pointer"
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUser}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 cursor-pointer"
             >
               Delete
             </AlertDialogAction>

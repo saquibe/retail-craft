@@ -179,7 +179,10 @@ export default function BranchesPage() {
             Manage your business branches and users
           </p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="cursor-pointer"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Branch
         </Button>
@@ -316,7 +319,7 @@ export default function BranchesPage() {
                   variant="default"
                   size="sm"
                   onClick={() => router.push(`/admin/branches/${branch._id}`)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
                 >
                   <Building2 className="w-4 h-4 mr-1" />
                   Manage Branch
@@ -326,6 +329,7 @@ export default function BranchesPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => openEditDialog(branch)}
+                    className="cursor-pointer"
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -334,6 +338,7 @@ export default function BranchesPage() {
                     size="sm"
                     onClick={() => openDeleteDialog(branch)}
                     disabled={branch.userCount > 0}
+                    className="cursor-pointer"
                     title={
                       branch.userCount > 0
                         ? "Cannot delete branch with users"

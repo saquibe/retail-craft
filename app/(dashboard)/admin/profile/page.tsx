@@ -834,7 +834,7 @@ export default function AdminProfile() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="min-w-[120px]"
+              className="min-w-[120px] cursor-pointer"
             >
               {isLoading ? (
                 <>
