@@ -7,13 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,7 +29,6 @@ import {
   Plus,
   Minus,
   Trash2,
-  Printer,
   UserPlus,
   Package,
   Loader2,
@@ -528,9 +520,9 @@ export default function BillingPage() {
                         <p className="text-sm text-gray-500 mt-1">
                           {selectedCustomer.email} • {selectedCustomer.mobile}
                         </p>
-                        <p className="text-xs text-gray-400">
-                          {selectedCustomer.city}, {selectedCustomer.state},{" "}
-                          {selectedCustomer.country}
+                        <p className="text-xs text-gray-400 mt-1">
+                          {selectedCustomer.address}, {selectedCustomer.city},{" "}
+                          {selectedCustomer.state}, {selectedCustomer.country}
                         </p>
                       </div>
                     </div>
@@ -615,7 +607,7 @@ export default function BillingPage() {
           </Card>
 
           {/* Quick Products Card */}
-          <Card
+          {/* <Card
             className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
           >
             <CardHeader className="pb-3">
@@ -658,7 +650,7 @@ export default function BillingPage() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Cart Table Card */}
           <Card>

@@ -271,11 +271,18 @@ export default function CustomersPage() {
                   )}
                 </div>
 
-                {/* Location */}
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4 text-gray-400" />
+                {/* address */}
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                   <span>
-                    {customer.city}, {customer.state}, {customer.country}
+                    {[
+                      customer.address,
+                      customer.city,
+                      customer.state,
+                      customer.country,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
                   </span>
                 </div>
 
@@ -358,6 +365,7 @@ export default function CustomersPage() {
                 name: selectedCustomer.name,
                 email: selectedCustomer.email,
                 mobile: selectedCustomer.mobile,
+                address: selectedCustomer.address,
                 country: selectedCustomer.country,
                 state: selectedCustomer.state,
                 city: selectedCustomer.city,

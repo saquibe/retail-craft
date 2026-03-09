@@ -7,6 +7,7 @@ export interface Customer {
   name: string;
   email?: string;
   mobile?: string;
+  address: string;
   country: string;
   state: string;
   city: string;
@@ -28,6 +29,7 @@ export interface CreateCustomerData {
   name: string;
   email?: string;
   mobile?: string;
+  address: string;
   country: string;
   state: string;
   city: string;

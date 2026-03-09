@@ -27,6 +27,7 @@ const baseCustomerSchema = {
     .regex(/^\d{10}$/, "Mobile must be 10 digits")
     .optional()
     .or(z.literal("")),
+  address: z.string().min(1, "Address is required"),
   country: z.string().min(1, "Country is required"),
   state: z.string().min(1, "State is required"),
   city: z.string().min(1, "City is required"),
@@ -103,6 +104,7 @@ export default function CustomerForm({
       name: initialData?.name || "",
       email: initialData?.email || "",
       mobile: initialData?.mobile || "",
+      address: initialData?.address || "",
       country: initialData?.country || "",
       state: initialData?.state || "",
       city: initialData?.city || "",
@@ -268,6 +270,18 @@ export default function CustomerForm({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Address */}
+      <div className="md:col-span-2">
+        <label className="text-sm font-medium text-gray-700 mb-1 block">
+          Address *
+        </label>
+        <Input
+          {...register("address")}
+          error={errors.address?.message}
+          placeholder="Enter customer address"
+        />
       </div>
 
       {/* Location Information */}
