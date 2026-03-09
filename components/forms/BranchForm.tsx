@@ -26,6 +26,9 @@ const timezones = moment.tz.names().map((tz) => ({
 // Define the branch schema
 const branchSchema = z.object({
   branchName: z.string().min(1, "Branch name is required"),
+  branchPhoneNumber: z
+    .string()
+    .min(10, "Phone number must be at least 10 digits"),
   address: z.string().min(1, "Address is required"),
   country: z.string().min(1, "Country is required"),
   state: z.string().min(1, "State is required"),
@@ -168,6 +171,16 @@ export default function BranchForm({
           error={errors.branchGstNumber?.message}
           id="branchGstNumber"
           placeholder="Enter GST number"
+          required
+        />
+
+        {/* Branch Phone Number */}
+        <Input
+          label="Branch Phone Number"
+          {...register("branchPhoneNumber")}
+          error={errors.branchPhoneNumber?.message}
+          id="branchPhoneNumber"
+          placeholder="Enter branch phone number"
           required
         />
 

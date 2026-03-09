@@ -187,7 +187,7 @@ export default function BranchDetailsPage() {
           variant="ghost"
           size="sm"
           onClick={() => router.push("/admin/branches")}
-          className="hover:bg-gray-100"
+          className="hover:bg-gray-100 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Branches
@@ -210,13 +210,11 @@ export default function BranchDetailsPage() {
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
                   <span>
-                    {branch.address}, {branch.city}, {branch.state} -{" "}
+                    {branch.address}, {branch.city}, {branch.state},{" "}
+                    {branch.country}
+                    {" - "}
                     {branch.pincode}
                   </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-gray-400" />
-                  <span>{branch.country}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-gray-400" />
@@ -226,6 +224,10 @@ export default function BranchDetailsPage() {
                   <span className="font-medium">GST:</span>
                   <span className="font-mono text-xs">
                     {branch.branchGstNumber}
+                  </span>
+                  <span className="font-medium">Phone:</span>
+                  <span className="font-mono text-xs">
+                    {branch.branchPhoneNumber}
                   </span>
                 </div>
               </div>
@@ -249,8 +251,12 @@ export default function BranchDetailsPage() {
         className="space-y-4"
       >
         <TabsList>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="details">Branch Details</TabsTrigger>
+          <TabsTrigger value="users" className="cursor-pointer">
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="details" className="cursor-pointer">
+            Branch Details
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">

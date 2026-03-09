@@ -45,6 +45,7 @@ export interface ApiResponse<T> {
 export interface Branch {
   _id: string;
   branchName: string;
+  branchPhoneNumber: string;
   address: string;
   country: string;
   state: string;

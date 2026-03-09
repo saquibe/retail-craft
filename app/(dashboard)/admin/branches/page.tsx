@@ -267,6 +267,9 @@ export default function BranchesPage() {
                     <CardDescription className="mt-1">
                       GST: {branch.branchGstNumber}
                     </CardDescription>
+                    <CardDescription className="mt-1">
+                      Phone: {branch.branchPhoneNumber}
+                    </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-xs">
                     {branch.branchCode}
