@@ -51,6 +51,7 @@ import {
 import CustomerForm from "@/components/forms/CustomerForm";
 import { useBillingStore } from "@/lib/hooks/useBillingStore";
 import { completeBilling, getBillingById } from "@/lib/api/billing";
+import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
 
 interface BillingItem extends Product {
   cartQuantity: number;
@@ -84,6 +85,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [billingData, setBillingData] = useState<any>(null);
   // Add this with other useState declarations
   const [isLoading, setIsLoading] = useState(false);
 
@@ -274,224 +276,15 @@ export default function BillingPage() {
     }
 
     setIsLoading(true);
+
     try {
       const billingId = await generateInvoice();
+
       if (billingId) {
-        // Fetch the complete billing data
         const response = await getBillingById(billingId);
+
         if (response.success && response.data) {
-          // Open thermal invoice
-          const printWindow = window.open("", "_blank");
-          if (printWindow) {
-            printWindow.document.open();
-            printWindow.document.write(`<!DOCTYPE html>
-<html>
-              <head>
-              <meta charset="UTF-8">
-                <title>Invoice ${response.data.invoiceNumber}</title>
-                <style>
-                  *, body, html {
-                    font-family: 'Arial', sans-serif;
-                  }
-                  @page {
-                    size: 80mm auto;
-                    margin: 0;
-                  }
-                  body {
-                    margin: 0;
-                    padding: 0;
-                    background: white;
-                  }
-                </style>
-              </head>
-              <body>
-                <div id="invoice"></div>
-                <script>
-                  const billingData = ${JSON.stringify(response.data)};
-                  
-                  // Render invoice function
-                  function renderInvoice(data) {
-                    const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-                    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-                    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-                    
-                    function numberToWords(num) {
-                      if (num === 0) return 'Zero';
-                      
-                      function convertLessThanThousand(n) {
-                        if (n === 0) return '';
-                        if (n < 10) return units[n];
-                        if (n < 20) return teens[n - 10];
-                        if (n < 100) {
-                          return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + units[n % 10] : '');
-                        }
-                        return units[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
-                      }
-                      
-                      let result = '';
-                      if (num >= 100000) {
-                        result += convertLessThanThousand(Math.floor(num / 100000)) + ' Lakh ';
-                        num %= 100000;
-                      }
-                      if (num >= 1000) {
-                        result += convertLessThanThousand(Math.floor(num / 1000)) + ' Thousand ';
-                        num %= 1000;
-                      }
-                      result += convertLessThanThousand(num);
-                      
-                      return result.trim() + ' Only';
-                    }
-
-                    // Group items by tax
-                    const itemsByTax = data.items.reduce((acc, item) => {
-                      const taxRate = item.taxPercent / 2;
-                      const taxableAmt = item.price * item.quantity;
-                      
-                      if (!acc[item.taxPercent]) {
-                        acc[item.taxPercent] = {
-                          rate: item.taxPercent,
-                          taxableAmt: 0,
-                          cgst: 0,
-                          sgst: 0
-                        };
-                      }
-                      
-                      acc[item.taxPercent].taxableAmt += taxableAmt;
-                      acc[item.taxPercent].cgst += item.taxAmount / 2;
-                      acc[item.taxPercent].sgst += item.taxAmount / 2;
-                      
-                      return acc;
-                    }, {});
-
-                    return \`
-                      <div style="font-family: 'Arial', sans-serif; width: 72mm; margin: 0 auto; padding: 4px; font-size: 10px;">
-                        <!-- Store Header -->
-                        <div style="text-align: center; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
-                          <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">\${data.branchId?.branchName || 'N/A'}</div>
-                          <div style="font-size: 8px; margin-top: 2px;">
-                            \${data.branchId?.address || 'N/A'}<br />
-                            \${data.branchId?.city || 'N/A'}, \${data.branchId?.state || 'N/A'} - \${data.branchId?.pincode || 'N/A'}<br />
-                            Phone: \${data.branchId?.branchPhoneNumber || 'N/A'}
-                          </div>
-                          <div style="font-size: 8px; font-weight: bold;">GST NO: \${data.branchId?.branchGstNumber || 'N/A'}</div>
-                        </div>
-
-                        <!-- Invoice Title -->
-                        <div style="font-size: 12px; font-weight: bold; text-align: center; margin: 6px 0; text-transform: uppercase;">TAX INVOICE</div>
-
-                        <!-- Invoice Details -->
-                        <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
-                          <span style="font-weight: bold;">Invoice No/Date</span>
-                          <span>\${data.invoiceNumber} / \${new Date(data.createdAt).toLocaleDateString('en-IN')}</span>
-                        </div>
-                        
-                        <!-- Customer Details -->
-                        <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
-                          <span style="font-weight: bold;">Customer Name</span>
-                          <span>\${data.customerId?.name || 'Cash'}</span>
-                        </div>
-                        \${data.customerId?.mobile ? \`
-                          <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
-                            <span style="font-weight: bold;">Cust Mobile No</span>
-                            <span>\${data.customerId.mobile}</span>
-                          </div>
-                        \` : ''}
-
-                        <div style="border-top: 1px dashed #000; margin: 4px 0;"></div>
-
-                        <!-- Items Table -->
-                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
-                          <thead>
-                            <tr>
-                              <th style="text-align: left; border-bottom: 1px solid #000; padding: 2px 0;">Product</th>
-                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">QTY</th>
-                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">MRP</th>
-                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">Net Amt</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            \${data.items.map(item => \`
-                              <tr>
-                                <td style="padding: 2px 0;">
-                                  <div>\${item.productName}</div>
-                                  <div style="font-size: 8px; color: #333;">\${item.barCode}</div>
-                                </td>
-                                <td style="text-align: right; padding: 2px 0;">\${item.quantity}</td>
-                                <td style="text-align: right; padding: 2px 0;">₹\${item.price.toFixed(2)}</td>
-                                <td style="text-align: right; padding: 2px 0;">₹\${(item.price * item.quantity).toFixed(2)}</td>
-                              </tr>
-                            \`).join('')}
-                          </tbody>
-                        </table>
-
-                        <!-- Amount in Words -->
-                        <div style="font-size: 8px; margin: 6px 0; padding: 4px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
-                          <span style="font-weight: bold;">Rupees \${numberToWords(Math.round(data.grandTotal))}</span>
-                        </div>
-
-                        <!-- Tax Breakdown -->
-                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
-                          <thead>
-                            <tr>
-                              <th style="text-align: left; border-bottom: 1px solid #000; padding: 2px 0;">Tax Rate</th>
-                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">Taxable Amt.</th>
-                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">CGST Amt.</th>
-                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">SGST Amt.</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            \${Object.values(itemsByTax).map(item => \`
-                              <tr>
-                                <td style="padding: 2px 0;">\${item.rate}%</td>
-                                <td style="text-align: right; padding: 2px 0;">₹\${item.taxableAmt.toFixed(2)}</td>
-                                <td style="text-align: right; padding: 2px 0;">₹\${item.cgst.toFixed(2)}</td>
-                                <td style="text-align: right; padding: 2px 0;">₹\${item.sgst.toFixed(2)}</td>
-                              </tr>
-                            \`).join('')}
-                            <tr>
-                              <td colspan="2" style="text-align: right; font-weight: bold; padding: 2px 0;">Total GST</td>
-                              <td style="text-align: right; padding: 2px 0;" colspan="2">₹\${data.totalTax.toFixed(2)}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-
-                        <!-- Totals -->
-                        <div style="margin-top: 6px; border-top: 1px solid #000; padding-top: 4px;">
-                          <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
-                            <span>Total Sale</span>
-                            <span>₹\${data.grandTotal.toFixed(2)}</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; border-top: 1px dashed #000; padding-top: 4px; margin-top: 4px;">
-                            <span>Net Payable</span>
-                            <span>₹\${data.grandTotal.toFixed(2)}</span>
-                          </div>
-                        </div>
-
-                        <!-- Footer -->
-                        <div style="text-align: center; margin-top: 10px;">
-                          <div style="font-size: 10px; margin: 8px 0; font-weight: bold;">THANK YOU. VISIT US AGAIN.</div>
-                          <div style="font-size: 7px; margin-top: 4px;">** Powered by RetailCraft **</div>
-                        </div>
-                      </div>
-                    \`;
-                  }
-
-                  document.getElementById('invoice').innerHTML = renderInvoice(billingData);
-                  window.onload = function() { 
-                    window.print(); 
-                    setTimeout(function() { window.close(); }, 500);
-                  };
-                </script>
-              </body>
-            </html>
-          `);
-            printWindow.document.close();
-          }
-
-          // Clear session after successful invoice generation
-          setTimeout(() => {
-            clearSession();
-          }, 2000);
+          setBillingData(response.data);
         }
       }
     } catch (error) {
@@ -1099,6 +892,15 @@ export default function BillingPage() {
           <p>Thank you for your business!</p>
         </div>
       </div>
+      {billingData && (
+        <ThermalInvoice
+          billing={billingData}
+          onPrinted={() => {
+            clearSession();
+            setBillingData(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -18,141 +18,168 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
       if (invoiceRef.current) {
         const printWindow = window.open("", "_blank");
         if (printWindow) {
-          const html = `<!DOCTYPE html>
-<html>
-<head>
-<title>Invoice ${billing.invoiceNumber}</title>
-<style>
-/* ensure consistent font and wrapping */
-*, body, html {
-  font-family: 'Arial', sans-serif;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-@page {
-  size: 80mm auto; /* Thermal paper width */
-  margin: 0;
-}
-body {
-  font-family: 'Arial', sans-serif;
-  margin: 0;
-  padding: 8px;
-  width: 72mm; /* Slightly less than page width */
-  font-size: 10px;
-  line-height: 1.2;
-}
-.header {
-  text-align: center;
-  margin-bottom: 8px;
-  border-bottom: 1px dashed #000;
-  padding-bottom: 4px;
-}
-.store-name {
-  font-size: 14px;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-.store-details {
-  font-size: 8px;
-  margin-top: 2px;
-}
-.gst {
-  font-size: 8px;
-  font-weight: bold;
-}
-.invoice-title {
-  font-size: 12px;
-  font-weight: bold;
-  text-align: center;
-  margin: 6px 0;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  margin: 2px 0;
-}
-.info-label {
-  font-weight: bold;
-}
-.items-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 6px 0;
-  font-size: 9px;
-}
-.items-table th {
-  text-align: left;
-  border-bottom: 1px solid #000;
-  padding: 2px 0;
-}
-.items-table td {
-  padding: 2px 0;
-}
-.product-name {
-  font-size: 8px;
-  color: #333;
-}
-.text-right {
-  text-align: right;
-}
-.totals {
-  margin-top: 6px;
-  border-top: 1px solid #000;
-  padding-top: 4px;
-}
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  margin: 2px 0;
-}
-.grand-total {
-  font-weight: bold;
-  font-size: 11px;
-  border-top: 1px dashed #000;
-  padding-top: 4px;
-  margin-top: 4px;
-}
-.amount-in-words {
-  font-size: 8px;
-  margin: 6px 0;
-  padding: 4px 0;
-  border-top: 1px dashed #000;
-  border-bottom: 1px dashed #000;
-}
-.footer {
-  text-align: center;
-  margin-top: 10px;
-  font-size: 8px;
-  font-weight: bold;
-}
-.thank-you {
-  font-size: 10px;
-  margin: 8px 0;
-}
-.divider {
-  border-top: 1px dashed #000;
-  margin: 4px 0;
-}
-</style>
-</head>
-<body>
-${invoiceRef.current.outerHTML}
-<script>
-window.onload = function() { 
-  window.print(); 
-  setTimeout(function() { window.close(); }, 500);
-};
-</script>
-</body>
-</html>`;
-
-          printWindow.document.open();
-          printWindow.document.write(html);
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Invoice ${billing.invoiceNumber}</title>
+                <style>
+                  @page {
+                    size: 80mm auto;
+                    margin: 0;
+                  }
+                  body {
+                    font-family: 'Arial', sans-serif;
+                    margin: 0;
+                    padding: 5px;
+                    width: 72mm;
+                    font-size: 10px;
+                    line-height: 1.3;
+                    background: white;
+                  }
+                  .store-section {
+                    text-align: center;
+                    margin-bottom: 8px;
+                    border-bottom: 1px dashed #000;
+                    padding-bottom: 6px;
+                  }
+                  .store-name {
+                    font-size: 16px;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    margin-bottom: 2px;
+                    letter-spacing: 0.5px;
+                  }
+                  .store-address {
+                    font-size: 8px;
+                    margin: 2px 0;
+                    line-height: 1.4;
+                  }
+                  .store-gst {
+                    font-size: 9px;
+                    font-weight: bold;
+                    margin-top: 3px;
+                  }
+                  .invoice-title {
+                    font-size: 14px;
+                    font-weight: bold;
+                    text-align: center;
+                    margin: 8px 0;
+                    text-transform: uppercase;
+                    border-top: 1px dashed #000;
+                    border-bottom: 1px dashed #000;
+                    padding: 4px 0;
+                  }
+                  .info-row {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 9px;
+                    margin: 4px 0;
+                  }
+                  .info-label {
+                    font-weight: bold;
+                  }
+                  .divider {
+                    border-top: 1px dashed #000;
+                    margin: 6px 0;
+                  }
+                  table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 9px;
+                    table-layout: fixed;
+                  }
+                  th {
+                    text-align: left;
+                    border-bottom: 1px solid #000;
+                    padding: 4px 0;
+                    font-weight: bold;
+                  }
+                  td {
+                    padding: 4px 0;
+                    vertical-align: top;
+                  }
+                  .text-right {
+                    text-align: right;
+                    padding-right: 2px;
+                  }
+                  .text-left {
+                    text-align: left;
+                  }
+                  .product-col {
+                    width: 40%;
+                  }
+                  .qty-col {
+                    width: 15%;
+                  }
+                  .price-col {
+                    width: 20%;
+                  }
+                  .amount-col {
+                    width: 25%;
+                  }
+                  .product-name {
+                    font-weight: bold;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 65mm;
+                  }
+                  .product-code {
+                    font-size: 7px;
+                    color: #666;
+                  }
+                  .amount-words {
+                    font-size: 8px;
+                    margin: 6px 0;
+                    padding: 6px 0;
+                    border-top: 1px dashed #000;
+                    border-bottom: 1px dashed #000;
+                    font-weight: bold;
+                  }
+                  .totals {
+                    margin-top: 6px;
+                  }
+                  .total-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 4px 0;
+                    font-size: 10px;
+                  }
+                  .grand-total {
+                    font-weight: bold;
+                    font-size: 12px;
+                    border-top: 2px solid #000;
+                    padding-top: 6px;
+                    margin-top: 6px;
+                  }
+                  .footer {
+                    text-align: center;
+                    margin-top: 12px;
+                    border-top: 1px dashed #000;
+                    padding-top: 8px;
+                  }
+                  .thank-you {
+                    font-size: 11px;
+                    font-weight: bold;
+                    margin: 5px 0;
+                  }
+                  .powered {
+                    font-size: 7px;
+                    color: #666;
+                  }
+                </style>
+              </head>
+              <body>
+                ${invoiceRef.current.outerHTML}
+                <script>
+                  setTimeout(function() {
+                    window.print();
+                    setTimeout(function() { window.close(); }, 1000);
+                  }, 300);
+                </script>
+              </body>
+            </html>
+          `);
           printWindow.document.close();
         }
       }
@@ -160,11 +187,11 @@ window.onload = function() {
 
     printInvoice();
     if (onPrinted) {
-      setTimeout(onPrinted, 1000);
+      setTimeout(onPrinted, 1500);
     }
   }, [billing, onPrinted]);
 
-  // Convert number to words (simplified version)
+  // Convert number to words
   const numberToWords = (num: number): string => {
     const units = [
       "",
@@ -222,22 +249,25 @@ window.onload = function() {
     };
 
     let result = "";
-    if (num >= 100000) {
-      result += convertLessThanThousand(Math.floor(num / 100000)) + " Lakh ";
-      num %= 100000;
+    let remainingNum = num;
+
+    if (remainingNum >= 100000) {
+      result +=
+        convertLessThanThousand(Math.floor(remainingNum / 100000)) + " Lakh ";
+      remainingNum %= 100000;
     }
-    if (num >= 1000) {
-      result += convertLessThanThousand(Math.floor(num / 1000)) + " Thousand ";
-      num %= 1000;
+    if (remainingNum >= 1000) {
+      result +=
+        convertLessThanThousand(Math.floor(remainingNum / 1000)) + " Thousand ";
+      remainingNum %= 1000;
     }
-    result += convertLessThanThousand(num);
+    result += convertLessThanThousand(remainingNum);
 
     return result.trim() + " Only";
   };
 
-  // Group items by tax rate for GST summary
+  // Group items by tax rate
   const itemsByTax = billing.items.reduce((acc, item) => {
-    const taxRate = item.taxPercent / 2; // Split into CGST/SGST
     const taxableAmt = item.price * item.quantity;
 
     if (!acc[item.taxPercent]) {
@@ -246,17 +276,19 @@ window.onload = function() {
         taxableAmt: 0,
         cgst: 0,
         sgst: 0,
-        totalTax: 0,
       };
     }
 
     acc[item.taxPercent].taxableAmt += taxableAmt;
     acc[item.taxPercent].cgst += item.taxAmount / 2;
     acc[item.taxPercent].sgst += item.taxAmount / 2;
-    acc[item.taxPercent].totalTax += item.taxAmount;
 
     return acc;
-  }, {} as Record<number, { rate: number; taxableAmt: number; cgst: number; sgst: number; totalTax: number }>);
+  }, {} as Record<number, { rate: number; taxableAmt: number; cgst: number; sgst: number }>);
+
+  // Safely access branch data
+  const branch = billing.branchId || {};
+  const customer = billing.customerId || {};
 
   return (
     <div
@@ -270,21 +302,21 @@ window.onload = function() {
         padding: "4px",
       }}
     >
-      {/* Store Header */}
-      <div className="header">
+      {/* Store Header - Fixed */}
+      <div className="store-section">
         <div className="store-name">
-          {billing.branchId.branchName?.toUpperCase() || "N/A"}
+          {branch.branchName?.toUpperCase() || "VAMANA AGENCIES"}
         </div>
-        <div className="store-details">
-          {billing.branchId.address || "N/A"}
+        <div className="store-address">
+          {branch.address || "ASHOKA ONE MALL, KUKATPALLY"}
           <br />
-          {billing.branchId.city}, {billing.branchId.state} -{" "}
-          {billing.branchId.pincode}
+          {branch.city || "HYDERABAD"}, {branch.state || "TELANGANA"} -{" "}
+          {branch.pincode || "500072"}
           <br />
-          Phone: {billing.branchId.branchPhoneNumber || "N/A"}
+          Phone: {branch.branchPhoneNumber || "+91 8790448672"}
         </div>
-        <div className="gst">
-          GST NO: {billing.branchId.branchGstNumber || "N/A"}
+        <div className="store-gst">
+          GST NO: {branch.branchGstNumber || "36AVGPJ9045H1ZD"}
         </div>
       </div>
 
@@ -296,44 +328,46 @@ window.onload = function() {
         <span className="info-label">Invoice No/Date</span>
         <span>
           {billing.invoiceNumber} /{" "}
-          {format(new Date(billing.createdAt), "dd-MM-yyyy")}
+          {format(
+            new Date(billing.updatedAt || billing.createdAt),
+            "dd-MM-yyyy",
+          )}
         </span>
       </div>
 
-      {/* Customer Details */}
       <div className="info-row">
         <span className="info-label">Customer Name</span>
-        <span>{billing.customerId.name || "Cash"}</span>
+        <span>{customer.name || "Cash"}</span>
       </div>
-      {billing.customerId.mobile && (
+      {customer.mobile && (
         <div className="info-row">
           <span className="info-label">Cust Mobile No</span>
-          <span>{billing.customerId.mobile}</span>
+          <span>{customer.mobile}</span>
         </div>
       )}
 
       <div className="divider"></div>
 
-      {/* Items Table */}
-      <table className="items-table">
+      {/* Items Table - Fixed column widths */}
+      <table>
         <thead>
           <tr>
-            <th>Product</th>
-            <th className="text-right">QTY</th>
-            <th className="text-right">MRP</th>
-            <th className="text-right">Net Amt</th>
+            <th className="product-col">Product</th>
+            <th className="qty-col text-right">QTY</th>
+            <th className="price-col text-right">MRP</th>
+            <th className="amount-col text-right">Net Amt</th>
           </tr>
         </thead>
         <tbody>
           {billing.items.map((item, index) => (
             <tr key={index}>
-              <td>
-                <div>{item.productName}</div>
-                <div className="product-name">{item.barCode}</div>
+              <td className="product-col">
+                <div className="product-name">{item.productName}</div>
+                <div className="product-code">{item.barCode}</div>
               </td>
-              <td className="text-right">{item.quantity}</td>
-              <td className="text-right">₹{item.price.toFixed(2)}</td>
-              <td className="text-right">
+              <td className="qty-col text-right">{item.quantity}</td>
+              <td className="price-col text-right">₹{item.price.toFixed(2)}</td>
+              <td className="amount-col text-right">
                 ₹{(item.price * item.quantity).toFixed(2)}
               </td>
             </tr>
@@ -344,37 +378,51 @@ window.onload = function() {
       <div className="divider"></div>
 
       {/* Amount in Words */}
-      <div className="amount-in-words">
-        <span className="info-label">
-          Rupees {numberToWords(Math.round(billing.grandTotal))}
-        </span>
+      <div className="amount-words">
+        Rupees {numberToWords(Math.round(billing.grandTotal))}
       </div>
 
-      {/* Tax Breakdown */}
-      <table className="items-table">
+      {/* Tax Table - Fixed column widths */}
+      <table>
         <thead>
           <tr>
-            <th>Tax Rate</th>
-            <th className="text-right">Taxable Amt.</th>
-            <th className="text-right">CGST Amt.</th>
-            <th className="text-right">SGST Amt.</th>
+            <th className="product-col">Tax Rate</th>
+            <th className="qty-col text-right">Taxable Amt.</th>
+            <th className="price-col text-right">CGST</th>
+            <th className="amount-col text-right">SGST</th>
           </tr>
         </thead>
         <tbody>
-          {Object.values(itemsByTax).map((item) => (
-            <tr key={item.rate}>
-              <td>{item.rate}%</td>
-              <td className="text-right">₹{item.taxableAmt.toFixed(2)}</td>
-              <td className="text-right">₹{item.cgst.toFixed(2)}</td>
-              <td className="text-right">₹{item.sgst.toFixed(2)}</td>
+          {Object.values(itemsByTax).map((item, index) => (
+            <tr key={index}>
+              <td className="product-col">{item.rate}%</td>
+              <td className="qty-col text-right">
+                ₹{item.taxableAmt.toFixed(2)}
+              </td>
+              <td className="price-col text-right">₹{item.cgst.toFixed(2)}</td>
+              <td className="amount-col text-right">₹{item.sgst.toFixed(2)}</td>
             </tr>
           ))}
           <tr>
-            <td colSpan={2} className="text-right info-label">
+            <td
+              colSpan={2}
+              className="text-right"
+              style={{ fontWeight: "bold", paddingTop: "6px" }}
+            >
               Total GST
             </td>
-            <td className="text-right">₹{billing.totalTax.toFixed(2)}</td>
-            <td></td>
+            <td
+              className="price-col text-right"
+              style={{ fontWeight: "bold", paddingTop: "6px" }}
+            >
+              ₹{(billing.totalTax / 2).toFixed(2)}
+            </td>
+            <td
+              className="amount-col text-right"
+              style={{ fontWeight: "bold", paddingTop: "6px" }}
+            >
+              ₹{(billing.totalTax / 2).toFixed(2)}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -383,24 +431,22 @@ window.onload = function() {
       <div className="totals">
         <div className="total-row">
           <span>Subtotal</span>
-          <span>₹{billing.subTotal.toFixed(2)}</span>
+          <span>₹{billing.subTotal?.toFixed(2) || "0.00"}</span>
         </div>
         <div className="total-row">
           <span>Total Tax</span>
-          <span>₹{billing.totalTax.toFixed(2)}</span>
+          <span>₹{billing.totalTax?.toFixed(2) || "0.00"}</span>
         </div>
         <div className="grand-total total-row">
-          <span>Net Payable</span>
-          <span>₹{billing.grandTotal.toFixed(2)}</span>
+          <span>NET PAYABLE</span>
+          <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
         </div>
       </div>
 
       {/* Footer */}
       <div className="footer">
         <div className="thank-you">THANK YOU. VISIT US AGAIN.</div>
-        <div style={{ fontSize: "7px", marginTop: "4px" }}>
-          ** Powered by RetailCraft **
-        </div>
+        <div className="powered">** Powered by RetailCraft **</div>
       </div>
     </div>
   );
