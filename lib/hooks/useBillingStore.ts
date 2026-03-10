@@ -8,7 +8,6 @@ import {
   updateProductQuantity,
   completeBilling,
   deleteBilling,
-  Billing,
 } from "@/lib/api/billing";
 import toast from "react-hot-toast";
 
@@ -280,15 +279,15 @@ export const useBillingStore = () => {
   };
 
   // Generate invoice (complete billing)
-  const generateInvoice = async (): Promise<boolean> => {
+  const generateInvoice = async (): Promise<string | null> => {
     if (!billingId) {
       toast.error("No active billing session");
-      return false;
+      return null;
     }
 
     if (cart.length === 0) {
       toast.error("Cart is empty");
-      return false;
+      return null;
     }
 
     setIsLoading(true);
@@ -296,15 +295,15 @@ export const useBillingStore = () => {
       const response = await completeBilling(billingId);
       if (response.success) {
         toast.success(response.message || "Invoice generated successfully");
-        return true;
+        return billingId; // Return the billing ID to fetch full data
       }
-      return false;
+      return null;
     } catch (error: any) {
       console.error("Error generating invoice:", error);
       toast.error(
         error.response?.data?.message || "Failed to generate invoice",
       );
-      return false;
+      return null;
     } finally {
       setIsLoading(false);
     }

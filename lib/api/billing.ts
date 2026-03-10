@@ -1,4 +1,6 @@
 import axiosInstance from "./axios";
+import { Branch } from "./branches";
+import { Customer } from "./customers";
 
 export interface BillingItem {
   productId: string;
@@ -11,11 +13,15 @@ export interface BillingItem {
   totalAmount: number;
 }
 
+// A billing record returned from the server.  When the billing is completed the
+// branchId and customerId fields are populated with full objects so that the
+// frontend can render names/addresses.  During the draft stage the server may
+// return only the _id strings, but those drafts are never used for printing.
 export interface Billing {
   _id: string;
   userId: string;
-  branchId: string;
-  customerId: string;
+  branchId: Branch; // populated object (not just id)
+  customerId: Customer; // populated object (not just id)
   invoiceNumber: string;
   items: BillingItem[];
   subTotal: number;

@@ -50,7 +50,7 @@ import {
 } from "@/lib/api/customers";
 import CustomerForm from "@/components/forms/CustomerForm";
 import { useBillingStore } from "@/lib/hooks/useBillingStore";
-import { completeBilling } from "@/lib/api/billing";
+import { completeBilling, getBillingById } from "@/lib/api/billing";
 
 interface BillingItem extends Product {
   cartQuantity: number;
@@ -63,13 +63,9 @@ export default function BillingPage() {
     selectedCustomer,
     cart,
     discount,
-    paymentMethod,
     paidAmount,
     isLoaded,
     setSelectedCustomer,
-    setDiscount,
-    setPaymentMethod,
-    setPaidAmount,
     addToCart,
     updateQuantity,
     removeFromCart,
@@ -265,11 +261,6 @@ export default function BillingPage() {
   const grandTotal = subtotal + taxTotal - discountAmount;
   const balance = paidAmount - grandTotal;
 
-  // Print invoice
-  const handlePrint = () => {
-    window.print();
-  };
-
   // Handle generate invoice
   const handleGenerateInvoice = async () => {
     if (!selectedCustomer) {
@@ -282,20 +273,226 @@ export default function BillingPage() {
       return;
     }
 
-    if (paidAmount < grandTotal) {
-      toast.error("Insufficient payment amount");
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const success = await generateInvoice();
-      if (success) {
-        handlePrint();
-        // Clear session after successful invoice generation
-        setTimeout(() => {
-          clearSession();
-        }, 2000);
+      const billingId = await generateInvoice();
+      if (billingId) {
+        // Fetch the complete billing data
+        const response = await getBillingById(billingId);
+        if (response.success && response.data) {
+          // Open thermal invoice
+          const printWindow = window.open("", "_blank");
+          if (printWindow) {
+            printWindow.document.open();
+            printWindow.document.write(`<!DOCTYPE html>
+<html>
+              <head>
+              <meta charset="UTF-8">
+                <title>Invoice ${response.data.invoiceNumber}</title>
+                <style>
+                  *, body, html {
+                    font-family: 'Arial', sans-serif;
+                  }
+                  @page {
+                    size: 80mm auto;
+                    margin: 0;
+                  }
+                  body {
+                    margin: 0;
+                    padding: 0;
+                    background: white;
+                  }
+                </style>
+              </head>
+              <body>
+                <div id="invoice"></div>
+                <script>
+                  const billingData = ${JSON.stringify(response.data)};
+                  
+                  // Render invoice function
+                  function renderInvoice(data) {
+                    const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+                    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+                    
+                    function numberToWords(num) {
+                      if (num === 0) return 'Zero';
+                      
+                      function convertLessThanThousand(n) {
+                        if (n === 0) return '';
+                        if (n < 10) return units[n];
+                        if (n < 20) return teens[n - 10];
+                        if (n < 100) {
+                          return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + units[n % 10] : '');
+                        }
+                        return units[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+                      }
+                      
+                      let result = '';
+                      if (num >= 100000) {
+                        result += convertLessThanThousand(Math.floor(num / 100000)) + ' Lakh ';
+                        num %= 100000;
+                      }
+                      if (num >= 1000) {
+                        result += convertLessThanThousand(Math.floor(num / 1000)) + ' Thousand ';
+                        num %= 1000;
+                      }
+                      result += convertLessThanThousand(num);
+                      
+                      return result.trim() + ' Only';
+                    }
+
+                    // Group items by tax
+                    const itemsByTax = data.items.reduce((acc, item) => {
+                      const taxRate = item.taxPercent / 2;
+                      const taxableAmt = item.price * item.quantity;
+                      
+                      if (!acc[item.taxPercent]) {
+                        acc[item.taxPercent] = {
+                          rate: item.taxPercent,
+                          taxableAmt: 0,
+                          cgst: 0,
+                          sgst: 0
+                        };
+                      }
+                      
+                      acc[item.taxPercent].taxableAmt += taxableAmt;
+                      acc[item.taxPercent].cgst += item.taxAmount / 2;
+                      acc[item.taxPercent].sgst += item.taxAmount / 2;
+                      
+                      return acc;
+                    }, {});
+
+                    return \`
+                      <div style="font-family: 'Arial', sans-serif; width: 72mm; margin: 0 auto; padding: 4px; font-size: 10px;">
+                        <!-- Store Header -->
+                        <div style="text-align: center; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+                          <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">\${data.branchId?.branchName || 'N/A'}</div>
+                          <div style="font-size: 8px; margin-top: 2px;">
+                            \${data.branchId?.address || 'N/A'}<br />
+                            \${data.branchId?.city || 'N/A'}, \${data.branchId?.state || 'N/A'} - \${data.branchId?.pincode || 'N/A'}<br />
+                            Phone: \${data.branchId?.branchPhoneNumber || 'N/A'}
+                          </div>
+                          <div style="font-size: 8px; font-weight: bold;">GST NO: \${data.branchId?.branchGstNumber || 'N/A'}</div>
+                        </div>
+
+                        <!-- Invoice Title -->
+                        <div style="font-size: 12px; font-weight: bold; text-align: center; margin: 6px 0; text-transform: uppercase;">TAX INVOICE</div>
+
+                        <!-- Invoice Details -->
+                        <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
+                          <span style="font-weight: bold;">Invoice No/Date</span>
+                          <span>\${data.invoiceNumber} / \${new Date(data.createdAt).toLocaleDateString('en-IN')}</span>
+                        </div>
+                        
+                        <!-- Customer Details -->
+                        <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
+                          <span style="font-weight: bold;">Customer Name</span>
+                          <span>\${data.customerId?.name || 'Cash'}</span>
+                        </div>
+                        \${data.customerId?.mobile ? \`
+                          <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
+                            <span style="font-weight: bold;">Cust Mobile No</span>
+                            <span>\${data.customerId.mobile}</span>
+                          </div>
+                        \` : ''}
+
+                        <div style="border-top: 1px dashed #000; margin: 4px 0;"></div>
+
+                        <!-- Items Table -->
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                          <thead>
+                            <tr>
+                              <th style="text-align: left; border-bottom: 1px solid #000; padding: 2px 0;">Product</th>
+                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">QTY</th>
+                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">MRP</th>
+                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">Net Amt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            \${data.items.map(item => \`
+                              <tr>
+                                <td style="padding: 2px 0;">
+                                  <div>\${item.productName}</div>
+                                  <div style="font-size: 8px; color: #333;">\${item.barCode}</div>
+                                </td>
+                                <td style="text-align: right; padding: 2px 0;">\${item.quantity}</td>
+                                <td style="text-align: right; padding: 2px 0;">₹\${item.price.toFixed(2)}</td>
+                                <td style="text-align: right; padding: 2px 0;">₹\${(item.price * item.quantity).toFixed(2)}</td>
+                              </tr>
+                            \`).join('')}
+                          </tbody>
+                        </table>
+
+                        <!-- Amount in Words -->
+                        <div style="font-size: 8px; margin: 6px 0; padding: 4px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
+                          <span style="font-weight: bold;">Rupees \${numberToWords(Math.round(data.grandTotal))}</span>
+                        </div>
+
+                        <!-- Tax Breakdown -->
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                          <thead>
+                            <tr>
+                              <th style="text-align: left; border-bottom: 1px solid #000; padding: 2px 0;">Tax Rate</th>
+                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">Taxable Amt.</th>
+                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">CGST Amt.</th>
+                              <th style="text-align: right; border-bottom: 1px solid #000; padding: 2px 0;">SGST Amt.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            \${Object.values(itemsByTax).map(item => \`
+                              <tr>
+                                <td style="padding: 2px 0;">\${item.rate}%</td>
+                                <td style="text-align: right; padding: 2px 0;">₹\${item.taxableAmt.toFixed(2)}</td>
+                                <td style="text-align: right; padding: 2px 0;">₹\${item.cgst.toFixed(2)}</td>
+                                <td style="text-align: right; padding: 2px 0;">₹\${item.sgst.toFixed(2)}</td>
+                              </tr>
+                            \`).join('')}
+                            <tr>
+                              <td colspan="2" style="text-align: right; font-weight: bold; padding: 2px 0;">Total GST</td>
+                              <td style="text-align: right; padding: 2px 0;" colspan="2">₹\${data.totalTax.toFixed(2)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        <!-- Totals -->
+                        <div style="margin-top: 6px; border-top: 1px solid #000; padding-top: 4px;">
+                          <div style="display: flex; justify-content: space-between; font-size: 9px; margin: 2px 0;">
+                            <span>Total Sale</span>
+                            <span>₹\${data.grandTotal.toFixed(2)}</span>
+                          </div>
+                          <div style="display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; border-top: 1px dashed #000; padding-top: 4px; margin-top: 4px;">
+                            <span>Net Payable</span>
+                            <span>₹\${data.grandTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div style="text-align: center; margin-top: 10px;">
+                          <div style="font-size: 10px; margin: 8px 0; font-weight: bold;">THANK YOU. VISIT US AGAIN.</div>
+                          <div style="font-size: 7px; margin-top: 4px;">** Powered by RetailCraft **</div>
+                        </div>
+                      </div>
+                    \`;
+                  }
+
+                  document.getElementById('invoice').innerHTML = renderInvoice(billingData);
+                  window.onload = function() { 
+                    window.print(); 
+                    setTimeout(function() { window.close(); }, 500);
+                  };
+                </script>
+              </body>
+            </html>
+          `);
+            printWindow.document.close();
+          }
+
+          // Clear session after successful invoice generation
+          setTimeout(() => {
+            clearSession();
+          }, 2000);
+        }
       }
     } catch (error) {
       console.error("Invoice generation error:", error);
@@ -321,7 +518,7 @@ export default function BillingPage() {
     <div className="p-4 md:p-6 space-y-6 print:p-0">
       {/* Header with Reset Button */}
       <div className="flex justify-between items-center print:hidden">
-        <h1 className="text-2xl md:text-3xl font-bold">Billing</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Billing to Customer</h1>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-sm">
             {format(new Date(), "dd MMM yyyy, hh:mm a")}
@@ -606,52 +803,6 @@ export default function BillingPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Products Card */}
-          {/* <Card
-            className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
-          >
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Quick Products
-                {!selectedCustomer && (
-                  <Lock className="w-4 h-4 text-gray-400 ml-2" />
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {products.slice(0, 8).map((product) => (
-                  <Button
-                    key={product._id}
-                    variant="outline"
-                    className="h-auto py-3 flex flex-col items-center gap-1"
-                    onClick={() => handleManualAdd(product)}
-                    disabled={!selectedCustomer || product.quantity === 0}
-                  >
-                    <span className="font-medium text-sm">
-                      {product.productName}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ₹
-                      {selectedCustomer?.customerType === "B2B"
-                        ? product.b2bSalePrice
-                        : product.b2cSalePrice}
-                    </span>
-                    {product.quantity <= 5 && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-red-50 text-red-600"
-                      >
-                        Stock: {product.quantity}
-                      </Badge>
-                    )}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card> */}
-
           {/* Cart Table Card */}
           <Card>
             <CardHeader className="pb-3">
@@ -814,25 +965,6 @@ export default function BillingPage() {
                   <span className="text-gray-600">Tax (GST):</span>
                   <span className="font-medium">₹{taxTotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-gray-600">Discount (%):</span>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={discount}
-                      onChange={(e) =>
-                        setDiscount(parseFloat(e.target.value) || 0)
-                      }
-                      className="w-20 h-8 text-right"
-                      min="0"
-                      max="100"
-                      disabled={!selectedCustomer}
-                    />
-                    <span className="font-medium">
-                      -₹{discountAmount.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
                 <Separator className="my-2" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>
@@ -842,77 +974,13 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              {/* Payment Method */}
-              {/* <div className="space-y-2">
-                <Label>Payment Method</Label>
-                <Select
-                  value={paymentMethod}
-                  onValueChange={(v: typeof paymentMethod) =>
-                    setPaymentMethod(v)
-                  }
-                  disabled={!selectedCustomer}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="card">Card</SelectItem>
-                    <SelectItem value="upi">UPI</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
-
-              {/* Paid Amount */}
-              <div className="space-y-2">
-                <Label>Paid Amount</Label>
-                <Input
-                  type="number"
-                  value={paidAmount}
-                  onChange={(e) =>
-                    setPaidAmount(parseFloat(e.target.value) || 0)
-                  }
-                  placeholder="Enter amount"
-                  disabled={!selectedCustomer}
-                />
-              </div>
-
-              {/* Balance */}
-              {paidAmount > 0 && selectedCustomer && (
-                <div
-                  className={`p-3 rounded-lg ${
-                    balance >= 0
-                      ? "bg-green-50 text-green-700"
-                      : "bg-red-50 text-red-700"
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Balance:</span>
-                    <span className="text-lg font-bold">
-                      ₹{balance.toFixed(2)}
-                    </span>
-                  </div>
-                  {balance < 0 && (
-                    <p className="text-xs mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Insufficient payment
-                    </p>
-                  )}
-                </div>
-              )}
-
               {/* Action Buttons */}
               <div className="space-y-2 pt-4">
                 <Button
-                  className="w-full"
+                  className="w-full cursor-pointer print:hidden"
                   size="lg"
                   onClick={handleGenerateInvoice}
-                  disabled={
-                    !selectedCustomer ||
-                    cart.length === 0 ||
-                    paidAmount < grandTotal ||
-                    isLoading
-                  }
+                  disabled={!selectedCustomer || cart.length === 0 || isLoading}
                 >
                   {isLoading ? (
                     <>
@@ -950,7 +1018,15 @@ export default function BillingPage() {
       </Dialog>
 
       {/* Print Layout */}
-      <div className="hidden print:block mt-10">
+      <div
+        className="hidden print:block mt-10"
+        style={{
+          fontFamily: "Arial, sans-serif",
+          wordWrap: "break-word",
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
+        }}
+      >
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold">Retail Craft</h1>
           <p>Invoice #{format(new Date(), "yyyyMMddHHmmss")}</p>
