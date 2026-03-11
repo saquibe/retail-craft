@@ -65,7 +65,6 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                     text-align: center;
                     margin: 8px 0;
                     text-transform: uppercase;
-                    border-top: 1px dashed #000;
                     border-bottom: 1px dashed #000;
                     padding: 4px 0;
                   }
@@ -132,7 +131,6 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                     font-size: 8px;
                     margin: 6px 0;
                     padding: 6px 0;
-                    border-top: 1px dashed #000;
                     border-bottom: 1px dashed #000;
                     font-weight: bold;
                   }
@@ -166,6 +164,11 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                   .powered {
                     font-size: 7px;
                     color: #666;
+                  }
+                  .logo{
+                    width:60mm;
+                    display:block;
+                    margin:0 auto 3px auto;
                   }
                 </style>
               </head>
@@ -304,6 +307,8 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
     >
       {/* Store Header - Fixed */}
       <div className="store-section">
+        <img src="/logo.jpeg" className="logo" />
+
         <div className="store-name">
           {branch.branchName?.toUpperCase() || "VAMANA AGENCIES"}
         </div>
