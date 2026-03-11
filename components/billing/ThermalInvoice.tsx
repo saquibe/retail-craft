@@ -128,11 +128,12 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                     color: #666;
                   }
                   .amount-words {
-                    font-size: 8px;
-                    margin: 6px 0;
+                    font-size: 9px;
+                    margin: 8px 0 4px 0;
                     padding: 6px 0;
-                    border-bottom: 1px dashed #000;
                     font-weight: bold;
+                    text-align: center;
+                    text-transform: uppercase;
                   }
                   .totals {
                     margin-top: 6px;
@@ -252,7 +253,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
     };
 
     let result = "";
-    let remainingNum = num;
+    let remainingNum = Math.round(num);
 
     if (remainingNum >= 100000) {
       result +=
@@ -264,7 +265,9 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
         convertLessThanThousand(Math.floor(remainingNum / 1000)) + " Thousand ";
       remainingNum %= 1000;
     }
-    result += convertLessThanThousand(remainingNum);
+    if (remainingNum > 0) {
+      result += convertLessThanThousand(remainingNum);
+    }
 
     return result.trim() + " Only";
   };
@@ -382,11 +385,6 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
 
       <div className="divider"></div>
 
-      {/* Amount in Words */}
-      <div className="amount-words">
-        Rupees {numberToWords(Math.round(billing.grandTotal))}
-      </div>
-
       {/* Tax Table - Fixed column widths */}
       <table>
         <thead>
@@ -446,6 +444,11 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
           <span>NET PAYABLE</span>
           <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
         </div>
+      </div>
+
+      {/* Amount in Words - MOVED BELOW NET PAYABLE */}
+      <div className="amount-words">
+        Rupees {numberToWords(billing.grandTotal)}
       </div>
 
       {/* Footer */}
