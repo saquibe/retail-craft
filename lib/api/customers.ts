@@ -1,3 +1,4 @@
+//lib/api/customers.ts
 import axiosInstance from "./axios";
 
 export interface Customer {

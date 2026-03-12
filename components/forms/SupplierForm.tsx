@@ -1,4 +1,3 @@
-//app/components/forms/CustomerForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,9 +7,16 @@ import { z } from "zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/search-select";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { Country, State, City } from "country-state-city";
-import { Building2, User, Mail, Phone, Briefcase } from "lucide-react";
+import {
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  Hash,
+  CreditCard,
+  User,
+} from "lucide-react";
 
 // Get all countries
 const countries = Country.getAllCountries().map((country) => ({
@@ -19,9 +25,9 @@ const countries = Country.getAllCountries().map((country) => ({
   isoCode: country.isoCode,
 }));
 
-// Base schema for common fields
-const baseCustomerSchema = {
-  name: z.string().min(1, "Customer name is required"),
+// Supplier schema
+const supplierSchema = z.object({
+  name: z.string().min(1, "Supplier name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   mobile: z
     .string()
@@ -32,62 +38,28 @@ const baseCustomerSchema = {
   country: z.string().min(1, "Country is required"),
   state: z.string().min(1, "State is required"),
   city: z.string().min(1, "City is required"),
-};
-
-// B2B specific schema
-const b2bSchema = z.object({
-  customerType: z.literal("B2B"),
-  ...baseCustomerSchema,
-  companyName: z.string().min(1, "Company name is required"),
-  GstRegistrationType: z.string().min(1, "GST registration type is required"),
+  pincode: z
+    .string()
+    .min(1, "Pincode is required")
+    .regex(/^\d{6}$/, "Pincode must be 6 digits"),
   gstIn: z.string().min(1, "GST number is required"),
-  contactName: z.string().optional(),
-  contactNumber: z
-    .string()
-    .regex(/^\d{10}$/, "Contact number must be 10 digits")
-    .optional()
-    .or(z.literal("")),
-  contactEmail: z
-    .string()
-    .email("Invalid contact email")
-    .optional()
-    .or(z.literal("")),
 });
 
-// B2C specific schema
-const b2cSchema = z.object({
-  customerType: z.literal("B2C"),
-  ...baseCustomerSchema,
-});
+export type SupplierFormData = z.infer<typeof supplierSchema>;
 
-// Combined schema with discriminated union
-const customerSchema = z.discriminatedUnion("customerType", [
-  b2bSchema,
-  b2cSchema,
-]);
-
-export type CustomerFormData = z.infer<typeof customerSchema>;
-
-interface CustomerFormProps {
-  initialData?: Partial<CustomerFormData>;
-  onSubmit: (data: CustomerFormData) => Promise<void> | void;
+interface SupplierFormProps {
+  initialData?: Partial<SupplierFormData>;
+  onSubmit: (data: SupplierFormData) => Promise<void> | void;
   isLoading?: boolean;
   onCancel?: () => void;
 }
 
-export default function CustomerForm({
+export default function SupplierForm({
   initialData,
   onSubmit,
   isLoading = false,
   onCancel,
-}: CustomerFormProps) {
-  const [customerType, setCustomerType] = useState<"B2B" | "B2C">(
-    initialData?.customerType || "B2C",
-  );
-  // Narrowed view for B2B-specific initial fields
-  const b2bInitial = initialData as
-    | Partial<z.infer<typeof b2bSchema>>
-    | undefined;
+}: SupplierFormProps) {
   const [states, setStates] = useState<{ value: string; label: string }[]>([]);
   const [cities, setCities] = useState<{ value: string; label: string }[]>([]);
 
@@ -98,10 +70,9 @@ export default function CustomerForm({
     watch,
     setValue,
     formState: { errors },
-  } = useForm<CustomerFormData>({
-    resolver: zodResolver(customerSchema),
+  } = useForm<SupplierFormData>({
+    resolver: zodResolver(supplierSchema),
     defaultValues: {
-      customerType: customerType,
       name: initialData?.name || "",
       email: initialData?.email || "",
       mobile: initialData?.mobile || "",
@@ -109,24 +80,13 @@ export default function CustomerForm({
       country: initialData?.country || "",
       state: initialData?.state || "",
       city: initialData?.city || "",
-      ...(customerType === "B2B" && {
-        companyName: b2bInitial?.companyName || "",
-        GstRegistrationType: b2bInitial?.GstRegistrationType || "",
-        gstIn: b2bInitial?.gstIn || "",
-        contactName: b2bInitial?.contactName || "",
-        contactNumber: b2bInitial?.contactNumber || "",
-        contactEmail: b2bInitial?.contactEmail || "",
-      }),
+      pincode: initialData?.pincode || "",
+      gstIn: initialData?.gstIn || "",
     },
   });
 
   const selectedCountry = watch("country");
   const selectedState = watch("state");
-
-  // Update customer type when tab changes
-  useEffect(() => {
-    setValue("customerType", customerType);
-  }, [customerType, setValue]);
 
   // Update states when country changes
   useEffect(() => {
@@ -191,48 +151,26 @@ export default function CustomerForm({
     }
   }, [selectedCountry, selectedState, setValue, initialData]);
 
-  const handleFormSubmit = (data: CustomerFormData) => {
+  const handleFormSubmit = (data: SupplierFormData) => {
     onSubmit(data);
   };
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {/* Customer Type Tabs */}
-      <Tabs
-        value={customerType}
-        onValueChange={(value) => setCustomerType(value as "B2B" | "B2C")}
-        className="w-full"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="B2C" className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            B2C Customer
-          </TabsTrigger>
-          <TabsTrigger value="B2B" className="flex items-center gap-2">
-            <Building2 className="w-4 h-4" />
-            B2B Customer
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {/* Hidden field for customerType */}
-      <input type="hidden" {...register("customerType")} value={customerType} />
-
       {/* Basic Information */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Basic Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Customer Name with Icon */}
+          {/* Supplier Name with Icon */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Customer Name *
+              Supplier Name *
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 {...register("name")}
                 error={errors.name?.message}
-                placeholder="Enter customer name"
+                placeholder="Enter supplier name"
                 className="pl-10"
               />
             </div>
@@ -274,22 +212,23 @@ export default function CustomerForm({
       </div>
 
       {/* Address */}
-      <div className="md:col-span-2">
+      <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 mb-1 block">
           Address *
         </label>
-        <Input
-          {...register("address")}
-          error={errors.address?.message}
-          placeholder="Enter customer address"
-        />
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            {...register("address")}
+            error={errors.address?.message}
+            placeholder="Enter supplier address"
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Location Information */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">
-          Location Information
-        </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Controller
             name="country"
@@ -348,94 +287,46 @@ export default function CustomerForm({
             )}
           />
         </div>
-      </div>
 
-      {/* B2B Specific Fields */}
-      {customerType === "B2B" && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-700">
-            Business Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Company Name with Icon */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Company Name *
-              </label>
-              <div className="relative">
-                <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  {...register("companyName")}
-                  error={(errors as any).companyName?.message}
-                  placeholder="Enter company name"
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            {/* GST Registration Type */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                GST Registration Type *
-              </label>
+        {/* Pincode - Full width on mobile, 1/3 on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-1">
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Pincode *
+            </label>
+            <div className="relative">
+              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                {...register("GstRegistrationType")}
-                error={(errors as any).GstRegistrationType?.message}
-                placeholder="e.g., Regular, Composition"
-              />
-            </div>
-
-            {/* GST Number */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                GST Number *
-              </label>
-              <Input
-                {...register("gstIn")}
-                error={(errors as any).gstIn?.message}
-                placeholder="Enter GST number"
-              />
-            </div>
-
-            {/* Contact Person Name */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Contact Person Name
-              </label>
-              <Input
-                {...register("contactName")}
-                error={(errors as any).contactName?.message}
-                placeholder="Enter contact person name"
-              />
-            </div>
-
-            {/* Contact Number */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Contact Number
-              </label>
-              <Input
-                {...register("contactNumber")}
-                error={(errors as any).contactNumber?.message}
-                placeholder="Enter contact number"
-              />
-            </div>
-
-            {/* Contact Email */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Contact Email
-              </label>
-              <Input
-                type="email"
-                {...register("contactEmail")}
-                error={(errors as any).contactEmail?.message}
-                placeholder="Enter contact email"
+                {...register("pincode")}
+                error={errors.pincode?.message}
+                placeholder="Enter 6 digit pincode"
+                className="pl-10"
               />
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* GST Information */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* GST Number with Icon */}
+          <div className="md:col-span-1">
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              GST Number *
+            </label>
+            <div className="relative">
+              <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                {...register("gstIn")}
+                error={errors.gstIn?.message}
+                placeholder="Enter GST number"
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Form Actions */}
       <div className="flex justify-end space-x-3 pt-4">
@@ -453,8 +344,8 @@ export default function CustomerForm({
           {isLoading
             ? "Saving..."
             : initialData
-            ? "Update Customer"
-            : "Create Customer"}
+            ? "Update Supplier"
+            : "Create Supplier"}
         </Button>
       </div>
     </form>
