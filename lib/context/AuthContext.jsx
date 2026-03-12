@@ -42,16 +42,6 @@ export const AuthProvider = ({ children }) => {
       const userType = localStorage.getItem("userType");
       const storedUser = localStorage.getItem("user");
 
-      // console.log(
-      //   "checkAuth - token:",
-      //   !!token,
-      //   "userType:",
-      //   userType,
-      //   "storedUser:",
-      //   !!storedUser,
-      // );
-      // console.log("Current path:", window.location.pathname);
-
       if (token && userType && storedUser) {
         // If we have stored user data, use it
         const userData = JSON.parse(storedUser);

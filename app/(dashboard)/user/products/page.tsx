@@ -669,7 +669,7 @@ export default function ProductsPage() {
                 </CardContent>
                 <CardFooter className="flex justify-between items-center mt-auto border-t pt-4">
                   {/* Always show Stock button, even for inactive products */}
-                  <Button
+                  {/* <Button
                     variant={isInactive ? "outline" : "default"}
                     size="sm"
                     onClick={() => {
@@ -684,7 +684,7 @@ export default function ProductsPage() {
                   >
                     <Box className="w-4 h-4 mr-1" />
                     {isInactive ? "Add Stock" : "Manage Stock"}
-                  </Button>
+                  </Button> */}
 
                   {/* Edit button - always visible but with appropriate styling */}
                   <Button
@@ -829,7 +829,7 @@ export default function ProductsPage() {
       </AlertDialog>
 
       {/* Stock Management Dialog */}
-      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
+      {/* <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
@@ -849,7 +849,7 @@ export default function ProductsPage() {
             />
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
     </div>
   );
 }

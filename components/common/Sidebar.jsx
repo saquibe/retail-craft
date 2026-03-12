@@ -29,7 +29,7 @@ const userMenuItems = [
   { name: "Suppliers", href: "/user/suppliers", icon: FiUsers },
   {
     name: "Suppliers Invoice",
-    href: "/user/suppliers-invoice",
+    href: "/user/purchases",
     icon: FiCreditCard,
   },
   { name: "Profile", href: "/user/profile", icon: FiUser },

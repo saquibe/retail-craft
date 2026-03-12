@@ -97,7 +97,7 @@ interface ProductFormProps {
   onSubmit: (data: ProductFormData) => Promise<void> | void;
   isLoading?: boolean;
   onCancel?: () => void;
-  isEditMode?: boolean; // Add this prop to identify if we're in edit mode
+  isEditMode?: boolean;
 }
 
 export default function ProductForm({
@@ -105,7 +105,7 @@ export default function ProductForm({
   onSubmit,
   isLoading = false,
   onCancel,
-  isEditMode = false, // Default to false for create mode
+  isEditMode = false,
 }: ProductFormProps) {
   const {
     register,
@@ -144,7 +144,6 @@ export default function ProductForm({
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Basic Information */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">Basic Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Product Name */}
           <div>
@@ -242,7 +241,7 @@ export default function ProductForm({
           </div>
 
           {/* Quantity - Disabled in edit mode */}
-          <div>
+          {/* <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               {isEditMode ? "Current Quantity" : "Initial Quantity"}
             </label>
@@ -267,14 +266,15 @@ export default function ProductForm({
             </div>
             {isEditMode ? (
               <p className="text-xs text-blue-600 mt-1">
-                Use the Stock Manager button to update quantity
+                Use the Supplier Invoice to update quantity for existing
+                products.
               </p>
             ) : (
               <p className="text-xs text-gray-500 mt-1">
                 Leave as 0 to create product without stock
               </p>
             )}
-          </div>
+          </div> */}
 
           {/* HSN Code */}
           <div>
@@ -313,9 +313,6 @@ export default function ProductForm({
 
       {/* Pricing Information */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">
-          Pricing Information
-        </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* B2B Price */}
           <div>
@@ -375,9 +372,6 @@ export default function ProductForm({
 
       {/* Description */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">
-          Additional Information
-        </h3>
         <div>
           <label className="text-sm font-medium text-gray-700 mb-1 block">
             Short Description
