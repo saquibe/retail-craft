@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Country, State, City } from "country-state-city";
 import moment from "moment-timezone";
-import { SearchSelect } from "../ui/search-select";
-
-// Get all countries
-const countries = Country.getAllCountries().map((country) => ({
-  value: country.name,
-  label: country.name,
-  isoCode: country.isoCode,
-}));
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import CountryStateCitySelector from "../common/CountryStateCitySelector";
 
 // Get all timezones
 const timezones = moment.tz.names().map((tz) => ({
@@ -56,251 +57,171 @@ export default function BranchForm({
   isLoading = false,
   onCancel,
 }: BranchFormProps) {
-  const [states, setStates] = useState<{ value: string; label: string }[]>([]);
-  const [cities, setCities] = useState<{ value: string; label: string }[]>([]);
+  const [isLocationLoading, setIsLocationLoading] = useState(true);
+
+  const methods = useForm<BranchFormData>({
+    resolver: zodResolver(branchSchema),
+    defaultValues: initialData || {},
+  });
 
   const {
     register,
     handleSubmit,
     control,
-    watch,
-    setValue,
     formState: { errors },
-  } = useForm<BranchFormData>({
-    resolver: zodResolver(branchSchema),
-    defaultValues: initialData || {},
-  });
+    watch,
+  } = methods;
 
-  const selectedCountry = watch("country");
-  const selectedState = watch("state");
+  const timeZoneValue = watch("timeZone");
 
-  // Update states when country changes
+  // Check if location detection is complete
   useEffect(() => {
-    if (selectedCountry) {
-      const countryObj = Country.getAllCountries().find(
-        (c) => c.name === selectedCountry,
-      );
-
-      if (!countryObj) return;
-
-      const countryStates = State.getStatesOfCountry(countryObj.isoCode).map(
-        (state) => ({
-          value: state.name, // save full name
-          label: state.name,
-          isoCode: state.isoCode,
-        }),
-      );
-
-      setStates(countryStates);
-
-      if (!initialData?.country || initialData.country !== selectedCountry) {
-        setValue("state", "");
-        setValue("city", "");
-        setCities([]);
-      }
-    } else {
-      setStates([]);
-      setCities([]);
+    // If we have initial data or timezone is already set, we don't need to show loading
+    if (initialData?.timeZone || timeZoneValue) {
+      setIsLocationLoading(false);
     }
-  }, [selectedCountry, setValue, initialData]);
-
-  // Update cities when state changes
-  useEffect(() => {
-    if (selectedCountry && selectedState) {
-      const countryObj = Country.getAllCountries().find(
-        (c) => c.name === selectedCountry,
-      );
-
-      if (!countryObj) return;
-
-      const stateObj = State.getStatesOfCountry(countryObj.isoCode).find(
-        (s) => s.name === selectedState,
-      );
-
-      if (!stateObj) return;
-
-      const stateCities = City.getCitiesOfState(
-        countryObj.isoCode,
-        stateObj.isoCode,
-      ).map((city) => ({
-        value: city.name,
-        label: city.name,
-      }));
-
-      setCities(stateCities);
-
-      if (!initialData?.city || initialData.state !== selectedState) {
-        setValue("city", "");
-      }
-    } else {
-      setCities([]);
-    }
-  }, [selectedCountry, selectedState, setValue, initialData]);
+  }, [initialData, timeZoneValue]);
 
   const handleFormSubmit = (data: BranchFormData) => {
     onSubmit(data);
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        {/* Branch Name */}
-        <Input
-          label="Branch Name"
-          {...register("branchName")}
-          error={errors.branchName?.message}
-          id="branchName"
-          placeholder="Enter branch name"
-          required
-        />
+    <FormProvider {...methods}>
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {/* Row 1: Branch Name and Branch Code */}
+          <Input
+            label="Branch Name"
+            {...register("branchName")}
+            error={errors.branchName?.message}
+            id="branchName"
+            placeholder="Enter branch name"
+            required
+          />
 
-        {/* Branch Code */}
-        <Input
-          label="Branch Code"
-          {...register("branchCode")}
-          error={errors.branchCode?.message}
-          id="branchCode"
-          placeholder="Enter branch code"
-          required
-        />
+          <Input
+            label="Branch Code"
+            {...register("branchCode")}
+            error={errors.branchCode?.message}
+            id="branchCode"
+            placeholder="Enter branch code"
+            required
+          />
 
-        {/* GST Number */}
-        <Input
-          label="GST Number"
-          {...register("branchGstNumber")}
-          error={errors.branchGstNumber?.message}
-          id="branchGstNumber"
-          placeholder="Enter GST number"
-          required
-        />
+          {/* Row 2: GST Number and Phone Number */}
+          <Input
+            label="GST Number"
+            {...register("branchGstNumber")}
+            error={errors.branchGstNumber?.message}
+            id="branchGstNumber"
+            placeholder="Enter GST number"
+            required
+          />
 
-        {/* Branch Phone Number */}
-        <Input
-          label="Branch Phone Number"
-          {...register("branchPhoneNumber")}
-          error={errors.branchPhoneNumber?.message}
-          id="branchPhoneNumber"
-          placeholder="Enter branch phone number"
-          required
-        />
+          <Input
+            label="Branch Phone Number"
+            {...register("branchPhoneNumber")}
+            error={errors.branchPhoneNumber?.message}
+            id="branchPhoneNumber"
+            placeholder="Enter branch phone number"
+            required
+          />
 
-        {/* Time Zone */}
-        <Controller
-          name="timeZone"
-          control={control}
-          render={({ field }) => (
-            <SearchSelect
-              label="Time Zone"
-              options={timezones}
-              value={field.value}
-              onChange={field.onChange}
-              placeholder="Select time zone"
-              searchPlaceholder="Search timezone..."
-              error={errors.timeZone?.message}
+          {/* Row 3: Address (full width) */}
+          <div className="col-span-2">
+            <Input
+              label="Address"
+              {...register("address")}
+              error={errors.address?.message}
+              id="address"
+              placeholder="Enter full address"
               required
             />
-          )}
-        />
+          </div>
 
-        {/* Address */}
-        <Input
-          label="Address"
-          {...register("address")}
-          error={errors.address?.message}
-          className="col-span-2"
-          id="address"
-          placeholder="Enter full address"
-          required
-        />
+          {/* Row 4: Country, State, City (3 columns) */}
+          <CountryStateCitySelector
+            countryField="country"
+            stateField="state"
+            cityField="city"
+            timeZoneField="timeZone"
+            required
+          />
 
-        {/* Country */}
-        <Controller
-          name="country"
-          control={control}
-          render={({ field }) => (
-            <SearchSelect
-              label="Country"
-              options={countries}
-              value={field.value}
-              onChange={field.onChange}
-              placeholder="Select country"
-              searchPlaceholder="Search country..."
-              error={errors.country?.message}
-              required
+          {/* Row 5: Pincode and Timezone */}
+          <Input
+            label="Pincode"
+            {...register("pincode")}
+            error={errors.pincode?.message}
+            id="pincode"
+            placeholder="Enter pincode"
+            required
+          />
+
+          {/* Time Zone */}
+          <div className="space-y-2 relative">
+            <Label htmlFor="timeZone">
+              Time Zone <span className="text-red-500">*</span>
+            </Label>
+            <Controller
+              name="timeZone"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={isLocationLoading}
+                >
+                  <SelectTrigger
+                    id="timeZone"
+                    className={`w-full cursor-pointer ${
+                      errors.timeZone?.message ? "border-red-500" : ""
+                    }`}
+                  >
+                    <SelectValue placeholder="Select time zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timezones.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
+            {isLocationLoading && !timeZoneValue && (
+              <div className="absolute right-8 top-8">
+                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+              </div>
+            )}
+            {errors.timeZone && (
+              <p className="text-sm text-red-500">{errors.timeZone.message}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
           )}
-        />
-
-        {/* State */}
-        <Controller
-          name="state"
-          control={control}
-          render={({ field }) => (
-            <SearchSelect
-              label="State"
-              options={states}
-              value={field.value}
-              onChange={field.onChange}
-              placeholder={
-                selectedCountry ? "Select state" : "Select country first"
-              }
-              searchPlaceholder="Search state..."
-              error={errors.state?.message}
-              disabled={!selectedCountry}
-              required
-            />
-          )}
-        />
-
-        {/* City */}
-        <Controller
-          name="city"
-          control={control}
-          render={({ field }) => (
-            <SearchSelect
-              label="City"
-              options={cities}
-              value={field.value}
-              onChange={field.onChange}
-              placeholder={selectedState ? "Select city" : "Select state first"}
-              searchPlaceholder="Search city..."
-              error={errors.city?.message}
-              disabled={!selectedState}
-              required
-            />
-          )}
-        />
-
-        {/* Pincode */}
-        <Input
-          label="Pincode"
-          {...register("pincode")}
-          error={errors.pincode?.message}
-          id="pincode"
-          placeholder="Enter pincode"
-          required
-        />
-      </div>
-
-      <div className="flex justify-end space-x-3">
-        {onCancel && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            className="cursor-pointer"
-          >
-            Cancel
+          <Button type="submit" disabled={isLoading} className="cursor-pointer">
+            {isLoading
+              ? "Saving..."
+              : initialData
+              ? "Update Branch"
+              : "Create Branch"}
           </Button>
-        )}
-        <Button type="submit" disabled={isLoading} className="cursor-pointer">
-          {isLoading
-            ? "Saving..."
-            : initialData
-            ? "Update Branch"
-            : "Create Branch"}
-        </Button>
-      </div>
-    </form>
+        </div>
+      </form>
+    </FormProvider>
   );
 }

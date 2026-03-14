@@ -765,14 +765,14 @@ export default function PurchasesPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Invoice Info */}
-              {purchaseId && (
+              {/* {purchaseId && (
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-xs text-blue-600 font-medium">
                     Invoice ID
                   </p>
                   <p className="text-sm font-mono break-all">{purchaseId}</p>
                 </div>
-              )}
+              )} */}
 
               {/* Price Breakdown */}
               <div className="space-y-2">
