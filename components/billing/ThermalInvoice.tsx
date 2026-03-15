@@ -171,6 +171,12 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                     display:block;
                     margin:0 auto 3px auto;
                   }
+                  .return-note {
+                    font-size: 8px;
+                    margin: 4px 0;
+                    color: #666;
+                    font-style: italic;
+                  }
                 </style>
               </head>
               <body>
@@ -406,27 +412,6 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
               <td className="amount-col text-right">₹{item.sgst.toFixed(2)}</td>
             </tr>
           ))}
-          <tr>
-            <td
-              colSpan={2}
-              className="text-right"
-              style={{ fontWeight: "bold", paddingTop: "6px" }}
-            >
-              Total GST
-            </td>
-            <td
-              className="price-col text-right"
-              style={{ fontWeight: "bold", paddingTop: "6px" }}
-            >
-              ₹{(billing.totalTax / 2).toFixed(2)}
-            </td>
-            <td
-              className="amount-col text-right"
-              style={{ fontWeight: "bold", paddingTop: "6px" }}
-            >
-              ₹{(billing.totalTax / 2).toFixed(2)}
-            </td>
-          </tr>
         </tbody>
       </table>
 
@@ -454,6 +439,12 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
       {/* Footer */}
       <div className="footer">
         <div className="thank-you">THANK YOU. VISIT US AGAIN.</div>
+        <div
+          className="return-note"
+          style={{ fontSize: "8px", margin: "4px 0", color: "#666" }}
+        >
+          Note - Goods once sold will not be returned or exchanged
+        </div>
         <div className="powered">** Powered by RetailCraft **</div>
       </div>
     </div>

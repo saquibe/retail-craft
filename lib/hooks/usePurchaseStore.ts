@@ -262,7 +262,7 @@ export const usePurchaseStore = () => {
           setItems(response.data.items);
           setPurchaseData(response.data);
           toast.success("Product added to purchase");
-          return true;
+          return true; // Success - product exists and was added
         }
         return false;
       } catch (error: any) {
@@ -270,10 +270,11 @@ export const usePurchaseStore = () => {
 
         // If product not found (404), we need to create it first
         if (error.response?.status === 404) {
-          // Don't show error, just return false so UI can show create product dialog
+          // Return false to trigger create product dialog, but DON'T show error toast
           return false;
         }
 
+        // For other errors, show toast and return false
         toast.error(error.response?.data?.message || "Failed to add product");
         return false;
       } finally {

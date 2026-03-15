@@ -87,8 +87,8 @@ export default function BillingPage() {
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [billingData, setBillingData] = useState<any>(null);
-  // Add this with other useState declarations
   const [isLoading, setIsLoading] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<string>("");
 
   // Load products and customers on mount
   useEffect(() => {
@@ -256,12 +256,32 @@ export default function BillingPage() {
           ? item.b2bSalePrice
           : item.b2cSalePrice;
       const tax = item.salesTax || 0;
-      return sum + (price * item.cartQuantity * tax) / 100;
+      const priceWithQty = price * item.cartQuantity;
+      // Calculate tax amount (tax inclusive)
+      // taxAmount = (priceWithQty * tax) / (100 + tax)
+      const taxAmount = (priceWithQty * tax) / (100 + tax);
+      return sum + taxAmount;
+    }, 0);
+  }, [cart, selectedCustomer]);
+
+  const baseTotal = useMemo(() => {
+    if (!selectedCustomer) return 0;
+
+    return cart.reduce((sum, item) => {
+      const price =
+        selectedCustomer.customerType === "B2B"
+          ? item.b2bSalePrice
+          : item.b2cSalePrice;
+      const tax = item.salesTax || 0;
+      const priceWithQty = price * item.cartQuantity;
+      const taxAmount = (priceWithQty * tax) / (100 + tax);
+      const baseAmount = priceWithQty - taxAmount;
+      return sum + baseAmount;
     }, 0);
   }, [cart, selectedCustomer]);
 
   const discountAmount = (subtotal * discount) / 100;
-  const grandTotal = subtotal + taxTotal - discountAmount;
+  const grandTotal = subtotal - discountAmount;
   const balance = paidAmount - grandTotal;
 
   // Handle generate invoice
@@ -276,16 +296,22 @@ export default function BillingPage() {
       return;
     }
 
+    if (!paymentMode) {
+      toast.error("Please select payment mode");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const billingId = await generateInvoice();
+      const billingId = await generateInvoice(paymentMode);
 
       if (billingId) {
         const response = await getBillingById(billingId);
 
         if (response.success && response.data) {
           setBillingData(response.data);
+          setPaymentMode("");
         }
       }
     } catch (error) {
@@ -632,9 +658,13 @@ export default function BillingPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-right">
+                          Price (Inc. Tax)
+                        </TableHead>
                         <TableHead className="text-center">Qty</TableHead>
-                        <TableHead className="text-right">Tax</TableHead>
+                        <TableHead className="text-right">Tax %</TableHead>
+                        <TableHead className="text-right">Tax Amt</TableHead>
+                        <TableHead className="text-right">Base Amt</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="text-right w-[100px]">
                           Action
@@ -648,9 +678,10 @@ export default function BillingPage() {
                             ? item.b2bSalePrice
                             : item.b2cSalePrice;
                         const tax = item.salesTax || 0;
-                        const itemTotal =
-                          price * item.cartQuantity +
-                          (price * item.cartQuantity * tax) / 100;
+                        const priceWithQty = price * item.cartQuantity;
+                        const taxAmount = (priceWithQty * tax) / (100 + tax);
+                        const baseAmount = priceWithQty - taxAmount;
+                        const itemTotal = priceWithQty;
 
                         return (
                           <TableRow key={item._id}>
@@ -702,6 +733,12 @@ export default function BillingPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right">{tax}%</TableCell>
+                            <TableCell className="text-right">
+                              ₹{taxAmount.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              ₹{baseAmount.toFixed(2)}
+                            </TableCell>
                             <TableCell className="text-right font-medium">
                               ₹{itemTotal.toFixed(2)}
                             </TableCell>
@@ -727,6 +764,7 @@ export default function BillingPage() {
         </div>
 
         {/* Right Column - Payment Summary */}
+
         <div className="space-y-6">
           <Card className="sticky top-6">
             <CardHeader className="pb-3">
@@ -752,13 +790,27 @@ export default function BillingPage() {
               {/* Price Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                  <span className="text-gray-600">Base Amount:</span>
+                  <span className="font-medium">₹{baseTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax (GST):</span>
+                  <span className="text-gray-600">Total Tax (GST):</span>
                   <span className="font-medium">₹{taxTotal.toFixed(2)}</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal (Inc. Tax):</span>
+                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      Discount ({discount}%):
+                    </span>
+                    <span className="font-medium text-red-600">
+                      -₹{discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <Separator className="my-2" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>
@@ -768,13 +820,75 @@ export default function BillingPage() {
                 </div>
               </div>
 
+              {/* Payment Mode Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Payment Mode <span className="text-red-500">*</span>
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant={paymentMode === "Cash" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      paymentMode === "Cash"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "hover:bg-green-50"
+                    }`}
+                    onClick={() => setPaymentMode("Cash")}
+                    disabled={cart.length === 0}
+                  >
+                    Cash
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={paymentMode === "UPI" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      paymentMode === "UPI"
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "hover:bg-blue-50"
+                    }`}
+                    onClick={() => setPaymentMode("UPI")}
+                    disabled={cart.length === 0}
+                  >
+                    UPI
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      paymentMode === "Debit/Credit Card"
+                        ? "default"
+                        : "outline"
+                    }
+                    className={`cursor-pointer ${
+                      paymentMode === "Debit/Credit Card"
+                        ? "bg-purple-600 hover:bg-purple-700"
+                        : "hover:bg-purple-50"
+                    }`}
+                    onClick={() => setPaymentMode("Debit/Credit Card")}
+                    disabled={cart.length === 0}
+                  >
+                    Card
+                  </Button>
+                </div>
+                {cart.length > 0 && !paymentMode && (
+                  <p className="text-xs text-amber-600">
+                    Please select payment mode
+                  </p>
+                )}
+              </div>
+
               {/* Action Buttons */}
               <div className="space-y-2 pt-4">
                 <Button
                   className="w-full cursor-pointer print:hidden"
                   size="lg"
                   onClick={handleGenerateInvoice}
-                  disabled={!selectedCustomer || cart.length === 0 || isLoading}
+                  disabled={
+                    !selectedCustomer ||
+                    cart.length === 0 ||
+                    !paymentMode ||
+                    isLoading
+                  }
                 >
                   {isLoading ? (
                     <>
@@ -852,7 +966,8 @@ export default function BillingPage() {
               <th className="text-left py-2">Product</th>
               <th className="text-right py-2">Price</th>
               <th className="text-center py-2">Qty</th>
-              <th className="text-right py-2">Tax</th>
+              <th className="text-right py-2">Tax %</th>
+              <th className="text-right py-2">Tax Amt</th>
               <th className="text-right py-2">Total</th>
             </tr>
           </thead>
@@ -863,9 +978,9 @@ export default function BillingPage() {
                   ? item.b2bSalePrice
                   : item.b2cSalePrice;
               const tax = item.salesTax || 0;
-              const itemTotal =
-                price * item.cartQuantity +
-                (price * item.cartQuantity * tax) / 100;
+              const priceWithQty = price * item.cartQuantity;
+              const taxAmount = (priceWithQty * tax) / (100 + tax);
+              const itemTotal = priceWithQty;
 
               return (
                 <tr key={item._id} className="border-b">
@@ -873,6 +988,7 @@ export default function BillingPage() {
                   <td className="text-right py-2">₹{price.toFixed(2)}</td>
                   <td className="text-center py-2">{item.cartQuantity}</td>
                   <td className="text-right py-2">{tax}%</td>
+                  <td className="text-right py-2">₹{taxAmount.toFixed(2)}</td>
                   <td className="text-right py-2">₹{itemTotal.toFixed(2)}</td>
                 </tr>
               );
@@ -881,10 +997,13 @@ export default function BillingPage() {
         </table>
 
         <div className="mt-4 text-right space-y-1">
+          <p>Base Amount: ₹{baseTotal.toFixed(2)}</p>
+          <p>Total Tax: ₹{taxTotal.toFixed(2)}</p>
           <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
-          <p>Tax: ₹{taxTotal.toFixed(2)}</p>
-          <p>Discount: ₹{discountAmount.toFixed(2)}</p>
-          <p className="text-lg font-bold">Total: ₹{grandTotal.toFixed(2)}</p>
+          {discount > 0 && <p>Discount: -₹{discountAmount.toFixed(2)}</p>}
+          <p className="text-lg font-bold">
+            Grand Total: ₹{grandTotal.toFixed(2)}
+          </p>
           <p>Paid: ₹{paidAmount.toFixed(2)}</p>
           <p>Balance: ₹{balance.toFixed(2)}</p>
         </div>

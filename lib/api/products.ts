@@ -30,6 +30,7 @@ export interface Product {
   quantity: number;
   hsnCode?: string;
   salesTax: number;
+  purchaseTax: number;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;
@@ -66,6 +67,7 @@ export interface CreateProductData {
   quantity?: number;
   hsnCode?: string;
   salesTax: number;
+  purchaseTax: number;
   shortDescription?: string;
   b2bSalePrice: number;
   b2cSalePrice: number;

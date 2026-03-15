@@ -631,21 +631,29 @@ export default function PurchasesPage() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-lg">Received Items</CardTitle>
-                {items.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (window.confirm("Clear all items?")) {
-                        items.forEach((item) => removeProduct(item.productId));
-                      }
-                    }}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Clear All
-                  </Button>
-                )}
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600">
+                    Total Qty:{" "}
+                    {items.reduce((sum, item) => sum + item.quantity, 0)}
+                  </span>
+                  {items.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (window.confirm("Clear all items?")) {
+                          items.forEach((item) =>
+                            removeProduct(item.productId),
+                          );
+                        }
+                      }}
+                      className="text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear All
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -672,6 +680,7 @@ export default function PurchasesPage() {
                         <TableHead className="text-center">Quantity</TableHead>
                         <TableHead className="text-right">Tax %</TableHead>
                         <TableHead className="text-right">Tax Amt</TableHead>
+                        <TableHead className="text-right">Base Amt</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="text-right w-[100px]">
                           Action
@@ -679,76 +688,90 @@ export default function PurchasesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {items.map((item) => (
-                        <TableRow key={item.productId}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{item.productName}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            {item.barCode}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            ₹{item.purchasePrice.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-center gap-2">
+                      {items.map((item) => {
+                        // Calculate based on backend formula
+                        const priceWithQty = item.purchasePrice * item.quantity;
+                        const taxAmount =
+                          (priceWithQty * item.taxPercent) /
+                          (100 + item.taxPercent);
+                        const baseAmount = priceWithQty - taxAmount;
+
+                        return (
+                          <TableRow key={item.productId}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {item.productName}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {item.barCode}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              ₹{item.purchasePrice.toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() =>
+                                    updateQuantity(
+                                      item.productId,
+                                      item.quantity - 1,
+                                    )
+                                  }
+                                  disabled={isLoading}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="w-8 text-center font-medium">
+                                  {item.quantity}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() =>
+                                    updateQuantity(
+                                      item.productId,
+                                      item.quantity + 1,
+                                    )
+                                  }
+                                  disabled={isLoading}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {item.taxPercent}%
+                            </TableCell>
+                            <TableCell className="text-right">
+                              ₹{taxAmount.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              ₹{baseAmount.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              ₹{priceWithQty.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
-                                onClick={() =>
-                                  updateQuantity(
-                                    item.productId,
-                                    item.quantity - 1,
-                                  )
-                                }
+                                className="h-8 w-8 text-red-600"
+                                onClick={() => removeProduct(item.productId)}
                                 disabled={isLoading}
                               >
-                                <Minus className="h-3 w-3" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
-                              <span className="w-8 text-center">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() =>
-                                  updateQuantity(
-                                    item.productId,
-                                    item.quantity + 1,
-                                  )
-                                }
-                                disabled={isLoading}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {item.taxPercent}%
-                          </TableCell>
-                          <TableCell className="text-right">
-                            ₹{item.taxAmount.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            ₹{item.totalAmount.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-600"
-                              onClick={() => removeProduct(item.productId)}
-                              disabled={isLoading}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -777,7 +800,7 @@ export default function PurchasesPage() {
               {/* Price Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="text-gray-600">Base Amount:</span>
                   <span className="font-medium">
                     ₹{totals.subTotal.toFixed(2)}
                   </span>

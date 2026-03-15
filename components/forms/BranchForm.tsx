@@ -29,12 +29,12 @@ const branchSchema = z.object({
   branchName: z.string().min(1, "Branch name is required"),
   branchPhoneNumber: z
     .string()
-    .min(10, "Phone number must be at least 10 digits"),
+    .regex(/^[6-9]\d{9}$/, "Enter valid mobile number"),
   address: z.string().min(1, "Address is required"),
   country: z.string().min(1, "Country is required"),
   state: z.string().min(1, "State is required"),
   city: z.string().min(1, "City is required"),
-  pincode: z.string().min(1, "Pincode is required"),
+  pincode: z.string().regex(/^\d{6}$/, "Enter valid 6 digit pincode"),
   timeZone: z.string().min(1, "Time zone is required"),
   branchCode: z.string().min(1, "Branch code is required"),
   branchGstNumber: z.string().min(1, "GST number is required"),
@@ -124,7 +124,12 @@ export default function BranchForm({
             {...register("branchPhoneNumber")}
             error={errors.branchPhoneNumber?.message}
             id="branchPhoneNumber"
-            placeholder="Enter branch phone number"
+            placeholder="Enter 10 digit mobile number"
+            maxLength={10}
+            inputMode="numeric"
+            onInput={(e) => {
+              e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
+            }}
             required
           />
 
@@ -155,7 +160,12 @@ export default function BranchForm({
             {...register("pincode")}
             error={errors.pincode?.message}
             id="pincode"
-            placeholder="Enter pincode"
+            placeholder="Enter 6 digit pincode"
+            maxLength={6}
+            inputMode="numeric"
+            onInput={(e) => {
+              e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "");
+            }}
             required
           />
 

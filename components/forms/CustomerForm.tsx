@@ -223,6 +223,14 @@ export default function CustomerForm({
                   error={errors.mobile?.message}
                   placeholder="Enter 10 digit mobile number"
                   className="pl-10"
+                  maxLength={10}
+                  inputMode="numeric"
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(
+                      /\D/g,
+                      "",
+                    );
+                  }}
                 />
               </div>
             </div>
@@ -349,6 +357,14 @@ export default function CustomerForm({
                   {...register("contactNumber")}
                   error={(errors as any).contactNumber?.message}
                   placeholder="Enter contact number"
+                  maxLength={10}
+                  inputMode="numeric"
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(
+                      /\D/g,
+                      "",
+                    );
+                  }}
                 />
               </div>
 

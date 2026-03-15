@@ -279,7 +279,9 @@ export const useBillingStore = () => {
   };
 
   // Generate invoice (complete billing)
-  const generateInvoice = async (): Promise<string | null> => {
+  const generateInvoice = async (
+    paymentMode: string,
+  ): Promise<string | null> => {
     if (!billingId) {
       toast.error("No active billing session");
       return null;
@@ -290,12 +292,17 @@ export const useBillingStore = () => {
       return null;
     }
 
+    if (!paymentMode) {
+      toast.error("Please select payment mode");
+      return null;
+    }
+
     setIsLoading(true);
     try {
-      const response = await completeBilling(billingId);
+      const response = await completeBilling(billingId, paymentMode);
       if (response.success) {
         toast.success(response.message || "Invoice generated successfully");
-        return billingId; // Return the billing ID to fetch full data
+        return billingId;
       }
       return null;
     } catch (error: any) {

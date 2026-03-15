@@ -120,6 +120,14 @@ export default function SupplierForm({
                   error={errors.mobile?.message}
                   placeholder="Enter 10 digit mobile number"
                   className="pl-10"
+                  maxLength={10}
+                  inputMode="numeric"
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(
+                      /\D/g,
+                      "",
+                    );
+                  }}
                 />
               </div>
             </div>
@@ -166,6 +174,14 @@ export default function SupplierForm({
                   error={errors.pincode?.message}
                   placeholder="Enter 6 digit pincode"
                   className="pl-10"
+                  maxLength={6}
+                  inputMode="numeric"
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(
+                      /\D/g,
+                      "",
+                    );
+                  }}
                 />
               </div>
             </div>

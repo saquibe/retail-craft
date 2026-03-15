@@ -121,9 +121,15 @@ export const updateProductQuantity = async (
 // =====================================================
 export const completeBilling = async (
   billingId: string,
+  paymentMode: string, // ADD THIS PARAMETER
 ): Promise<ApiResponse<Billing>> => {
   try {
-    const response = await axiosInstance.post(`/billing/complete/${billingId}`);
+    const response = await axiosInstance.post(
+      `/billing/complete/${billingId}`,
+      {
+        paymentMode,
+      },
+    );
     return response.data;
   } catch (error) {
     console.error("Complete billing error:", error);

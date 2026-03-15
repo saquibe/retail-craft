@@ -29,14 +29,10 @@ import {
   Building,
   Phone,
   MapPin,
-  Globe,
-  Clock,
   Link as LinkIcon,
   FileText,
   Calendar,
-  Hash,
 } from "lucide-react";
-import { Country, State, City } from "country-state-city";
 import moment from "moment-timezone";
 import CountryStateCitySelector from "@/components/common/CountryStateCitySelector";
 
@@ -53,8 +49,11 @@ const profileSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
   contactNumber: z
     .string()
-    .min(10, "Contact number must be at least 10 digits"),
-  teliphoneNumber: z.string().optional(),
+    .regex(/^\d{10}$/, "Enter valid 10 digit mobile number"),
+  teliphoneNumber: z
+    .string()
+    .regex(/^\d*$/, "Telephone number must contain only digits")
+    .optional(),
 
   // Address Info
   address: z.string().min(1, "Address is required"),
@@ -400,8 +399,16 @@ export default function AdminProfile() {
                       <Input
                         {...register("contactNumber")}
                         error={errors.contactNumber?.message}
-                        placeholder="Enter contact number"
+                        placeholder="Enter 10 digit mobile number"
                         className="pl-10"
+                        maxLength={10}
+                        inputMode="numeric"
+                        onInput={(e) => {
+                          e.currentTarget.value = e.currentTarget.value.replace(
+                            /\D/g,
+                            "",
+                          );
+                        }}
                       />
                     </div>
                   </div>
@@ -417,6 +424,13 @@ export default function AdminProfile() {
                         error={errors.teliphoneNumber?.message}
                         placeholder="Enter telephone number"
                         className="pl-10"
+                        inputMode="numeric"
+                        onInput={(e) => {
+                          e.currentTarget.value = e.currentTarget.value.replace(
+                            /\D/g,
+                            "",
+                          );
+                        }}
                       />
                     </div>
                   </div>

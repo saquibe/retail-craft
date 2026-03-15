@@ -18,6 +18,7 @@ import {
   Palette,
   Ruler,
   Box,
+  Receipt,
 } from "lucide-react";
 import {
   Select,
@@ -82,6 +83,9 @@ const productSchema = z.object({
     .default(0),
   hsnCode: z.string().optional().default(""),
   salesTax: z.coerce.number().min(0, "Sales tax must be a positive number"),
+  purchaseTax: z.coerce
+    .number()
+    .min(0, "Purchase tax must be a positive number"),
   shortDescription: z.string().optional().default(""),
   b2bSalePrice: z.coerce.number().min(0, "Price must be a positive number"),
   b2cSalePrice: z.coerce.number().min(0, "Price must be a positive number"),
@@ -123,6 +127,7 @@ export default function ProductForm({
       quantity: initialData?.quantity || 0,
       hsnCode: initialData?.hsnCode || "",
       salesTax: initialData?.salesTax || 0,
+      purchaseTax: initialData?.purchaseTax || 0,
       shortDescription: initialData?.shortDescription || "",
       b2bSalePrice: initialData?.b2bSalePrice || 0,
       b2cSalePrice: initialData?.b2cSalePrice || 0,
@@ -240,42 +245,6 @@ export default function ProductForm({
             )}
           </div>
 
-          {/* Quantity - Disabled in edit mode */}
-          {/* <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
-              {isEditMode ? "Current Quantity" : "Initial Quantity"}
-            </label>
-            <div className="relative">
-              <Box className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="number"
-                min="0"
-                step="1"
-                {...register("quantity")}
-                error={errors.quantity?.message}
-                placeholder={
-                  isEditMode
-                    ? "Manage stock via Stock Manager"
-                    : "Enter initial quantity"
-                }
-                className={`pl-10 ${
-                  isEditMode ? "bg-gray-50 text-gray-500" : ""
-                }`}
-                disabled={isEditMode}
-              />
-            </div>
-            {isEditMode ? (
-              <p className="text-xs text-blue-600 mt-1">
-                Use the Supplier Invoice to update quantity for existing
-                products.
-              </p>
-            ) : (
-              <p className="text-xs text-gray-500 mt-1">
-                Leave as 0 to create product without stock
-              </p>
-            )}
-          </div> */}
-
           {/* HSN Code */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
@@ -295,7 +264,7 @@ export default function ProductForm({
           {/* Sales Tax */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Sales Tax *
+              Sales Tax (%) *
             </label>
             <div className="relative">
               <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -304,6 +273,25 @@ export default function ProductForm({
                 step="0.01"
                 {...register("salesTax")}
                 error={errors.salesTax?.message}
+                placeholder="Enter sales tax percentage"
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Purchase Tax - NEW FIELD */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Purchase Tax (%) *
+            </label>
+            <div className="relative">
+              <Percent className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="number"
+                step="0.01"
+                {...register("purchaseTax")}
+                error={errors.purchaseTax?.message}
+                placeholder="Enter purchase tax percentage"
                 className="pl-10"
               />
             </div>
@@ -317,7 +305,7 @@ export default function ProductForm({
           {/* B2B Price */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              B2B Sale Price *
+              B2B Sale Price (₹) *
             </label>
             <div className="relative">
               <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -335,7 +323,7 @@ export default function ProductForm({
           {/* B2C Price */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              B2C Sale Price *
+              B2C Sale Price (₹) *
             </label>
             <div className="relative">
               <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -353,7 +341,7 @@ export default function ProductForm({
           {/* Purchase Price */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Purchase Price *
+              Purchase Price (₹) *
             </label>
             <div className="relative">
               <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

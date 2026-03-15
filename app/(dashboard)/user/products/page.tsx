@@ -582,15 +582,35 @@ export default function ProductsPage() {
                     </Badge>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm">
-                    <Percent
-                      className={`w-4 h-4 ${
-                        isInactive ? "text-gray-400" : "text-gray-400"
-                      }`}
-                    />
-                    <span className={isInactive ? "text-gray-500" : ""}>
-                      Sales Tax: {product.salesTax}
-                    </span>
+                  <div className="flex items-center justify-between text-sm border-t pt-2 mt-2">
+                    <div className="flex items-center gap-2">
+                      <Percent
+                        className={`w-4 h-4 ${
+                          isInactive ? "text-gray-400" : "text-blue-500"
+                        }`}
+                      />
+                      <span
+                        className={
+                          isInactive ? "text-gray-500" : "text-gray-700"
+                        }
+                      >
+                        Sales Tax: {product.salesTax}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Percent
+                        className={`w-4 h-4 ${
+                          isInactive ? "text-gray-400" : "text-purple-500"
+                        }`}
+                      />
+                      <span
+                        className={
+                          isInactive ? "text-gray-500" : "text-gray-700"
+                        }
+                      >
+                        Purchase Tax: {product.purchaseTax}%
+                      </span>
+                    </div>
                   </div>
 
                   {/* Pricing */}
