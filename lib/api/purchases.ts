@@ -124,10 +124,12 @@ export const removeProductFromPurchase = async (
   data: RemoveProductData,
 ): Promise<ApiResponse<PurchaseInvoice>> => {
   try {
+    console.log("API call - removeProductFromPurchase with data:", data);
     const response = await axiosInstance.post(
       "/purchase-invoice/remove-product",
       data,
     );
+    console.log("API response - removeProductFromPurchase:", response.data);
     return response.data;
   } catch (error) {
     console.error("Remove product from purchase error:", error);

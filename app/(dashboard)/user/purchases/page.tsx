@@ -47,6 +47,7 @@ import { usePurchaseStore } from "@/lib/hooks/usePurchaseStore";
 import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
 import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
+import { getProducts, Product } from "@/lib/api/products";
 
 export default function PurchasesPage() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -86,11 +87,28 @@ export default function PurchasesPage() {
   const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [showCompletedPurchases, setShowCompletedPurchases] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]); // ADD THIS LINE
+  const [isScanning, setIsScanning] = useState(false); // ADD THIS LINE for barcode scanning loading
 
   // Load suppliers on mount
   useEffect(() => {
     loadSuppliers();
+    loadProducts(); // ADD THIS LINE
   }, []);
+
+  const loadProducts = async () => {
+    try {
+      // IMPORTANT: Pass "All" to get all products including those with zero quantity
+      const response = await getProducts("All");
+      if (response.success && response.data) {
+        setProducts(response.data);
+        console.log("Products loaded:", response.data.length); // Add this to verify
+      }
+    } catch (error) {
+      console.error("Error loading products:", error);
+      toast.error("Failed to load products");
+    }
+  };
 
   // Focus barcode input when all supplier details are filled (only once)
   useEffect(() => {
@@ -208,14 +226,51 @@ export default function PurchasesPage() {
 
     if (!barcode.trim()) return;
 
-    const success = await scanBarcode(barcode, quantity);
-    if (success) {
+    // Log the barcode being scanned
+    console.log("1. Scanning barcode:", barcode);
+
+    // Log all available barcodes in your products array
+    console.log(
+      "2. Available barcodes:",
+      products.map((p) => p.barCode),
+    );
+
+    // Check if product exists in local state
+    const productExists = products.some((p) => p.barCode === barcode);
+    console.log("3. Product exists in local state?", productExists);
+
+    setIsScanning(true); // Use the new state
+
+    try {
+      const success = await scanBarcode(barcode, quantity);
+      console.log("4. scanBarcode returned:", success);
+
+      if (success) {
+        // Product was successfully added
+        console.log("5. Product added successfully");
+        setBarcode("");
+        setQuantity(1);
+      } else {
+        // scanBarcode returned false
+        console.log("5. scanBarcode returned false");
+
+        if (!productExists) {
+          // Product doesn't exist at all - show create dialog
+          console.log("6. Product doesn't exist - opening create dialog");
+          setScannedBarcode(barcode);
+          setShowCreateProductDialog(true);
+          setBarcode(""); // Clear barcode after opening dialog
+        } else {
+          // Product exists but couldn't be added (stock issue, etc.)
+          console.log("6. Product exists but couldn't be added");
+          setBarcode("");
+        }
+      }
+    } catch (error) {
+      console.error("Error in handleBarcodeScan:", error);
       setBarcode("");
-      setQuantity(1);
-    } else {
-      // If product not found, show create product dialog
-      setScannedBarcode(barcode);
-      setShowCreateProductDialog(true);
+    } finally {
+      setIsScanning(false); // Use the new state
     }
   };
 
@@ -594,7 +649,7 @@ export default function PurchasesPage() {
                       value={barcode}
                       onChange={(e) => setBarcode(e.target.value)}
                       className="pl-10"
-                      disabled={!allDetailsFilled || isLoading}
+                      disabled={!allDetailsFilled || isLoading || isScanning}
                     />
                   </div>
                   <div className="w-24">
@@ -606,12 +661,12 @@ export default function PurchasesPage() {
                         setQuantity(parseInt(e.target.value) || 1)
                       }
                       placeholder="Qty"
-                      disabled={!allDetailsFilled || isLoading}
+                      disabled={!allDetailsFilled || isLoading || isScanning}
                     />
                   </div>
                   <Button
                     type="submit"
-                    disabled={!allDetailsFilled || isLoading}
+                    disabled={!allDetailsFilled || isLoading || isScanning}
                     variant={allDetailsFilled ? "default" : "outline"}
                   >
                     {isLoading ? (
@@ -638,7 +693,7 @@ export default function PurchasesPage() {
                     Total Qty:{" "}
                     {items.reduce((sum, item) => sum + item.quantity, 0)}
                   </span>
-                  {items.length > 0 && (
+                  {/* {items.length > 0 && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -654,7 +709,7 @@ export default function PurchasesPage() {
                       <Trash2 className="w-4 h-4 mr-2" />
                       Clear All
                     </Button>
-                  )}
+                  )} */}
                 </div>
               </div>
             </CardHeader>
@@ -765,7 +820,14 @@ export default function PurchasesPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-red-600"
-                                onClick={() => removeProduct(item.productId)}
+                                onClick={() => {
+                                  console.log(
+                                    "Remove button clicked for product:",
+                                    item.productId,
+                                  );
+                                  console.log("Product details:", item);
+                                  removeProduct(item.productId);
+                                }}
                                 disabled={isLoading}
                               >
                                 <Trash2 className="w-4 h-4" />

@@ -235,6 +235,7 @@ export const usePurchaseStore = () => {
   ]);
 
   // Scan barcode to add product
+  // Scan barcode to add product
   const scanBarcode = useCallback(
     async (barcode: string, quantity: number = 1) => {
       if (!purchaseId) {
@@ -267,9 +268,14 @@ export const usePurchaseStore = () => {
         return false;
       } catch (error: any) {
         console.error("Error adding product:", error);
+        console.log("Error status:", error.response?.status); // Add this log
+        console.log("Error message:", error.response?.data?.message); // Add this log
 
         // If product not found (404), we need to create it first
         if (error.response?.status === 404) {
+          console.log(
+            "Product not found (404) - returning false to trigger create dialog",
+          );
           // Return false to trigger create product dialog, but DON'T show error toast
           return false;
         }
@@ -326,27 +332,54 @@ export const usePurchaseStore = () => {
   // Remove product
   const removeProduct = useCallback(
     async (productId: string) => {
+      console.log("removeProduct called with productId:", productId);
+      console.log("Current purchaseId:", purchaseId);
+      console.log("Current items:", items);
+
       if (!purchaseId) {
+        console.log("No purchaseId, showing error");
         toast.error("No active purchase session");
+        return false;
+      }
+
+      // Check if product exists in cart
+      const productExists = items.some((item) => item.productId === productId);
+      console.log("Product exists in cart?", productExists);
+
+      if (!productExists) {
+        console.log("Product not found in cart");
+        toast.error("Product not found in cart");
         return false;
       }
 
       setIsLoading(true);
       try {
+        console.log("Calling removeProductFromPurchase API with:", {
+          purchaseId,
+          productId,
+        });
+
         const response = await removeProductFromPurchase({
           purchaseId,
           productId,
         });
 
+        console.log("API response:", response);
+
         if (response.success && response.data) {
+          console.log("Product removed successfully, updating state");
           setItems(response.data.items);
           setPurchaseData(response.data);
           toast.success("Product removed from purchase");
           return true;
         }
+        console.log("API returned success: false");
         return false;
       } catch (error: any) {
         console.error("Error removing product:", error);
+        console.error("Error response:", error.response?.data);
+        console.error("Error status:", error.response?.status);
+
         toast.error(
           error.response?.data?.message || "Failed to remove product",
         );
@@ -355,7 +388,7 @@ export const usePurchaseStore = () => {
         setIsLoading(false);
       }
     },
-    [purchaseId],
+    [purchaseId, items],
   );
 
   // Complete purchase - THIS SHOULD ONLY BE CALLED MANUALLY
