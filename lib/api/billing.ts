@@ -30,6 +30,7 @@ export interface Billing {
   status: "Draft" | "Completed";
   createdAt: string;
   updatedAt: string;
+  paymentMode?: string; // Added payment mode field
 }
 
 export interface ApiResponse<T> {
@@ -163,6 +164,21 @@ export const deleteBilling = async (
     return response.data;
   } catch (error) {
     console.error("Delete billing error:", error);
+    throw error;
+  }
+};
+
+// =====================================================
+// GET /api/billing/complete/all - Get all completed billings
+// =====================================================
+export const getCompletedBillings = async (): Promise<
+  ApiResponse<Billing[]>
+> => {
+  try {
+    const response = await axiosInstance.get("/billing/complete/all");
+    return response.data;
+  } catch (error) {
+    console.error("Get completed billings error:", error);
     throw error;
   }
 };

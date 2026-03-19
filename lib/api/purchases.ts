@@ -199,3 +199,18 @@ export const deletePurchase = async (
     throw error;
   }
 };
+
+// =====================================================
+// GET /api/purchase-invoice/complete/all - Get all completed purchase invoices
+// =====================================================
+export const getCompletedPurchases = async (): Promise<
+  ApiResponse<PurchaseInvoice[]>
+> => {
+  try {
+    const response = await axiosInstance.get("/purchase-invoice/complete/all");
+    return response.data;
+  } catch (error) {
+    console.error("Get completed purchases error:", error);
+    throw error;
+  }
+};

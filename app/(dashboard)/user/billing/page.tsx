@@ -57,6 +57,7 @@ import {
   getBillingById,
 } from "@/lib/api/billing";
 import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
+import { CompletedBillings } from "@/components/billing/CompletedBillings";
 
 interface BillingItem extends Product {
   cartQuantity: number;
@@ -94,6 +95,7 @@ export default function BillingPage() {
   const [billingData, setBillingData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMode, setPaymentMode] = useState<string>("");
+  const [showCompletedBillings, setShowCompletedBillings] = useState(false);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -936,6 +938,12 @@ export default function BillingPage() {
           </Card>
         </div>
       </div>
+
+      {/* Completed Billings Section */}
+      <CompletedBillings
+        isOpen={showCompletedBillings}
+        onToggle={() => setShowCompletedBillings(!showCompletedBillings)}
+      />
 
       {/* New Customer Dialog */}
       <Dialog

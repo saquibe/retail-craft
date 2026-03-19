@@ -46,6 +46,7 @@ import { createSupplier, SupplierFormData } from "@/lib/api/suppliers";
 import { usePurchaseStore } from "@/lib/hooks/usePurchaseStore";
 import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
+import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
 
 export default function PurchasesPage() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +85,7 @@ export default function PurchasesPage() {
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
+  const [showCompletedPurchases, setShowCompletedPurchases] = useState(false);
 
   // Load suppliers on mount
   useEffect(() => {
@@ -858,6 +860,12 @@ export default function PurchasesPage() {
           </Card>
         </div>
       </div>
+
+      {/* Completed Purchases Section */}
+      <CompletedPurchases
+        isOpen={showCompletedPurchases}
+        onToggle={() => setShowCompletedPurchases(!showCompletedPurchases)}
+      />
 
       {/* New Supplier Dialog */}
       <Dialog
