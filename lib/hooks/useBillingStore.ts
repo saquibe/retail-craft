@@ -158,9 +158,6 @@ export const useBillingStore = () => {
       return;
     }
 
-    const existingItem = cart.find((item) => item._id === product._id);
-    const newQuantity = existingItem ? existingItem.cartQuantity + 1 : 1;
-
     try {
       const response = await addProductToBilling(billingId, product.barCode, 1);
 
@@ -168,20 +165,34 @@ export const useBillingStore = () => {
         // Update cart with the response data
         setCart((prev) => {
           const existing = prev.find((item) => item._id === product._id);
+
           if (existing) {
             return prev.map((item) =>
               item._id === product._id
-                ? { ...item, cartQuantity: newQuantity }
+                ? {
+                    ...item,
+                    cartQuantity: existing.cartQuantity + 1,
+                    quantity:
+                      response.data?.items?.find(
+                        (i: any) => i.productId === product._id,
+                      )?.quantity || item.quantity,
+                  }
                 : item,
             );
           }
+
           return [...prev, { ...product, cartQuantity: 1 }];
         });
+
         toast.success("Product added to cart");
       }
     } catch (error: any) {
       console.error("Error adding product:", error);
-      toast.error(error.response?.data?.message || "Failed to add product");
+
+      // Show the exact error message from backend
+      const errorMessage =
+        error.response?.data?.message || "Failed to add product";
+      toast.error(errorMessage);
     }
   };
 

@@ -51,7 +51,11 @@ import {
 } from "@/lib/api/customers";
 import CustomerForm from "@/components/forms/CustomerForm";
 import { useBillingStore } from "@/lib/hooks/useBillingStore";
-import { completeBilling, getBillingById } from "@/lib/api/billing";
+import {
+  addProductToBilling,
+  completeBilling,
+  getBillingById,
+} from "@/lib/api/billing";
 import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
 
 interface BillingItem extends Product {
@@ -67,6 +71,7 @@ export default function BillingPage() {
     discount,
     paidAmount,
     isLoaded,
+    billingId,
     setSelectedCustomer,
     addToCart,
     updateQuantity,
@@ -107,7 +112,8 @@ export default function BillingPage() {
 
   const loadProducts = async () => {
     try {
-      const response = await getProducts();
+      // Pass "All" to get all products including those with zero quantity
+      const response = await getProducts("All");
       if (response.success && response.data) {
         setProducts(response.data);
       }
@@ -170,30 +176,53 @@ export default function BillingPage() {
       return;
     }
 
-    if (!barcode.trim()) return;
+    if (!billingId) {
+      toast.error("Billing session not initialized");
+      return;
+    }
+
+    const cleanBarcode = barcode.trim();
+
+    if (!cleanBarcode) return;
 
     setLoading(true);
+
     try {
-      const product = products.find((p) => p.barCode === barcode);
+      // Find the product in local products array
+      const product = products.find((p) => p.barCode === cleanBarcode);
 
       if (!product) {
-        toast.error("Product not found with this barcode");
+        toast.error("Product not found");
         setBarcode("");
         return;
       }
 
+      // Check if product is out of stock
       if (product.quantity <= 0) {
-        toast.error(`${product.productName} is out of stock`);
+        toast.error(`This product is out of stock`);
         setBarcode("");
         return;
       }
 
-      addToCart(product);
-      // toast.success(`${product.productName} added to cart`);
+      // Check cart for existing item
+      const cartItem = cart.find((item) => item._id === product._id);
+      const currentCartQuantity = cartItem?.cartQuantity || 0;
+      const totalRequestedQuantity = currentCartQuantity + 1;
+
+      if (totalRequestedQuantity > product.quantity) {
+        toast.error(`Only ${product.quantity} units available in stock`);
+        setBarcode("");
+        return;
+      }
+
+      // Use the store's addToCart which already calls the API
+      await addToCart(product);
+
+      // Clear barcode on success
       setBarcode("");
-    } catch (error) {
-      console.error("Error scanning barcode:", error);
-      toast.error("Error processing barcode");
+    } catch (error: any) {
+      console.error("Error in handleBarcodeScan:", error);
+      setBarcode("");
     } finally {
       setLoading(false);
     }
@@ -1023,4 +1052,7 @@ export default function BillingPage() {
       )}
     </div>
   );
+}
+function setCart(arg0: (prev: any) => any) {
+  throw new Error("Function not implemented.");
 }
