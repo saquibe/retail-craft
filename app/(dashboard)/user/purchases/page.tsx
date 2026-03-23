@@ -47,7 +47,7 @@ import { usePurchaseStore } from "@/lib/hooks/usePurchaseStore";
 import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
 import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
-import { getProducts, Product } from "@/lib/api/products";
+import { getProducts, Product, searchProducts } from "@/lib/api/products";
 
 export default function PurchasesPage() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -87,8 +87,12 @@ export default function PurchasesPage() {
   const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [showCompletedPurchases, setShowCompletedPurchases] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]); // ADD THIS LINE
-  const [isScanning, setIsScanning] = useState(false); // ADD THIS LINE for barcode scanning loading
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Load suppliers on mount
   useEffect(() => {
@@ -194,6 +198,42 @@ export default function PurchasesPage() {
       toast.error(error.response?.data?.message || "Failed to create supplier");
     }
   };
+
+  // Search products by name or barcode
+  const handleProductSearch = async (searchValue: string) => {
+    if (!searchValue.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await searchProducts(searchValue);
+      if (response.success && response.data) {
+        setSearchResults(response.data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error("Error searching products:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search to avoid too many API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm) {
+        handleProductSearch(searchTerm);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   // Handle barcode scan
   const handleBarcodeScan = async (e: React.FormEvent) => {
@@ -622,6 +662,143 @@ export default function PurchasesPage() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Search Product Card */}
+          <Card className={`${!allDetailsFilled ? "opacity-50" : ""}`}>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Search className="w-5 h-5" />
+                Search Product
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder={
+                      allDetailsFilled
+                        ? "Search by product name or barcode..."
+                        : "Complete all supplier details first"
+                    }
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() =>
+                      allDetailsFilled && setShowSearchResults(true)
+                    }
+                    className="pl-10"
+                    disabled={!allDetailsFilled || isLoading || isScanning}
+                  />
+                  {isSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                  )}
+                </div>
+
+                {/* Search Results Dropdown */}
+                {showSearchResults &&
+                  allDetailsFilled &&
+                  searchTerm.trim() !== "" && (
+                    <div className="absolute z-10 w-[calc(100%-2rem)] mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      {isSearching ? (
+                        <div className="p-4 text-center">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((product) => (
+                          <div
+                            key={product._id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              // Add product to cart
+                              if (product.quantity <= 0) {
+                                toast.error(
+                                  `${product.productName} is out of stock`,
+                                );
+                                return;
+                              }
+                              scanBarcode(product.barCode, quantity);
+                              setSearchTerm("");
+                              setShowSearchResults(false);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Package className="w-4 h-4 text-gray-400" />
+                                  <span className="font-medium">
+                                    {product.productName}
+                                  </span>
+                                  {product.quantity <= 0 && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs"
+                                    >
+                                      Out of Stock
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-500 mt-1">
+                                  <span className="text-xs">
+                                    Barcode: {product.barCode}
+                                  </span>
+                                  {product.color && (
+                                    <span className="ml-2 text-xs">
+                                      Color: {product.color}
+                                    </span>
+                                  )}
+                                  {product.size && (
+                                    <span className="ml-2 text-xs">
+                                      Size: {product.size}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Stock: {product.quantity} units
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-indigo-600">
+                                  ₹{product.purchasePrice}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="mt-1 h-7"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (product.quantity <= 0) {
+                                      toast.error(
+                                        `${product.productName} is out of stock`,
+                                      );
+                                      return;
+                                    }
+                                    scanBarcode(product.barCode, quantity);
+                                    setSearchTerm("");
+                                    setShowSearchResults(false);
+                                  }}
+                                  disabled={product.quantity <= 0}
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          No products found matching "{searchTerm}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Search by product name or barcode to quickly add items
+              </p>
             </CardContent>
           </Card>
 

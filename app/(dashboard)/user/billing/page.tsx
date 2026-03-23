@@ -42,7 +42,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { getProducts, Product } from "@/lib/api/products";
+import { getProducts, Product, searchProducts } from "@/lib/api/products";
 import {
   getCustomers,
   createCustomer,
@@ -96,6 +96,10 @@ export default function BillingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMode, setPaymentMode] = useState<string>("");
   const [showCompletedBillings, setShowCompletedBillings] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -230,6 +234,42 @@ export default function BillingPage() {
     }
   };
 
+  // Search products by name or barcode
+  const handleProductSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await searchProducts(searchTerm);
+      if (response.success && response.data) {
+        setSearchResults(response.data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error("Error searching products:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search to avoid too many API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (productSearch) {
+        handleProductSearch(productSearch);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [productSearch]);
+
   // Manual product add
   const handleManualAdd = (product: Product) => {
     if (!selectedCustomer) {
@@ -243,7 +283,7 @@ export default function BillingPage() {
     }
 
     addToCart(product);
-    toast.success(`${product.productName} added to cart`);
+    // toast.success(`${product.productName} added to cart`);
   };
 
   // Handle new customer creation
@@ -605,6 +645,135 @@ export default function BillingPage() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Product Search Card */}
+          <Card
+            className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
+          >
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Search className="w-5 h-5" />
+                Search Product
+                {!selectedCustomer && (
+                  <Lock className="w-4 h-4 text-gray-400 ml-2" />
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder={
+                      selectedCustomer
+                        ? "Search by product name or barcode..."
+                        : "Select a customer first"
+                    }
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    onFocus={() =>
+                      selectedCustomer && setShowSearchResults(true)
+                    }
+                    className="pl-10"
+                    disabled={!selectedCustomer || loading}
+                  />
+                  {isSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                  )}
+                </div>
+
+                {/* Search Results Dropdown */}
+                {showSearchResults &&
+                  selectedCustomer &&
+                  productSearch.trim() !== "" && (
+                    <div className="absolute z-10 w-[calc(100%-2rem)] mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      {isSearching ? (
+                        <div className="p-4 text-center">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((product) => (
+                          <div
+                            key={product._id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              handleManualAdd(product);
+                              setProductSearch("");
+                              setShowSearchResults(false);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Package className="w-4 h-4 text-gray-400" />
+                                  <span className="font-medium">
+                                    {product.productName}
+                                  </span>
+                                  {product.quantity <= 0 && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs"
+                                    >
+                                      Out of Stock
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-500 mt-1">
+                                  <span className="text-xs">
+                                    Barcode: {product.barCode}
+                                  </span>
+                                  {product.color && (
+                                    <span className="ml-2 text-xs">
+                                      Color: {product.color}
+                                    </span>
+                                  )}
+                                  {product.size && (
+                                    <span className="ml-2 text-xs">
+                                      Size: {product.size}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Stock: {product.quantity} units
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-indigo-600">
+                                  ₹
+                                  {selectedCustomer?.customerType === "B2B"
+                                    ? product.b2bSalePrice
+                                    : product.b2cSalePrice}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="mt-1 h-7"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleManualAdd(product);
+                                    setProductSearch("");
+                                    setShowSearchResults(false);
+                                  }}
+                                  disabled={product.quantity <= 0}
+                                >
+                                  <Plus className="w-3 h-3 mr-1" />
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          No products found matching "{productSearch}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </div>
             </CardContent>
           </Card>
 

@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
@@ -32,6 +39,8 @@ import {
   ChevronDown,
   ChevronUp,
   ShoppingBag,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { getCompletedBillings, Billing } from "@/lib/api/billing";
 import { ThermalInvoice } from "./ThermalInvoice";
@@ -54,12 +63,21 @@ export function CompletedBillings({
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [expandedBilling, setExpandedBilling] = useState<string | null>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   // Load completed billings when opened
   useEffect(() => {
     if (isOpen) {
       loadCompletedBillings();
     }
   }, [isOpen]);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Filter billings based on search term
   useEffect(() => {
@@ -102,6 +120,15 @@ export function CompletedBillings({
     }
   };
 
+  // Get current page data
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredBillings.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
+  );
+  const totalPages = Math.ceil(filteredBillings.length / itemsPerPage);
+
   // Get payment mode badge color
   const getPaymentModeBadge = (mode: string) => {
     switch (mode) {
@@ -132,6 +159,29 @@ export function CompletedBillings({
 
   const toggleExpand = (billingId: string) => {
     setExpandedBilling(expandedBilling === billingId ? null : billingId);
+  };
+
+  // Handle page change
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
   };
 
   return (
@@ -192,177 +242,256 @@ export function CompletedBillings({
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8"></TableHead>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Payment Mode</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBillings.slice(0, 5).map((billing) => (
-                    <>
-                      <TableRow
-                        key={billing._id}
-                        className="cursor-pointer hover:bg-gray-50"
-                      >
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => toggleExpand(billing._id)}
-                          >
-                            {expandedBilling === billing._id ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {billing.invoiceNumber}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-gray-400" />
-                            {format(new Date(billing.createdAt), "dd/MM/yyyy")}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {format(new Date(billing.createdAt), "hh:mm a")}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <User className="w-3 h-3 text-gray-400" />
-                            {billing.customerId?.name || "N/A"}
-                          </div>
-                          {billing.customerId?.customerType && (
-                            <Badge
-                              className={
-                                billing.customerId.customerType === "B2B"
-                                  ? "bg-purple-100 text-purple-800 text-xs mt-1"
-                                  : "bg-green-100 text-green-800 text-xs mt-1"
-                              }
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8"></TableHead>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Payment Mode</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentItems.map((billing) => (
+                      <>
+                        <TableRow
+                          key={billing._id}
+                          className="cursor-pointer hover:bg-gray-50"
+                        >
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => toggleExpand(billing._id)}
                             >
-                              {billing.customerId.customerType}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Package className="w-3 h-3 text-gray-400" />
-                            {billing.items?.length || 0} items
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Total Qty:{" "}
-                            {billing.items?.reduce(
-                              (sum, item) => sum + item.quantity,
-                              0,
-                            ) || 0}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-indigo-600">
-                          {formatCurrency(billing.grandTotal)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={getPaymentModeBadge(
-                              billing.paymentMode || "",
-                            )}
-                          >
-                            {/* <CreditCard className="w-3 h-3 mr-1" /> */}
-                            {billing.paymentMode || "N/A"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewInvoice(billing)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {expandedBilling === billing._id && (
-                        <TableRow>
-                          <TableCell colSpan={8} className="bg-gray-50 p-4">
-                            <div className="space-y-2">
-                              <h4 className="font-medium flex items-center gap-2">
-                                <ShoppingBag className="w-4 h-4" />
-                                Items Details
-                              </h4>
-                              <div className="grid gap-2">
-                                {billing.items?.map((item, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex justify-between items-center text-sm p-2 bg-white rounded border"
-                                  >
-                                    <div className="flex-1">
-                                      <p className="font-medium">
-                                        {item.productName}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        Code: {item.barCode}
-                                      </p>
-                                    </div>
-                                    <div className="flex gap-4">
-                                      <div className="text-right">
-                                        <span className="text-gray-500 text-xs">
-                                          Qty:
-                                        </span>
-                                        <span className="ml-1 font-medium">
-                                          {item.quantity}
-                                        </span>
-                                      </div>
-                                      <div className="text-right min-w-[80px]">
-                                        <span className="text-gray-500 text-xs">
-                                          Price:
-                                        </span>
-                                        <span className="ml-1 font-medium">
-                                          ₹{item.price.toFixed(2)}
-                                        </span>
-                                      </div>
-                                      <div className="text-right min-w-[80px]">
-                                        <span className="text-gray-500 text-xs">
-                                          Total:
-                                        </span>
-                                        <span className="ml-1 font-medium text-indigo-600">
-                                          ₹
-                                          {(item.price * item.quantity).toFixed(
-                                            2,
-                                          )}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                              {expandedBilling === billing._id ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {billing.invoiceNumber}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-gray-400" />
+                              {format(
+                                new Date(billing.createdAt),
+                                "dd/MM/yyyy",
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {format(new Date(billing.createdAt), "hh:mm a")}
                             </div>
                           </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <User className="w-3 h-3 text-gray-400" />
+                              {billing.customerId?.name || "N/A"}
+                            </div>
+                            {billing.customerId?.customerType && (
+                              <Badge
+                                className={
+                                  billing.customerId.customerType === "B2B"
+                                    ? "bg-purple-100 text-purple-800 text-xs mt-1"
+                                    : "bg-green-100 text-green-800 text-xs mt-1"
+                                }
+                              >
+                                {billing.customerId.customerType}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Package className="w-3 h-3 text-gray-400" />
+                              {billing.items?.length || 0} items
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Total Qty:{" "}
+                              {billing.items?.reduce(
+                                (sum, item) => sum + item.quantity,
+                                0,
+                              ) || 0}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-indigo-600">
+                            {formatCurrency(billing.grandTotal)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={getPaymentModeBadge(
+                                billing.paymentMode || "",
+                              )}
+                            >
+                              <CreditCard className="w-3 h-3 mr-1" />
+                              {billing.paymentMode || "N/A"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewInvoice(billing)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                          </TableCell>
                         </TableRow>
+                        {expandedBilling === billing._id && (
+                          <TableRow>
+                            <TableCell colSpan={8} className="bg-gray-50 p-4">
+                              <div className="space-y-2">
+                                <h4 className="font-medium flex items-center gap-2">
+                                  <ShoppingBag className="w-4 h-4" />
+                                  Items Details
+                                </h4>
+                                <div className="grid gap-2">
+                                  {billing.items?.map((item, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="flex justify-between items-center text-sm p-2 bg-white rounded border"
+                                    >
+                                      <div className="flex-1">
+                                        <p className="font-medium">
+                                          {item.productName}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Code: {item.barCode}
+                                        </p>
+                                      </div>
+                                      <div className="flex gap-4">
+                                        <div className="text-right">
+                                          <span className="text-gray-500 text-xs">
+                                            Qty:
+                                          </span>
+                                          <span className="ml-1 font-medium">
+                                            {item.quantity}
+                                          </span>
+                                        </div>
+                                        <div className="text-right min-w-[80px]">
+                                          <span className="text-gray-500 text-xs">
+                                            Price:
+                                          </span>
+                                          <span className="ml-1 font-medium">
+                                            ₹{item.price.toFixed(2)}
+                                          </span>
+                                        </div>
+                                        <div className="text-right min-w-[80px]">
+                                          <span className="text-gray-500 text-xs">
+                                            Total:
+                                          </span>
+                                          <span className="ml-1 font-medium text-indigo-600">
+                                            ₹
+                                            {(
+                                              item.price * item.quantity
+                                            ).toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Show</span>
+                    <Select
+                      value={String(itemsPerPage)}
+                      onValueChange={handleItemsPerPageChange}
+                    >
+                      <SelectTrigger className="w-[80px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-gray-500">entries</span>
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    Showing {indexOfFirstItem + 1} to{" "}
+                    {Math.min(indexOfLastItem, filteredBillings.length)} of{" "}
+                    {filteredBillings.length} entries
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <div className="flex gap-1">
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={
+                                currentPage === pageNum ? "default" : "outline"
+                              }
+                              size="sm"
+                              onClick={() => goToPage(pageNum)}
+                              className="w-8 h-8"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        },
                       )}
-                    </>
-                  ))}
-                </TableBody>
-              </Table>
-              {billings.length > 5 && (
-                <div className="text-center mt-4">
-                  <Badge variant="outline" className="text-xs">
-                    Showing 5 of {billings.length} billings
-                  </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               )}
-            </div>
+            </>
           )}
         </CardContent>
       )}

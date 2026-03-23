@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
@@ -33,7 +40,8 @@ import {
   Truck,
   MapPin,
   Repeat,
-  IndianRupee,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { getCompletedPurchases, PurchaseInvoice } from "@/lib/api/purchases";
 import { PurchaseInvoicePrint } from "./PurchaseInvoicePrint";
@@ -59,12 +67,21 @@ export function CompletedPurchases({
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   // Load completed purchases when opened
   useEffect(() => {
     if (isOpen) {
       loadCompletedPurchases();
     }
   }, [isOpen]);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Filter purchases based on search term
   useEffect(() => {
@@ -108,6 +125,15 @@ export function CompletedPurchases({
     }
   };
 
+  // Get current page data
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredPurchases.slice(
+    indexOfFirstItem,
+    indexOfLastItem,
+  );
+  const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
+
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -124,6 +150,29 @@ export function CompletedPurchases({
 
   const toggleExpand = (purchaseId: string) => {
     setExpandedPurchase(expandedPurchase === purchaseId ? null : purchaseId);
+  };
+
+  // Handle page change
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
   };
 
   return (
@@ -190,187 +239,263 @@ export function CompletedPurchases({
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8"></TableHead>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Place of Supply</TableHead>
-                    <TableHead>Reverse Charge</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPurchases.slice(0, 5).map((purchase) => (
-                    <>
-                      <TableRow
-                        key={purchase._id}
-                        className="cursor-pointer hover:bg-gray-50"
-                      >
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => toggleExpand(purchase._id)}
-                          >
-                            {expandedPurchase === purchase._id ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {purchase.invoiceNumber}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-gray-400" />
-                            {format(
-                              new Date(purchase.invoiceDate),
-                              "dd/MM/yyyy",
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Building2 className="w-3 h-3 text-gray-400" />
-                            {purchase.supplierId?.name || "N/A"}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            GST: {purchase.supplierId?.gstIn}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Package className="w-3 h-3 text-gray-400" />
-                            {purchase.items?.length || 0} items
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Total Qty:{" "}
-                            {purchase.items?.reduce(
-                              (sum, item) => sum + item.quantity,
-                              0,
-                            ) || 0}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium text-indigo-600">
-                          {formatCurrency(purchase.grandTotal)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-gray-400" />
-                            {purchase.placeOfSupply}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={
-                              purchase.reverseCharge === "Yes"
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-gray-100 text-gray-800"
-                            }
-                          >
-                            <Repeat className="w-3 h-3 mr-1" />
-                            {purchase.reverseCharge}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewInvoice(purchase)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {expandedPurchase === purchase._id && (
-                        <TableRow>
-                          <TableCell colSpan={9} className="bg-gray-50 p-4">
-                            <div className="space-y-2">
-                              <h4 className="font-medium flex items-center gap-2">
-                                <Package className="w-4 h-4" />
-                                Items Details
-                              </h4>
-                              <div className="grid gap-2">
-                                {purchase.items?.map((item, idx) => {
-                                  const priceWithQty =
-                                    item.purchasePrice * item.quantity;
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className="flex justify-between items-center text-sm p-2 bg-white rounded border"
-                                    >
-                                      <div className="flex-1">
-                                        <p className="font-medium">
-                                          {item.productName}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                          Barcode: {item.barCode}
-                                        </p>
-                                      </div>
-                                      <div className="flex gap-4">
-                                        <div className="text-right">
-                                          <span className="text-gray-500 text-xs">
-                                            Qty:
-                                          </span>
-                                          <span className="ml-1 font-medium">
-                                            {item.quantity}
-                                          </span>
-                                        </div>
-                                        <div className="text-right min-w-[80px]">
-                                          <span className="text-gray-500 text-xs">
-                                            Price:
-                                          </span>
-                                          <span className="ml-1 font-medium">
-                                            ₹{item.purchasePrice.toFixed(2)}
-                                          </span>
-                                        </div>
-                                        <div className="text-right min-w-[80px]">
-                                          <span className="text-gray-500 text-xs">
-                                            Tax:
-                                          </span>
-                                          <span className="ml-1 font-medium">
-                                            ₹{item.taxAmount.toFixed(2)}
-                                          </span>
-                                        </div>
-                                        <div className="text-right min-w-[80px]">
-                                          <span className="text-gray-500 text-xs">
-                                            Total:
-                                          </span>
-                                          <span className="ml-1 font-medium text-indigo-600">
-                                            ₹{priceWithQty.toFixed(2)}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8"></TableHead>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Place of Supply</TableHead>
+                      <TableHead>Reverse Charge</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentItems.map((purchase) => (
+                      <>
+                        <TableRow
+                          key={purchase._id}
+                          className="cursor-pointer hover:bg-gray-50"
+                        >
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => toggleExpand(purchase._id)}
+                            >
+                              {expandedPurchase === purchase._id ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {purchase.invoiceNumber}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-gray-400" />
+                              {format(
+                                new Date(purchase.invoiceDate),
+                                "dd/MM/yyyy",
+                              )}
                             </div>
                           </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Building2 className="w-3 h-3 text-gray-400" />
+                              {purchase.supplierId?.name || "N/A"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              GST: {purchase.supplierId?.gstIn}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Package className="w-3 h-3 text-gray-400" />
+                              {purchase.items?.length || 0} items
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Total Qty:{" "}
+                              {purchase.items?.reduce(
+                                (sum, item) => sum + item.quantity,
+                                0,
+                              ) || 0}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-indigo-600">
+                            {formatCurrency(purchase.grandTotal)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-gray-400" />
+                              {purchase.placeOfSupply}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={
+                                purchase.reverseCharge === "Yes"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }
+                            >
+                              <Repeat className="w-3 h-3 mr-1" />
+                              {purchase.reverseCharge}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewInvoice(purchase)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                          </TableCell>
                         </TableRow>
+                        {expandedPurchase === purchase._id && (
+                          <TableRow>
+                            <TableCell colSpan={9} className="bg-gray-50 p-4">
+                              <div className="space-y-2">
+                                <h4 className="font-medium flex items-center gap-2">
+                                  <Package className="w-4 h-4" />
+                                  Items Details
+                                </h4>
+                                <div className="grid gap-2">
+                                  {purchase.items?.map((item, idx) => {
+                                    const priceWithQty =
+                                      item.purchasePrice * item.quantity;
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="flex justify-between items-center text-sm p-2 bg-white rounded border"
+                                      >
+                                        <div className="flex-1">
+                                          <p className="font-medium">
+                                            {item.productName}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            Barcode: {item.barCode}
+                                          </p>
+                                        </div>
+                                        <div className="flex gap-4">
+                                          <div className="text-right">
+                                            <span className="text-gray-500 text-xs">
+                                              Qty:
+                                            </span>
+                                            <span className="ml-1 font-medium">
+                                              {item.quantity}
+                                            </span>
+                                          </div>
+                                          <div className="text-right min-w-[80px]">
+                                            <span className="text-gray-500 text-xs">
+                                              Price:
+                                            </span>
+                                            <span className="ml-1 font-medium">
+                                              ₹{item.purchasePrice.toFixed(2)}
+                                            </span>
+                                          </div>
+                                          <div className="text-right min-w-[80px]">
+                                            <span className="text-gray-500 text-xs">
+                                              Tax:
+                                            </span>
+                                            <span className="ml-1 font-medium">
+                                              ₹{item.taxAmount.toFixed(2)}
+                                            </span>
+                                          </div>
+                                          <div className="text-right min-w-[80px]">
+                                            <span className="text-gray-500 text-xs">
+                                              Total:
+                                            </span>
+                                            <span className="ml-1 font-medium text-indigo-600">
+                                              ₹{priceWithQty.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Show</span>
+                    <Select
+                      value={String(itemsPerPage)}
+                      onValueChange={handleItemsPerPageChange}
+                    >
+                      <SelectTrigger className="w-[80px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-gray-500">entries</span>
+                  </div>
+
+                  <div className="text-sm text-gray-500">
+                    Showing {indexOfFirstItem + 1} to{" "}
+                    {Math.min(indexOfLastItem, filteredPurchases.length)} of{" "}
+                    {filteredPurchases.length} entries
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <div className="flex gap-1">
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={
+                                currentPage === pageNum ? "default" : "outline"
+                              }
+                              size="sm"
+                              onClick={() => goToPage(pageNum)}
+                              className="w-8 h-8"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        },
                       )}
-                    </>
-                  ))}
-                </TableBody>
-              </Table>
-              {purchases.length > 5 && (
-                <div className="text-center mt-4">
-                  <Badge variant="outline" className="text-xs">
-                    Showing 5 of {purchases.length} invoices
-                  </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               )}
-            </div>
+            </>
           )}
         </CardContent>
       )}

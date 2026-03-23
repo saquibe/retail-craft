@@ -233,3 +233,20 @@ export const deleteProduct = async (id: string): Promise<ApiResponse<null>> => {
     throw error;
   }
 };
+
+// =====================================================
+// GET /api/products/search - Search products by name or barcode
+// =====================================================
+export const searchProducts = async (
+  searchTerm: string,
+): Promise<ApiResponse<Product[]>> => {
+  try {
+    const response = await axiosInstance.get("/products/search", {
+      params: { search: searchTerm },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Search products error:", error);
+    throw error;
+  }
+};
