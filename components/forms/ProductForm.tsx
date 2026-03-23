@@ -392,7 +392,7 @@ export default function ProductForm({
         <Button type="submit" disabled={isLoading} className="cursor-pointer">
           {isLoading
             ? "Saving..."
-            : initialData
+            : isEditMode
             ? "Update Product"
             : "Create Product"}
         </Button>

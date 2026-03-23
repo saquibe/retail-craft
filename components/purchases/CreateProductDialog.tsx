@@ -62,6 +62,7 @@ export default function CreateProductDialog({
           onSubmit={handleCreateProduct}
           isLoading={isLoading}
           onCancel={() => onOpenChange(false)}
+          isEditMode={false}
         />
       </DialogContent>
     </Dialog>
