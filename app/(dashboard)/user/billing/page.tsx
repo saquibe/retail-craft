@@ -25,7 +25,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
-  Barcode,
   Search,
   Plus,
   Minus,
@@ -79,7 +78,7 @@ export default function BillingPage() {
     removeFromCart,
     clearCart,
     clearSession,
-    generateInvoice, // Add this
+    generateInvoice,
   } = useBillingStore();
 
   // Local state (non-persistent)
@@ -100,6 +99,10 @@ export default function BillingPage() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [multipleProducts, setMultipleProducts] = useState<any[]>([]);
+  const [showProductSelectionDialog, setShowProductSelectionDialog] =
+    useState(false);
+  const [selectedBarcode, setSelectedBarcode] = useState("");
 
   // Load products and customers on mount
   useEffect(() => {
@@ -118,7 +121,6 @@ export default function BillingPage() {
 
   const loadProducts = async () => {
     try {
-      // Pass "All" to get all products including those with zero quantity
       const response = await getProducts("All");
       if (response.success && response.data) {
         setProducts(response.data);
@@ -173,7 +175,50 @@ export default function BillingPage() {
     setShowCustomerResults(false);
   };
 
-  // Handle barcode scan
+  // Add product from selection dialog
+  const handleAddSelectedProduct = async (product: any) => {
+    if (!selectedCustomer) {
+      toast.error("Please select a customer first");
+      return;
+    }
+
+    if (!billingId) {
+      toast.error("Billing session not initialized");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await addProductToBilling(
+        billingId,
+        product.barCode,
+        1,
+        product._id,
+      );
+
+      if (response.success && response.data) {
+        const fullProduct = products.find((p) => p._id === product._id);
+        if (fullProduct) {
+          await addToCart(fullProduct);
+        }
+        // toast.success("Product added to cart");
+        setShowProductSelectionDialog(false);
+        setMultipleProducts([]);
+      } else {
+        toast.error(response.message || "Failed to add product");
+      }
+    } catch (error: any) {
+      console.error("Error adding product:", error);
+      const errorMessage =
+        error.response?.data?.message || "Failed to add product";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle barcode scan (combined input)
   const handleBarcodeScan = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -187,48 +232,90 @@ export default function BillingPage() {
       return;
     }
 
-    const cleanBarcode = barcode.trim();
+    const cleanInput = productSearch.trim();
 
-    if (!cleanBarcode) return;
+    if (!cleanInput) return;
 
     setLoading(true);
 
     try {
-      // Find the product in local products array
-      const product = products.find((p) => p.barCode === cleanBarcode);
-
-      if (!product) {
-        toast.error("Product not found");
-        setBarcode("");
+      const response = await addProductToBilling(billingId, cleanInput, 1);
+      if (response.multiple && response.data && Array.isArray(response.data)) {
+        setMultipleProducts(response.data);
+        setSelectedBarcode(cleanInput);
+        setShowProductSelectionDialog(true);
+        setProductSearch("");
         return;
       }
-
-      // Check if product is out of stock
-      if (product.quantity <= 0) {
-        toast.error(`This product is out of stock`);
-        setBarcode("");
-        return;
+      if (response.success && response.data && !Array.isArray(response.data)) {
+        const product = products.find((p) => p.barCode === cleanInput);
+        if (product) {
+          await addToCart(product);
+        }
+        // toast.success("Product added to cart");
+        setProductSearch("");
+      } else if (response.success === false) {
+        toast.error(response.message || "Failed to add product");
+        setProductSearch("");
       }
-
-      // Check cart for existing item
-      const cartItem = cart.find((item) => item._id === product._id);
-      const currentCartQuantity = cartItem?.cartQuantity || 0;
-      const totalRequestedQuantity = currentCartQuantity + 1;
-
-      if (totalRequestedQuantity > product.quantity) {
-        toast.error(`Only ${product.quantity} units available in stock`);
-        setBarcode("");
-        return;
-      }
-
-      // Use the store's addToCart which already calls the API
-      await addToCart(product);
-
-      // Clear barcode on success
-      setBarcode("");
     } catch (error: any) {
       console.error("Error in handleBarcodeScan:", error);
-      setBarcode("");
+      if (error.response?.status === 404) {
+        toast.error("Product not found");
+      } else {
+        const errorMessage =
+          error.response?.data?.message || "Error processing input";
+        toast.error(errorMessage);
+      }
+      setProductSearch("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle search result click
+  const handleSearchResultClick = async (product: Product) => {
+    if (!selectedCustomer) {
+      toast.error("Please select a customer first");
+      return;
+    }
+
+    if (!billingId) {
+      toast.error("Billing session not initialized");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await addProductToBilling(billingId, product.barCode, 1);
+
+      // Check if multiple products were found
+      if (response.multiple && response.data && Array.isArray(response.data)) {
+        setMultipleProducts(response.data);
+        setSelectedBarcode(product.barCode);
+        setShowProductSelectionDialog(true);
+        setProductSearch("");
+        setShowSearchResults(false);
+        return;
+      }
+      if (response.success && response.data && !Array.isArray(response.data)) {
+        await addToCart(product);
+        // toast.success("Product added to cart");
+        setProductSearch("");
+        setShowSearchResults(false);
+      } else if (response.success === false) {
+        toast.error(response.message || "Failed to add product");
+        setProductSearch("");
+        setShowSearchResults(false);
+      }
+    } catch (error: any) {
+      console.error("Error adding product:", error);
+      const errorMessage =
+        error.response?.data?.message || "Failed to add product";
+      toast.error(errorMessage);
+      setProductSearch("");
+      setShowSearchResults(false);
     } finally {
       setLoading(false);
     }
@@ -269,22 +356,6 @@ export default function BillingPage() {
 
     return () => clearTimeout(timeoutId);
   }, [productSearch]);
-
-  // Manual product add
-  const handleManualAdd = (product: Product) => {
-    if (!selectedCustomer) {
-      toast.error("Please select a customer first");
-      return;
-    }
-
-    if (product.quantity <= 0) {
-      toast.error(`${product.productName} is out of stock`);
-      return;
-    }
-
-    addToCart(product);
-    // toast.success(`${product.productName} added to cart`);
-  };
 
   // Handle new customer creation
   const handleCreateCustomer = async (data: CustomerFormData) => {
@@ -328,8 +399,6 @@ export default function BillingPage() {
           : item.b2cSalePrice;
       const tax = item.salesTax || 0;
       const priceWithQty = price * item.cartQuantity;
-      // Calculate tax amount (tax inclusive)
-      // taxAmount = (priceWithQty * tax) / (100 + tax)
       const taxAmount = (priceWithQty * tax) / (100 + tax);
       return sum + taxAmount;
     }, 0);
@@ -440,7 +509,7 @@ export default function BillingPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Customer & Products */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Customer Selection Card */}
+          {/* Customer Selection Card - Keep as is */}
           <Card
             className={`print:hidden border-2 ${
               !selectedCustomer ? "border-red-200 bg-red-50/50" : ""
@@ -460,7 +529,7 @@ export default function BillingPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Customer Search */}
+              {/* Customer Search - Keep as is */}
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -648,14 +717,14 @@ export default function BillingPage() {
             </CardContent>
           </Card>
 
-          {/* Product Search Card */}
+          {/* Combined Search & Scan Card */}
           <Card
             className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
           >
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Search className="w-5 h-5" />
-                Search Product
+                Search or Scan Product
                 {!selectedCustomer && (
                   <Lock className="w-4 h-4 text-gray-400 ml-2" />
                 )}
@@ -666,10 +735,11 @@ export default function BillingPage() {
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
+                    ref={barcodeInputRef}
                     type="text"
                     placeholder={
                       selectedCustomer
-                        ? "Search by product name or barcode..."
+                        ? "Search by name/barcode or scan barcode..."
                         : "Select a customer first"
                     }
                     value={productSearch}
@@ -698,11 +768,7 @@ export default function BillingPage() {
                             <div
                               key={product._id}
                               className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                              onClick={() => {
-                                handleManualAdd(product);
-                                setProductSearch("");
-                                setShowSearchResults(false);
-                              }}
+                              onClick={() => handleSearchResultClick(product)}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
@@ -746,21 +812,6 @@ export default function BillingPage() {
                                       ? product.b2bSalePrice
                                       : product.b2cSalePrice}
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="mt-1 h-7"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleManualAdd(product);
-                                      setProductSearch("");
-                                      setShowSearchResults(false);
-                                    }}
-                                    disabled={product.quantity <= 0}
-                                  >
-                                    <Plus className="w-3 h-3 mr-1" />
-                                    Add
-                                  </Button>
                                 </div>
                               </div>
                             </div>
@@ -773,45 +824,17 @@ export default function BillingPage() {
                       </div>
                     )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Barcode Scanner Card */}
-          <Card
-            className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
-          >
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Barcode className="w-5 h-5" />
-                Scan Barcode
-                {!selectedCustomer && (
-                  <Lock className="w-4 h-4 text-gray-400 ml-2" />
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleBarcodeScan} className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    ref={barcodeInputRef}
-                    type="text"
-                    placeholder={
-                      selectedCustomer
-                        ? "Scan or enter barcode..."
-                        : "Select a customer first"
-                    }
-                    value={barcode}
-                    onChange={(e) => setBarcode(e.target.value)}
-                    className="pl-10"
-                    disabled={!selectedCustomer || loading}
-                  />
-                </div>
                 <Button
-                  type="submit"
-                  disabled={!selectedCustomer || loading}
-                  variant={selectedCustomer ? "default" : "outline"}
+                  type="button"
+                  disabled={
+                    !selectedCustomer || loading || !productSearch.trim()
+                  }
+                  variant={
+                    selectedCustomer && productSearch.trim()
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={handleBarcodeScan}
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -819,11 +842,15 @@ export default function BillingPage() {
                     "Add"
                   )}
                 </Button>
-              </form>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Type to search by name/barcode or scan barcode. If multiple
+                products found, you'll be prompted to select one.
+              </p>
             </CardContent>
           </Card>
 
-          {/* Cart Table Card */}
+          {/* Cart Table Card - Keep as is */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
@@ -848,7 +875,7 @@ export default function BillingPage() {
                   <p>No items in cart</p>
                   <p className="text-sm">
                     {selectedCustomer
-                      ? "Scan barcode to add products"
+                      ? "Search or scan barcode to add products"
                       : "Select a customer to start"}
                   </p>
                 </div>
@@ -963,8 +990,7 @@ export default function BillingPage() {
           </Card>
         </div>
 
-        {/* Right Column - Payment Summary */}
-
+        {/* Right Column - Payment Summary - Keep as is */}
         <div className="space-y-6">
           <Card className="sticky top-6">
             <CardHeader className="pb-3">
@@ -1131,7 +1157,60 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Print Layout */}
+      {/* Product Selection Dialog for Multiple Products */}
+      <Dialog
+        open={showProductSelectionDialog}
+        onOpenChange={setShowProductSelectionDialog}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Select Product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Multiple products found with barcode "{selectedBarcode}". Please
+              select one:
+            </p>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {multipleProducts.map((product) => (
+                <div
+                  key={product._id}
+                  className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => handleAddSelectedProduct(product)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium">{product.productName}</p>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {product.color && <span>Color: {product.color}</span>}
+                        {product.size && (
+                          <span className="ml-2">Size: {product.size}</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Stock: {product.quantity} units
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-indigo-600">
+                        ₹
+                        {selectedCustomer?.customerType === "B2B"
+                          ? product.b2bSalePrice
+                          : product.b2cSalePrice}
+                      </p>
+                      <Button size="sm" variant="outline" className="mt-2">
+                        Select
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Layout - Keep as is */}
       <div
         className="hidden print:block mt-10"
         style={{
@@ -1222,14 +1301,10 @@ export default function BillingPage() {
         <ThermalInvoice
           billing={billingData}
           onPrinted={() => {
-            clearSession();
             setBillingData(null);
           }}
         />
       )}
     </div>
   );
-}
-function setCart(arg0: (prev: any) => any) {
-  throw new Error("Function not implemented.");
 }

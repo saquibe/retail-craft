@@ -13,15 +13,11 @@ export interface BillingItem {
   totalAmount: number;
 }
 
-// A billing record returned from the server.  When the billing is completed the
-// branchId and customerId fields are populated with full objects so that the
-// frontend can render names/addresses.  During the draft stage the server may
-// return only the _id strings, but those drafts are never used for printing.
 export interface Billing {
   _id: string;
   userId: string;
-  branchId: Branch; // populated object (not just id)
-  customerId: Customer; // populated object (not just id)
+  branchId: Branch;
+  customerId: Customer;
   invoiceNumber: string;
   items: BillingItem[];
   subTotal: number;
@@ -30,13 +26,15 @@ export interface Billing {
   status: "Draft" | "Completed";
   createdAt: string;
   updatedAt: string;
-  paymentMode?: string; // Added payment mode field
+  paymentMode?: string;
 }
 
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data?: T;
+  multiple?: boolean;
+  count?: number;
 }
 
 // =====================================================
@@ -63,13 +61,18 @@ export const addProductToBilling = async (
   billingId: string,
   barCode: string,
   quantity: number,
+  productId?: string,
 ): Promise<ApiResponse<Billing>> => {
   try {
-    const response = await axiosInstance.post("/billing/add-product", {
+    const payload: any = {
       billingId,
       barCode,
       quantity,
-    });
+    };
+    if (productId) {
+      payload.productId = productId;
+    }
+    const response = await axiosInstance.post("/billing/add-product", payload);
     return response.data;
   } catch (error) {
     console.error("Add product error:", error);
@@ -122,7 +125,7 @@ export const updateProductQuantity = async (
 // =====================================================
 export const completeBilling = async (
   billingId: string,
-  paymentMode: string, // ADD THIS PARAMETER
+  paymentMode: string,
 ): Promise<ApiResponse<Billing>> => {
   try {
     const response = await axiosInstance.post(

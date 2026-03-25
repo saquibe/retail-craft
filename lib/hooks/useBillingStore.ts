@@ -135,7 +135,6 @@ export const useBillingStore = () => {
 
   // Update customer
   const updateCustomer = async (customer: Customer | null) => {
-    // If there's an existing billing, delete it first
     if (billingId) {
       try {
         await deleteBilling(billingId);
@@ -162,7 +161,6 @@ export const useBillingStore = () => {
       const response = await addProductToBilling(billingId, product.barCode, 1);
 
       if (response.success && response.data) {
-        // Update cart with the response data
         setCart((prev) => {
           const existing = prev.find((item) => item._id === product._id);
 
@@ -188,8 +186,6 @@ export const useBillingStore = () => {
       }
     } catch (error: any) {
       console.error("Error adding product:", error);
-
-      // Show the exact error message from backend
       const errorMessage =
         error.response?.data?.message || "Failed to add product";
       toast.error(errorMessage);
@@ -244,12 +240,6 @@ export const useBillingStore = () => {
       if (response.success) {
         setCart((prev) => prev.filter((item) => item._id !== productId));
         toast.success("Item removed from cart");
-
-        // Update the billing data if needed
-        if (response.data) {
-          // You can update totals from response if needed
-          console.log("Billing updated:", response.data);
-        }
       }
     } catch (error: any) {
       console.error("Error removing item:", error);
@@ -313,6 +303,14 @@ export const useBillingStore = () => {
       const response = await completeBilling(billingId, paymentMode);
       if (response.success) {
         toast.success(response.message || "Invoice generated successfully");
+        setSelectedCustomer(null);
+        setCart([]);
+        setDiscount(0);
+        setPaymentMethod("cash");
+        setPaidAmount(0);
+        setBillingId(undefined);
+        localStorage.removeItem(BILLING_SESSION_KEY);
+
         return billingId;
       }
       return null;
