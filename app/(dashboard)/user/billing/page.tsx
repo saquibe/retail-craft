@@ -662,8 +662,8 @@ export default function BillingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="relative">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     type="text"
@@ -683,96 +683,96 @@ export default function BillingPage() {
                   {isSearching && (
                     <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
                   )}
-                </div>
 
-                {/* Search Results Dropdown */}
-                {showSearchResults &&
-                  selectedCustomer &&
-                  productSearch.trim() !== "" && (
-                    <div className="absolute z-10 w-[calc(100%-2rem)] mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
-                      {isSearching ? (
-                        <div className="p-4 text-center">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-                        </div>
-                      ) : searchResults.length > 0 ? (
-                        searchResults.map((product) => (
-                          <div
-                            key={product._id}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              handleManualAdd(product);
-                              setProductSearch("");
-                              setShowSearchResults(false);
-                            }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <Package className="w-4 h-4 text-gray-400" />
-                                  <span className="font-medium">
-                                    {product.productName}
-                                  </span>
-                                  {product.quantity <= 0 && (
-                                    <Badge
-                                      variant="destructive"
-                                      className="text-xs"
-                                    >
-                                      Out of Stock
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="text-sm text-gray-500 mt-1">
-                                  <span className="text-xs">
-                                    Barcode: {product.barCode}
-                                  </span>
-                                  {product.color && (
-                                    <span className="ml-2 text-xs">
-                                      Color: {product.color}
+                  {/* Search Results Dropdown */}
+                  {showSearchResults &&
+                    selectedCustomer &&
+                    productSearch.trim() !== "" && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                        {isSearching ? (
+                          <div className="p-4 text-center">
+                            <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                          </div>
+                        ) : searchResults.length > 0 ? (
+                          searchResults.map((product) => (
+                            <div
+                              key={product._id}
+                              className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                              onClick={() => {
+                                handleManualAdd(product);
+                                setProductSearch("");
+                                setShowSearchResults(false);
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <Package className="w-4 h-4 text-gray-400" />
+                                    <span className="font-medium">
+                                      {product.productName}
                                     </span>
-                                  )}
-                                  {product.size && (
-                                    <span className="ml-2 text-xs">
-                                      Size: {product.size}
+                                    {product.quantity <= 0 && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs"
+                                      >
+                                        Out of Stock
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-gray-500 mt-1">
+                                    <span className="text-xs">
+                                      Barcode: {product.barCode}
                                     </span>
-                                  )}
+                                    {product.color && (
+                                      <span className="ml-2 text-xs">
+                                        Color: {product.color}
+                                      </span>
+                                    )}
+                                    {product.size && (
+                                      <span className="ml-2 text-xs">
+                                        Size: {product.size}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    Stock: {product.quantity} units
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Stock: {product.quantity} units
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-indigo-600">
+                                    ₹
+                                    {selectedCustomer?.customerType === "B2B"
+                                      ? product.b2bSalePrice
+                                      : product.b2cSalePrice}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="mt-1 h-7"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleManualAdd(product);
+                                      setProductSearch("");
+                                      setShowSearchResults(false);
+                                    }}
+                                    disabled={product.quantity <= 0}
+                                  >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Add
+                                  </Button>
                                 </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium text-indigo-600">
-                                  ₹
-                                  {selectedCustomer?.customerType === "B2B"
-                                    ? product.b2bSalePrice
-                                    : product.b2cSalePrice}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="mt-1 h-7"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleManualAdd(product);
-                                    setProductSearch("");
-                                    setShowSearchResults(false);
-                                  }}
-                                  disabled={product.quantity <= 0}
-                                >
-                                  <Plus className="w-3 h-3 mr-1" />
-                                  Add
-                                </Button>
                               </div>
                             </div>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center text-gray-500">
+                            No products found matching "{productSearch}"
                           </div>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-gray-500">
-                          No products found matching "{productSearch}"
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
+                </div>
               </div>
             </CardContent>
           </Card>
