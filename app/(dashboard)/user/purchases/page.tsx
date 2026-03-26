@@ -22,7 +22,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
-  Barcode,
   Search,
   Plus,
   Minus,
@@ -48,10 +47,11 @@ import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
 import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
 import { getProducts, Product, searchProducts } from "@/lib/api/products";
+import { addProductToPurchase } from "@/lib/api/purchases";
 
 export default function PurchasesPage() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
-  const hasFocusedRef = useRef(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     selectedSupplier,
@@ -81,7 +81,6 @@ export default function PurchasesPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [showSupplierResults, setShowSupplierResults] = useState(false);
   const [showNewSupplierDialog, setShowNewSupplierDialog] = useState(false);
-  const [barcode, setBarcode] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
@@ -93,56 +92,43 @@ export default function PurchasesPage() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [multipleProducts, setMultipleProducts] = useState<any[]>([]);
+  const [showProductSelectionDialog, setShowProductSelectionDialog] =
+    useState(false);
+  const [selectedBarcode, setSelectedBarcode] = useState("");
 
-  // Load suppliers on mount
+  // Load suppliers and products on mount
   useEffect(() => {
     loadSuppliers();
-    loadProducts(); // ADD THIS LINE
+    loadProducts();
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const loadProducts = async () => {
     try {
-      // IMPORTANT: Pass "All" to get all products including those with zero quantity
       const response = await getProducts("All");
       if (response.success && response.data) {
         setProducts(response.data);
-        console.log("Products loaded:", response.data.length); // Add this to verify
       }
     } catch (error) {
       console.error("Error loading products:", error);
       toast.error("Failed to load products");
     }
   };
-
-  // Focus barcode input when all supplier details are filled (only once)
-  useEffect(() => {
-    if (
-      selectedSupplier &&
-      invoiceNumber &&
-      invoiceDate &&
-      placeOfSupply &&
-      reverseCharge &&
-      isLoaded &&
-      !hasFocusedRef.current
-    ) {
-      hasFocusedRef.current = true;
-      setTimeout(() => {
-        barcodeInputRef.current?.focus();
-      }, 100);
-    }
-
-    // Reset the focus flag when supplier changes
-    if (!selectedSupplier) {
-      hasFocusedRef.current = false;
-    }
-  }, [
-    selectedSupplier,
-    invoiceNumber,
-    invoiceDate,
-    placeOfSupply,
-    reverseCharge,
-    isLoaded,
-  ]);
 
   const loadSuppliers = async () => {
     setIsLoadingSuppliers(true);
@@ -188,7 +174,6 @@ export default function PurchasesPage() {
         setShowNewSupplierDialog(false);
         await loadSuppliers();
 
-        // Auto-select the newly created supplier
         if (response.data) {
           setSelectedSupplier(response.data);
         }
@@ -196,6 +181,90 @@ export default function PurchasesPage() {
     } catch (error: any) {
       console.error("Create supplier error:", error);
       toast.error(error.response?.data?.message || "Failed to create supplier");
+    }
+  };
+
+  // Check if all fields are filled (for enabling search)
+  const allDetailsFilled =
+    selectedSupplier &&
+    invoiceNumber &&
+    invoiceNumber.trim() !== "" &&
+    invoiceDate &&
+    placeOfSupply &&
+    placeOfSupply.trim() !== "" &&
+    reverseCharge;
+
+  // Add product from selection dialog
+  const handleAddSelectedProduct = async (product: any) => {
+    if (!selectedSupplier) {
+      toast.error("Please select a supplier first");
+      return;
+    }
+
+    if (!purchaseId) {
+      toast.error("Please complete all supplier details first");
+      return;
+    }
+
+    setIsScanning(true);
+
+    try {
+      const result = await scanBarcode(product.barCode, quantity, product._id);
+
+      if (result === true) {
+        toast.success("Product added to purchase");
+        setShowProductSelectionDialog(false);
+        setMultipleProducts([]);
+        setSearchTerm("");
+        setQuantity(1);
+      } else {
+        toast.error("Failed to add product");
+      }
+    } catch (error: any) {
+      console.error("🔴 [PAGE] Error adding selected product:", error);
+      toast.error(error.response?.data?.message || "Failed to add product");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Handle search result click - check for multiple products first
+  const handleSearchResultClick = async (product: Product) => {
+    if (!selectedSupplier) {
+      toast.error("Please select a supplier first");
+      return;
+    }
+
+    if (!purchaseId) {
+      toast.error("Please complete all supplier details first");
+      return;
+    }
+
+    setIsScanning(true);
+
+    try {
+      const result = await scanBarcode(product.barCode, quantity);
+
+      if (result && typeof result === "object" && result.multiple === true) {
+        setMultipleProducts(result.data);
+        setSelectedBarcode(product.barCode);
+        setShowProductSelectionDialog(true);
+        setSearchTerm("");
+        setShowSearchResults(false);
+        return;
+      }
+
+      if (result === true) {
+        toast.success("Product added to purchase");
+        setSearchTerm("");
+        setShowSearchResults(false);
+        setQuantity(1);
+      }
+    } catch (error: any) {
+      console.error("Error adding product:", error);
+      toast.error(error.response?.data?.message || "Failed to add product");
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -221,7 +290,7 @@ export default function PurchasesPage() {
     }
   };
 
-  // Debounced search to avoid too many API calls
+  // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (searchTerm) {
@@ -231,11 +300,10 @@ export default function PurchasesPage() {
         setShowSearchResults(false);
       }
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  // Handle barcode scan
+  // Handle barcode scan (combined input)
   const handleBarcodeScan = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -264,53 +332,38 @@ export default function PurchasesPage() {
       return;
     }
 
-    if (!barcode.trim()) return;
+    if (!searchTerm.trim()) return;
 
-    // Log the barcode being scanned
-    console.log("1. Scanning barcode:", barcode);
-
-    // Log all available barcodes in your products array
-    console.log(
-      "2. Available barcodes:",
-      products.map((p) => p.barCode),
-    );
-
-    // Check if product exists in local state
-    const productExists = products.some((p) => p.barCode === barcode);
-    console.log("3. Product exists in local state?", productExists);
-
-    setIsScanning(true); // Use the new state
+    setIsScanning(true);
 
     try {
-      const success = await scanBarcode(barcode, quantity);
-      console.log("4. scanBarcode returned:", success);
+      const result = await scanBarcode(searchTerm, quantity);
 
-      if (success) {
-        // Product was successfully added
-        console.log("5. Product added successfully");
-        setBarcode("");
-        setQuantity(1);
-      } else {
-        // scanBarcode returned false
-        console.log("5. scanBarcode returned false");
-
-        if (!productExists) {
-          // Product doesn't exist at all - show create dialog
-          console.log("6. Product doesn't exist - opening create dialog");
-          setScannedBarcode(barcode);
-          setShowCreateProductDialog(true);
-          setBarcode(""); // Clear barcode after opening dialog
-        } else {
-          // Product exists but couldn't be added (stock issue, etc.)
-          console.log("6. Product exists but couldn't be added");
-          setBarcode("");
-        }
+      if (result && typeof result === "object" && result.multiple === true) {
+        setMultipleProducts(result.data);
+        setSelectedBarcode(searchTerm);
+        setShowProductSelectionDialog(true);
+        setSearchTerm("");
+        return;
       }
-    } catch (error) {
+
+      if (result === true) {
+        toast.success("Product added to purchase");
+        setSearchTerm("");
+        setQuantity(1);
+      }
+    } catch (error: any) {
       console.error("Error in handleBarcodeScan:", error);
-      setBarcode("");
+
+      if (error.response?.status === 404) {
+        setScannedBarcode(searchTerm);
+        setShowCreateProductDialog(true);
+      } else {
+        toast.error(error.response?.data?.message || "Failed to add product");
+      }
+      setSearchTerm("");
     } finally {
-      setIsScanning(false); // Use the new state
+      setIsScanning(false);
     }
   };
 
@@ -323,7 +376,6 @@ export default function PurchasesPage() {
 
     const success = await completePurchaseInvoice();
     if (success) {
-      setBarcode("");
       setQuantity(1);
     }
   };
@@ -333,18 +385,18 @@ export default function PurchasesPage() {
     if (items.length > 0) {
       if (
         !window.confirm(
-          "Clear current purchase session? This will delete the draft.",
+          "Clear current purchase session? This will delete the draft and cannot be undone.",
         )
       ) {
         return;
       }
     }
     await clearSession();
-    setBarcode("");
     setQuantity(1);
     setSupplierSearch("");
-    hasFocusedRef.current = false;
-    toast.success("New purchase session started");
+    setSearchTerm("");
+    setMultipleProducts([]);
+    setShowProductSelectionDialog(false);
   };
 
   // Show loading while restoring session
@@ -358,14 +410,6 @@ export default function PurchasesPage() {
       </div>
     );
   }
-
-  // Check if all required fields are filled
-  const allDetailsFilled =
-    selectedSupplier &&
-    invoiceNumber &&
-    invoiceDate &&
-    placeOfSupply &&
-    reverseCharge;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -392,7 +436,6 @@ export default function PurchasesPage() {
           )}
         </div>
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Supplier & Products */}
         <div className="lg:col-span-2 space-y-6">
@@ -432,7 +475,7 @@ export default function PurchasesPage() {
                     disabled={!!selectedSupplier}
                   />
 
-                  {/* Search Results Dropdown */}
+                  {/* Search Results Dropdown - Improved width */}
                   {showSupplierResults &&
                     supplierSearch.trim() !== "" &&
                     !selectedSupplier && (
@@ -450,16 +493,16 @@ export default function PurchasesPage() {
                                 onClick={() => handleSelectSupplier(supplier)}
                               >
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Building2 className="w-4 h-4 text-purple-600" />
-                                    <div>
-                                      <span className="font-medium">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <Building2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <span className="font-medium truncate block">
                                         {supplier.name}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
-                                <div className="text-sm text-gray-500 mt-1">
+                                <div className="text-sm text-gray-500 mt-1 truncate">
                                   {supplier.email && (
                                     <span>{supplier.email} • </span>
                                   )}
@@ -467,7 +510,7 @@ export default function PurchasesPage() {
                                     <span>{supplier.mobile}</span>
                                   )}
                                 </div>
-                                <div className="text-xs text-gray-400 mt-1">
+                                <div className="text-xs text-gray-400 mt-1 truncate">
                                   GST: {supplier.gstIn} • {supplier.city},{" "}
                                   {supplier.state}
                                 </div>
@@ -482,8 +525,8 @@ export default function PurchasesPage() {
                               }}
                             >
                               <div className="flex items-center gap-2 text-indigo-600">
-                                <UserPlus className="w-4 h-4" />
-                                <span className="font-medium">
+                                <UserPlus className="w-4 h-4 flex-shrink-0" />
+                                <span className="font-medium truncate">
                                   Create new supplier "{supplierSearch}"
                                 </span>
                               </div>
@@ -491,7 +534,7 @@ export default function PurchasesPage() {
                           </>
                         ) : (
                           <div className="p-4 text-center">
-                            <p className="text-gray-500 mb-2">
+                            <p className="text-gray-500 mb-2 break-words">
                               No suppliers found matching "{supplierSearch}"
                             </p>
                             <Button
@@ -517,21 +560,21 @@ export default function PurchasesPage() {
               {selectedSupplier && (
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <div className="flex justify-between items-start">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-full bg-purple-100">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="p-2 rounded-full bg-purple-100 flex-shrink-0">
                         <Building2 className="w-5 h-5 text-purple-600" />
                       </div>
-                      <div>
-                        <p className="font-medium text-lg">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-lg truncate">
                           {selectedSupplier.name}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 truncate">
                           {selectedSupplier.email} • {selectedSupplier.mobile}
                         </p>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-sm text-gray-500 mt-1 truncate">
                           GST: {selectedSupplier.gstIn}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1 truncate">
                           {selectedSupplier.address}, {selectedSupplier.city},{" "}
                           {selectedSupplier.state}, {selectedSupplier.country} -{" "}
                           {selectedSupplier.pincode}
@@ -550,7 +593,7 @@ export default function PurchasesPage() {
                           await setSelectedSupplier(null);
                         }
                       }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                     >
                       <X className="w-4 h-4 mr-1" />
                       Change
@@ -569,23 +612,7 @@ export default function PurchasesPage() {
                   placeholder="Enter supplier invoice number"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  disabled={!selectedSupplier || !!purchaseId}
-                  className={!selectedSupplier ? "bg-gray-50" : ""}
-                />
-              </div>
-
-              {/* Invoice Date Input */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span>Invoice Date</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="date"
-                  value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                  disabled={!selectedSupplier || !!purchaseId}
+                  disabled={!selectedSupplier}
                   className={!selectedSupplier ? "bg-gray-50" : ""}
                 />
               </div>
@@ -601,7 +628,23 @@ export default function PurchasesPage() {
                   placeholder="Enter place of supply (e.g., State name)"
                   value={placeOfSupply}
                   onChange={(e) => setPlaceOfSupply(e.target.value)}
-                  disabled={!selectedSupplier || !!purchaseId}
+                  disabled={!selectedSupplier}
+                  className={!selectedSupplier ? "bg-gray-50" : ""}
+                />
+              </div>
+
+              {/* Invoice Date Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span>Invoice Date</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  disabled={!selectedSupplier}
                   className={!selectedSupplier ? "bg-gray-50" : ""}
                 />
               </div>
@@ -621,7 +664,7 @@ export default function PurchasesPage() {
                       value="Yes"
                       checked={reverseCharge === "Yes"}
                       onChange={(e) => setReverseCharge(e.target.value)}
-                      disabled={!selectedSupplier || !!purchaseId}
+                      disabled={!selectedSupplier}
                       className="w-4 h-4 text-indigo-600 cursor-pointer"
                     />
                     <span className="text-sm">Yes</span>
@@ -633,7 +676,7 @@ export default function PurchasesPage() {
                       value="No"
                       checked={reverseCharge === "No"}
                       onChange={(e) => setReverseCharge(e.target.value)}
-                      disabled={!selectedSupplier || !!purchaseId}
+                      disabled={!selectedSupplier}
                       className="w-4 h-4 text-indigo-600 cursor-pointer"
                     />
                     <span className="text-sm">No</span>
@@ -648,7 +691,7 @@ export default function PurchasesPage() {
                 !placeOfSupply ||
                 !reverseCharge) && (
                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
-                  <AlertCircle className="w-4 h-4" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <p className="text-sm">
                     {!selectedSupplier
                       ? "Please select a supplier to start"
@@ -665,43 +708,63 @@ export default function PurchasesPage() {
             </CardContent>
           </Card>
 
-          {/* Search Product Card */}
+          {/* Combined Search & Scan Card - Fixed width dropdown */}
           <Card className={`${!allDetailsFilled ? "opacity-50" : ""}`}>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Search className="w-5 h-5" />
-                Search Product
+                Search or Scan Product
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder={
-                      allDetailsFilled
-                        ? "Search by product name or barcode..."
-                        : "Complete all supplier details first"
+              <div className="relative" ref={searchContainerRef}>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      ref={barcodeInputRef}
+                      type="text"
+                      placeholder={
+                        allDetailsFilled
+                          ? "Search by name/barcode or scan barcode..."
+                          : "Complete all supplier details first"
+                      }
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onFocus={() =>
+                        allDetailsFilled && setShowSearchResults(true)
+                      }
+                      className="pl-10"
+                      disabled={!allDetailsFilled || isLoading || isScanning}
+                    />
+                    {(isSearching || isScanning) && (
+                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={
+                      !allDetailsFilled ||
+                      isLoading ||
+                      isScanning ||
+                      !searchTerm.trim()
                     }
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onFocus={() =>
-                      allDetailsFilled && setShowSearchResults(true)
+                    variant={
+                      allDetailsFilled && searchTerm.trim()
+                        ? "default"
+                        : "outline"
                     }
-                    className="pl-10"
-                    disabled={!allDetailsFilled || isLoading || isScanning}
-                  />
-                  {isSearching && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
-                  )}
+                    onClick={handleBarcodeScan}
+                  >
+                    Add
+                  </Button>
                 </div>
 
-                {/* Search Results Dropdown */}
+                {/* Search Results Dropdown - Fixed width to match input */}
                 {showSearchResults &&
                   allDetailsFilled &&
                   searchTerm.trim() !== "" && (
-                    <div className="absolute z-10 w-[calc(100%-2rem)] mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
                       {isSearching ? (
                         <div className="p-4 text-center">
                           <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
@@ -711,37 +774,26 @@ export default function PurchasesPage() {
                           <div
                             key={product._id}
                             className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              // Add product to cart
-                              if (product.quantity <= 0) {
-                                toast.error(
-                                  `${product.productName} is out of stock`,
-                                );
-                                return;
-                              }
-                              scanBarcode(product.barCode, quantity);
-                              setSearchTerm("");
-                              setShowSearchResults(false);
-                            }}
+                            onClick={() => handleSearchResultClick(product)}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <Package className="w-4 h-4 text-gray-400" />
-                                  <span className="font-medium">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  <span className="font-medium truncate">
                                     {product.productName}
                                   </span>
                                   {product.quantity <= 0 && (
                                     <Badge
                                       variant="destructive"
-                                      className="text-xs"
+                                      className="text-xs flex-shrink-0"
                                     >
                                       Out of Stock
                                     </Badge>
                                   )}
                                 </div>
                                 <div className="text-sm text-gray-500 mt-1">
-                                  <span className="text-xs">
+                                  <span className="text-xs break-all">
                                     Barcode: {product.barCode}
                                   </span>
                                   {product.color && (
@@ -759,104 +811,28 @@ export default function PurchasesPage() {
                                   Stock: {product.quantity} units
                                 </div>
                               </div>
-                              <div className="text-right">
+                              <div className="text-right flex-shrink-0">
                                 <div className="text-sm font-medium text-indigo-600">
                                   ₹{product.purchasePrice}
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="mt-1 h-7"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (product.quantity <= 0) {
-                                      toast.error(
-                                        `${product.productName} is out of stock`,
-                                      );
-                                      return;
-                                    }
-                                    scanBarcode(product.barCode, quantity);
-                                    setSearchTerm("");
-                                    setShowSearchResults(false);
-                                  }}
-                                  disabled={product.quantity <= 0}
-                                >
-                                  <Plus className="w-3 h-3 mr-1" />
-                                  Add
-                                </Button>
                               </div>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="p-4 text-center text-gray-500">
-                          No products found matching "{searchTerm}"
+                        <div className="p-4 text-center">
+                          <p className="text-gray-500 break-words">
+                            No products found matching "{searchTerm}"
+                          </p>
                         </div>
                       )}
                     </div>
                   )}
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Search by product name or barcode to quickly add items
+                Type to search by name/barcode or scan barcode. If multiple
+                products found, you'll be prompted to select one.
               </p>
-            </CardContent>
-          </Card>
-
-          {/* Barcode Scanner Card */}
-          <Card className={`${!allDetailsFilled ? "opacity-50" : ""}`}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Barcode className="w-5 h-5" />
-                Scan Product Barcode
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleBarcodeScan} className="space-y-4">
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      ref={barcodeInputRef}
-                      type="text"
-                      placeholder={
-                        allDetailsFilled
-                          ? "Scan or enter barcode..."
-                          : "Complete all supplier details first"
-                      }
-                      value={barcode}
-                      onChange={(e) => setBarcode(e.target.value)}
-                      className="pl-10"
-                      disabled={!allDetailsFilled || isLoading || isScanning}
-                    />
-                  </div>
-                  <div className="w-24">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) =>
-                        setQuantity(parseInt(e.target.value) || 1)
-                      }
-                      placeholder="Qty"
-                      disabled={!allDetailsFilled || isLoading || isScanning}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={!allDetailsFilled || isLoading || isScanning}
-                    variant={allDetailsFilled ? "default" : "outline"}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      "Add"
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  If product not found, you'll be prompted to create it
-                </p>
-              </form>
             </CardContent>
           </Card>
 
@@ -868,36 +844,19 @@ export default function PurchasesPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-gray-600">
                     Total Qty:{" "}
-                    {items.reduce((sum, item) => sum + item.quantity, 0)}
+                    {items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
                   </span>
-                  {/* {items.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (window.confirm("Clear all items?")) {
-                          items.forEach((item) =>
-                            removeProduct(item.productId),
-                          );
-                        }
-                      }}
-                      className="text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Clear All
-                    </Button>
-                  )} */}
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              {items.length === 0 ? (
+              {!items || items.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
                   <p>No items added</p>
                   <p className="text-sm">
                     {allDetailsFilled
-                      ? "Scan barcode to add products"
+                      ? "Search or scan barcode to add products"
                       : "Complete all supplier details first"}
                   </p>
                 </div>
@@ -923,7 +882,6 @@ export default function PurchasesPage() {
                     </TableHeader>
                     <TableBody>
                       {items.map((item) => {
-                        // Calculate based on backend formula
                         const priceWithQty = item.purchasePrice * item.quantity;
                         const taxAmount =
                           (priceWithQty * item.taxPercent) /
@@ -997,14 +955,7 @@ export default function PurchasesPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-red-600"
-                                onClick={() => {
-                                  console.log(
-                                    "Remove button clicked for product:",
-                                    item.productId,
-                                  );
-                                  console.log("Product details:", item);
-                                  removeProduct(item.productId);
-                                }}
+                                onClick={() => removeProduct(item.productId)}
                                 disabled={isLoading}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1028,35 +979,25 @@ export default function PurchasesPage() {
               <CardTitle className="text-lg">Purchase Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Invoice Info */}
-              {/* {purchaseId && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-xs text-blue-600 font-medium">
-                    Invoice ID
-                  </p>
-                  <p className="text-sm font-mono break-all">{purchaseId}</p>
-                </div>
-              )} */}
-
               {/* Price Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
                   <span className="font-medium">
-                    ₹{totals.subTotal.toFixed(2)}
+                    ₹{totals?.subTotal?.toFixed(2) || "0.00"}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Total Tax:</span>
                   <span className="font-medium">
-                    ₹{totals.totalTax.toFixed(2)}
+                    ₹{totals?.totalTax?.toFixed(2) || "0.00"}
                   </span>
                 </div>
                 <Separator className="my-2" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>
                   <span className="text-indigo-600">
-                    ₹{totals.grandTotal.toFixed(2)}
+                    ₹{totals?.grandTotal?.toFixed(2) || "0.00"}
                   </span>
                 </div>
               </div>
@@ -1073,14 +1014,16 @@ export default function PurchasesPage() {
                     !invoiceDate ||
                     !placeOfSupply ||
                     !reverseCharge ||
+                    !items ||
                     items.length === 0 ||
-                    isLoading
+                    isLoading ||
+                    !purchaseId
                   }
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
+                      {!purchaseId ? "Creating session..." : "Processing..."}
                     </>
                   ) : (
                     <>
@@ -1093,19 +1036,17 @@ export default function PurchasesPage() {
 
               {/* Items Count */}
               <div className="text-center text-sm text-gray-500 pt-2">
-                Total Items: {items.length}
+                Total Items: {items?.length || 0}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
       {/* Completed Purchases Section */}
       <CompletedPurchases
         isOpen={showCompletedPurchases}
         onToggle={() => setShowCompletedPurchases(!showCompletedPurchases)}
       />
-
       {/* New Supplier Dialog */}
       <Dialog
         open={showNewSupplierDialog}
@@ -1124,13 +1065,88 @@ export default function PurchasesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Product Selection Dialog for Multiple Products */}
+      <Dialog
+        open={showProductSelectionDialog}
+        onOpenChange={setShowProductSelectionDialog}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Select Product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Multiple products found with barcode "{selectedBarcode}". Please
+              select one:
+            </p>
+
+            {/* Add quantity selector */}
+            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+              <label className="text-sm font-medium">Quantity:</label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <span className="w-12 text-center font-medium">{quantity}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setQuantity(quantity + 1)}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {multipleProducts.map((product) => (
+                <div
+                  key={product._id}
+                  className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => handleAddSelectedProduct(product)}
+                >
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">
+                        {product.productName}
+                      </p>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {product.color && <span>Color: {product.color}</span>}
+                        {product.size && (
+                          <span className="ml-2">Size: {product.size}</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Stock: {product.quantity} units
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-semibold text-indigo-600">
+                        ₹{product.purchasePrice}
+                      </p>
+                      <Button size="sm" variant="outline" className="mt-2">
+                        Select
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Create Product Dialog */}
       <CreateProductDialog
         open={showCreateProductDialog}
         onOpenChange={setShowCreateProductDialog}
         barcode={scannedBarcode}
         onProductCreated={() => {
-          // Retry scanning the barcode after product is created
           setTimeout(() => {
             scanBarcode(scannedBarcode, quantity);
           }, 500);

@@ -63,6 +63,7 @@ export interface AddProductData {
   purchaseId: string;
   barCode: string;
   quantity: number;
+  productId?: string; // For multi-product selection
 }
 
 export interface UpdateQuantityData {
@@ -82,6 +83,7 @@ export interface ApiResponse<T> {
   data?: T;
   count?: number;
   errors?: string[];
+  multiple?: boolean; // For multi-product responses
 }
 
 // =====================================================
@@ -106,9 +108,17 @@ export const addProductToPurchase = async (
   data: AddProductData,
 ): Promise<ApiResponse<PurchaseInvoice>> => {
   try {
+    const payload: any = {
+      purchaseId: data.purchaseId,
+      barCode: data.barCode,
+      quantity: data.quantity,
+    };
+    if (data.productId) {
+      payload.productId = data.productId;
+    }
     const response = await axiosInstance.post(
       "/purchase-invoice/add-product",
-      data,
+      payload,
     );
     return response.data;
   } catch (error) {
@@ -124,12 +134,10 @@ export const removeProductFromPurchase = async (
   data: RemoveProductData,
 ): Promise<ApiResponse<PurchaseInvoice>> => {
   try {
-    console.log("API call - removeProductFromPurchase with data:", data);
     const response = await axiosInstance.post(
       "/purchase-invoice/remove-product",
       data,
     );
-    console.log("API response - removeProductFromPurchase:", response.data);
     return response.data;
   } catch (error) {
     console.error("Remove product from purchase error:", error);

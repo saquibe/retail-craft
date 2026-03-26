@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Supplier } from "@/lib/api/suppliers";
 import {
   createPurchase,
@@ -43,9 +43,7 @@ export const usePurchaseStore = () => {
   const [purchaseData, setPurchaseData] = useState<PurchaseInvoice | null>(
     null,
   );
-
-  // Use a ref to track if we've already attempted to create a purchase for this combination
-  const creationAttemptedRef = useRef<{ [key: string]: boolean }>({});
+  const [isCreating, setIsCreating] = useState(false);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -54,14 +52,14 @@ export const usePurchaseStore = () => {
       try {
         const session: PurchaseSession = JSON.parse(savedSession);
         setSelectedSupplier(session.selectedSupplier);
-        setItems(session.items);
-        setInvoiceNumber(session.invoiceNumber);
+        setItems(session.items || []);
+        setInvoiceNumber(session.invoiceNumber || "");
         setInvoiceDate(session.invoiceDate || format(new Date(), "yyyy-MM-dd"));
         setPlaceOfSupply(session.placeOfSupply || "");
         setReverseCharge(session.reverseCharge || "No");
         setPurchaseId(session.purchaseId);
       } catch (error) {
-        console.error("Error loading purchase session:", error);
+        console.error("🔴 [STORE] Error loading purchase session:", error);
       }
     }
     setIsLoaded(true);
@@ -73,7 +71,7 @@ export const usePurchaseStore = () => {
 
     const session: PurchaseSession = {
       selectedSupplier,
-      items,
+      items: items || [],
       invoiceNumber,
       invoiceDate,
       placeOfSupply,
@@ -84,7 +82,7 @@ export const usePurchaseStore = () => {
 
     if (
       selectedSupplier ||
-      items.length > 0 ||
+      (items && items.length > 0) ||
       invoiceNumber ||
       invoiceDate ||
       placeOfSupply
@@ -104,16 +102,93 @@ export const usePurchaseStore = () => {
     isLoaded,
   ]);
 
-  // Clear session
+  // Create purchase ONLY when ALL required fields are filled
+  useEffect(() => {
+    const createPurchaseWhenReady = async () => {
+      const hasAllFields =
+        selectedSupplier &&
+        invoiceNumber &&
+        invoiceNumber.trim() !== "" &&
+        invoiceDate &&
+        placeOfSupply &&
+        placeOfSupply.trim() !== "" &&
+        reverseCharge;
+
+      if (hasAllFields && !purchaseId && !isCreating && !isLoading) {
+        setIsCreating(true);
+        setIsLoading(true);
+
+        try {
+          const response = await createPurchase({
+            supplierId: selectedSupplier._id,
+            invoiceNumber: invoiceNumber,
+            invoiceDate: invoiceDate,
+            placeOfSupply: placeOfSupply,
+            reverseCharge: reverseCharge,
+          });
+
+          if (response.success && response.data) {
+            setPurchaseId(response.data._id);
+            setPurchaseData(response.data);
+            toast.success("Purchase session created");
+          } else {
+            toast.error(response.message || "Failed to create purchase");
+          }
+        } catch (error: any) {
+          console.error("🔴 [STORE] Error creating purchase:", error);
+          if (
+            error.response?.status === 400 &&
+            error.response?.data?.message?.includes(
+              "Invoice number already exists",
+            )
+          ) {
+            toast.error(
+              `Invoice number "${invoiceNumber}" already exists. Please use a different invoice number.`,
+            );
+            setInvoiceNumber("");
+          } else {
+            toast.error(
+              error.response?.data?.message ||
+                "Failed to create purchase session",
+            );
+          }
+        } finally {
+          setIsCreating(false);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    createPurchaseWhenReady();
+  }, [
+    selectedSupplier,
+    invoiceNumber,
+    invoiceDate,
+    placeOfSupply,
+    reverseCharge,
+    purchaseId,
+    isCreating,
+    isLoading,
+  ]);
+
+  // Clear session - ALWAYS delete the draft from database
   const clearSession = useCallback(async () => {
-    if (purchaseId && items.length === 0) {
+    if (purchaseId) {
       try {
-        await deletePurchase(purchaseId);
-      } catch (error) {
-        console.error("Error deleting purchase:", error);
+        const response = await deletePurchase(purchaseId);
+        if (response.success) {
+          toast.success("Draft deleted successfully");
+        }
+      } catch (error: any) {
+        console.error("🔴 [STORE] Error deleting purchase:", error);
+        if (error.response?.status !== 404) {
+          console.error("Delete error details:", error.response?.data);
+          toast.error("Failed to delete draft");
+        }
       }
     }
 
+    // Reset all state
     setSelectedSupplier(null);
     setItems([]);
     setInvoiceNumber("");
@@ -122,20 +197,21 @@ export const usePurchaseStore = () => {
     setReverseCharge("No");
     setPurchaseId(undefined);
     setPurchaseData(null);
+    setIsCreating(false);
+    setIsLoading(false);
     localStorage.removeItem(PURCHASE_SESSION_KEY);
-    // Clear the creation attempts ref
-    creationAttemptedRef.current = {};
-  }, [purchaseId, items.length]);
+
+    toast.success("New purchase session started");
+  }, [purchaseId]);
 
   // Update supplier
   const updateSupplier = useCallback(
     async (supplier: Supplier | null) => {
-      // If there's an existing purchase with no items, delete it
-      if (purchaseId && items.length === 0) {
+      if (purchaseId && items && items.length === 0) {
         try {
           await deletePurchase(purchaseId);
         } catch (error) {
-          console.error("Error deleting previous purchase:", error);
+          console.error("🔴 [STORE] Error deleting previous purchase:", error);
         }
       }
 
@@ -149,101 +225,16 @@ export const usePurchaseStore = () => {
         setPlaceOfSupply("");
         setReverseCharge("No");
       }
-      // Clear the creation attempts ref when supplier changes
-      creationAttemptedRef.current = {};
     },
-    [purchaseId, items.length],
+    [purchaseId, items],
   );
 
-  // Manual function to create purchase - call this when user is ready
-  const createPurchaseDraft = useCallback(async (): Promise<boolean> => {
-    if (!selectedSupplier) {
-      toast.error("Please select a supplier first");
-      return false;
-    }
-
-    if (!invoiceNumber.trim()) {
-      toast.error("Please enter invoice number");
-      return false;
-    }
-
-    if (!invoiceDate) {
-      toast.error("Please select invoice date");
-      return false;
-    }
-
-    if (!placeOfSupply.trim()) {
-      toast.error("Please enter place of supply");
-      return false;
-    }
-
-    if (!reverseCharge) {
-      toast.error("Please select reverse charge");
-      return false;
-    }
-
-    if (purchaseId) {
-      return true; // Already have a purchase
-    }
-
-    // Create a unique key for this supplier+invoice combination
-    const key = `${selectedSupplier._id}-${invoiceNumber.trim()}`;
-
-    // Check if we've already attempted this combination
-    if (creationAttemptedRef.current[key]) {
-      return false;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await createPurchase({
-        supplierId: selectedSupplier._id,
-        invoiceNumber: invoiceNumber.trim(),
-        invoiceDate: invoiceDate,
-        placeOfSupply: placeOfSupply.trim(),
-        reverseCharge: reverseCharge,
-      });
-
-      if (response.success && response.data) {
-        setPurchaseId(response.data._id);
-        setPurchaseData(response.data);
-        toast.success("Purchase invoice created");
-        // Mark this combination as successfully created
-        creationAttemptedRef.current[key] = true;
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      console.error("Error creating purchase draft:", error);
-      // Mark this combination as attempted (failed)
-      creationAttemptedRef.current[key] = true;
-
-      toast.error(
-        error.response?.data?.message || "Failed to create purchase invoice",
-      );
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    selectedSupplier,
-    invoiceNumber,
-    invoiceDate,
-    placeOfSupply,
-    reverseCharge,
-    purchaseId,
-  ]);
-
-  // Scan barcode to add product
   // Scan barcode to add product
   const scanBarcode = useCallback(
-    async (barcode: string, quantity: number = 1) => {
+    async (barcode: string, quantity: number = 1, productId?: string) => {
       if (!purchaseId) {
-        // Try to create purchase first
-        const created = await createPurchaseDraft();
-        if (!created) {
-          return false;
-        }
+        toast.error("Please complete all supplier details first");
+        return false;
       }
 
       if (!barcode.trim()) {
@@ -257,37 +248,49 @@ export const usePurchaseStore = () => {
           purchaseId: purchaseId!,
           barCode: barcode,
           quantity,
+          productId,
         });
 
-        if (response.success && response.data) {
-          setItems(response.data.items);
-          setPurchaseData(response.data);
-          toast.success("Product added to purchase");
-          return true; // Success - product exists and was added
-        }
-        return false;
-      } catch (error: any) {
-        console.error("Error adding product:", error);
-        console.log("Error status:", error.response?.status); // Add this log
-        console.log("Error message:", error.response?.data?.message); // Add this log
-
-        // If product not found (404), we need to create it first
-        if (error.response?.status === 404) {
-          console.log(
-            "Product not found (404) - returning false to trigger create dialog",
-          );
-          // Return false to trigger create product dialog, but DON'T show error toast
+        if (productId) {
+          if (response.success && response.data) {
+            setItems(response.data.items);
+            setPurchaseData(response.data);
+            setIsLoading(false);
+            return true;
+          }
+          setIsLoading(false);
           return false;
         }
 
-        // For other errors, show toast and return false
-        toast.error(error.response?.data?.message || "Failed to add product");
-        return false;
-      } finally {
+        if (response.multiple) {
+          setIsLoading(false);
+          return response;
+        }
+
+        // Single product added successfully
+        if (response.success && response.data) {
+          setItems(response.data.items);
+          setPurchaseData(response.data);
+          setIsLoading(false);
+          return true;
+        }
+
         setIsLoading(false);
+        return false;
+      } catch (error: any) {
+        console.error("🔴 [STORE] Error adding product:", error);
+
+        if (error.response?.data?.multiple) {
+          setIsLoading(false);
+          return error.response.data;
+        }
+
+        toast.error(error.response?.data?.message || "Failed to add product");
+        setIsLoading(false);
+        return false;
       }
     },
-    [purchaseId, createPurchaseDraft],
+    [purchaseId],
   );
 
   // Update quantity
@@ -332,54 +335,27 @@ export const usePurchaseStore = () => {
   // Remove product
   const removeProduct = useCallback(
     async (productId: string) => {
-      console.log("removeProduct called with productId:", productId);
-      console.log("Current purchaseId:", purchaseId);
-      console.log("Current items:", items);
-
       if (!purchaseId) {
-        console.log("No purchaseId, showing error");
         toast.error("No active purchase session");
-        return false;
-      }
-
-      // Check if product exists in cart
-      const productExists = items.some((item) => item.productId === productId);
-      console.log("Product exists in cart?", productExists);
-
-      if (!productExists) {
-        console.log("Product not found in cart");
-        toast.error("Product not found in cart");
         return false;
       }
 
       setIsLoading(true);
       try {
-        console.log("Calling removeProductFromPurchase API with:", {
-          purchaseId,
-          productId,
-        });
-
         const response = await removeProductFromPurchase({
           purchaseId,
           productId,
         });
 
-        console.log("API response:", response);
-
         if (response.success && response.data) {
-          console.log("Product removed successfully, updating state");
           setItems(response.data.items);
           setPurchaseData(response.data);
           toast.success("Product removed from purchase");
           return true;
         }
-        console.log("API returned success: false");
         return false;
       } catch (error: any) {
         console.error("Error removing product:", error);
-        console.error("Error response:", error.response?.data);
-        console.error("Error status:", error.response?.status);
-
         toast.error(
           error.response?.data?.message || "Failed to remove product",
         );
@@ -388,20 +364,37 @@ export const usePurchaseStore = () => {
         setIsLoading(false);
       }
     },
-    [purchaseId, items],
+    [purchaseId],
   );
 
-  // Complete purchase - THIS SHOULD ONLY BE CALLED MANUALLY
+  // Complete purchase
   const completePurchaseInvoice = useCallback(async (): Promise<boolean> => {
-    console.log("completePurchaseInvoice called manually");
-
     if (!purchaseId) {
       toast.error("No active purchase session");
       return false;
     }
 
-    if (items.length === 0) {
+    if (!items || items.length === 0) {
       toast.error("No items in purchase invoice");
+      return false;
+    }
+    if (!invoiceNumber || !invoiceNumber.trim()) {
+      toast.error("Please enter invoice number");
+      return false;
+    }
+
+    if (!placeOfSupply || !placeOfSupply.trim()) {
+      toast.error("Please enter place of supply");
+      return false;
+    }
+
+    if (!invoiceDate) {
+      toast.error("Please select invoice date");
+      return false;
+    }
+
+    if (!reverseCharge) {
+      toast.error("Please select reverse charge");
       return false;
     }
 
@@ -411,14 +404,22 @@ export const usePurchaseStore = () => {
       if (response.success) {
         toast.success("Purchase invoice completed successfully");
 
-        // Clear the session after successful completion
-        await clearSession();
+        // Clear session after completion
+        setSelectedSupplier(null);
+        setItems([]);
+        setInvoiceNumber("");
+        setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
+        setPlaceOfSupply("");
+        setReverseCharge("No");
+        setPurchaseId(undefined);
+        setPurchaseData(null);
+        localStorage.removeItem(PURCHASE_SESSION_KEY);
 
         return true;
       }
       return false;
     } catch (error: any) {
-      console.error("Error completing purchase:", error);
+      console.error("🔴 [STORE] Error completing purchase:", error);
       toast.error(
         error.response?.data?.message || "Failed to complete purchase",
       );
@@ -426,22 +427,29 @@ export const usePurchaseStore = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [purchaseId, items.length, clearSession]);
+  }, [
+    purchaseId,
+    items,
+    invoiceNumber,
+    invoiceDate,
+    placeOfSupply,
+    reverseCharge,
+  ]);
 
   // Calculate totals
   const totals = {
-    subTotal: items.reduce(
-      (sum, item) => sum + item.purchasePrice * item.quantity,
-      0,
-    ),
-    totalTax: items.reduce((sum, item) => sum + item.taxAmount, 0),
-    grandTotal: items.reduce((sum, item) => sum + item.totalAmount, 0),
+    subTotal:
+      items?.reduce(
+        (sum, item) => sum + item.purchasePrice * item.quantity,
+        0,
+      ) || 0,
+    totalTax: items?.reduce((sum, item) => sum + item.taxAmount, 0) || 0,
+    grandTotal: items?.reduce((sum, item) => sum + item.totalAmount, 0) || 0,
   };
 
   return {
-    // State
     selectedSupplier,
-    items,
+    items: items || [],
     invoiceNumber,
     invoiceDate,
     placeOfSupply,
@@ -451,16 +459,11 @@ export const usePurchaseStore = () => {
     isLoading,
     purchaseData,
     totals,
-
-    // Setters
     setSelectedSupplier: updateSupplier,
     setInvoiceNumber,
     setInvoiceDate,
     setPlaceOfSupply,
     setReverseCharge,
-
-    // Actions
-    createPurchaseDraft,
     scanBarcode,
     updateQuantity,
     removeProduct,
