@@ -253,6 +253,8 @@ export function CompletedBillings({
                       <TableHead>Customer</TableHead>
                       <TableHead>Items</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
+                      <TableHead className="text-right">Final Amount</TableHead>
                       <TableHead>Payment Mode</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
@@ -326,6 +328,34 @@ export function CompletedBillings({
                           <TableCell className="text-right font-medium text-indigo-600">
                             {formatCurrency(billing.grandTotal)}
                           </TableCell>
+                          <TableCell className="text-right">
+                            {billing.discount && billing.discount > 0 ? (
+                              <div>
+                                <span className="text-sm font-medium text-red-600">
+                                  {billing.discount}%
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  -{formatCurrency(billing.discountAmount || 0)}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {" "}
+                            {billing.discount && billing.discount > 0 ? (
+                              <span className="text-green-600">
+                                {formatCurrency(
+                                  billing.finalTotal || billing.grandTotal,
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-gray-600">
+                                {formatCurrency(billing.grandTotal)}
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge
                               className={getPaymentModeBadge(
@@ -349,12 +379,13 @@ export function CompletedBillings({
                         </TableRow>
                         {expandedBilling === billing._id && (
                           <TableRow>
-                            <TableCell colSpan={8} className="bg-gray-50 p-4">
-                              <div className="space-y-2">
+                            <TableCell colSpan={10} className="bg-gray-50 p-4">
+                              <div className="space-y-3">
                                 <h4 className="font-medium flex items-center gap-2">
                                   <ShoppingBag className="w-4 h-4" />
                                   Items Details
                                 </h4>
+
                                 <div className="grid gap-2">
                                   {billing.items?.map((item, idx) => (
                                     <div
@@ -400,6 +431,81 @@ export function CompletedBillings({
                                       </div>
                                     </div>
                                   ))}
+                                </div>
+
+                                {/* Summary Section */}
+                                <div className="mt-4 pt-3 border-t">
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-gray-600">
+                                        Subtotal:
+                                      </span>
+                                      <span className="font-medium">
+                                        ₹
+                                        {billing.subTotal?.toFixed(2) || "0.00"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-gray-600">
+                                        Total Tax:
+                                      </span>
+                                      <span className="font-medium">
+                                        ₹
+                                        {billing.totalTax?.toFixed(2) || "0.00"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-gray-600">
+                                        Grand Total (Before Discount):
+                                      </span>
+                                      <span className="font-medium">
+                                        ₹
+                                        {billing.grandTotal?.toFixed(2) ||
+                                          "0.00"}
+                                      </span>
+                                    </div>
+
+                                    {/* Discount Section */}
+                                    {billing.discount &&
+                                    billing.discount > 0 ? (
+                                      <>
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-600">
+                                            Discount ({billing.discount}%):
+                                          </span>
+                                          <span className="text-red-600 font-medium">
+                                            -₹
+                                            {billing.discountAmount?.toFixed(
+                                              2,
+                                            ) || "0.00"}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
+                                          <span className="text-gray-800">
+                                            Final Amount (After Discount):
+                                          </span>
+                                          <span className="text-green-600 text-lg">
+                                            ₹
+                                            {(
+                                              billing.finalTotal ||
+                                              billing.grandTotal
+                                            )?.toFixed(2) || "0.00"}
+                                          </span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
+                                        <span className="text-gray-800">
+                                          Total Amount:
+                                        </span>
+                                        <span className="text-indigo-600 text-lg">
+                                          ₹
+                                          {billing.grandTotal?.toFixed(2) ||
+                                            "0.00"}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </TableCell>

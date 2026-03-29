@@ -415,7 +415,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
         </tbody>
       </table>
 
-      {/* Totals */}
+      {/* Totals - Add discount */}
       <div className="totals">
         <div className="total-row">
           <span>Subtotal</span>
@@ -425,15 +425,56 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
           <span>Total Tax</span>
           <span>₹{billing.totalTax?.toFixed(2) || "0.00"}</span>
         </div>
-        <div className="grand-total total-row">
-          <span>NET PAYABLE</span>
+        <div className="total-row">
+          <span>Grand Total (Before Discount)</span>
           <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
         </div>
+
+        {/* ADD DISCOUNT DISPLAY */}
+        {billing.discount && billing.discount > 0 && (
+          <>
+            <div className="total-row">
+              <span>Discount ({billing.discount}%)</span>
+              <span className="text-red-600">
+                -₹{billing.discountAmount?.toFixed(2) || "0.00"}
+              </span>
+            </div>
+            <div
+              className="total-row"
+              style={{
+                borderTop: "1px dashed #000",
+                marginTop: "4px",
+                paddingTop: "4px",
+              }}
+            >
+              <span style={{ fontWeight: "bold" }}>
+                Final Total (After Discount)
+              </span>
+              <span style={{ fontWeight: "bold", color: "#4f46e5" }}>
+                ₹{billing.finalTotal?.toFixed(2) || "0.00"}
+              </span>
+            </div>
+          </>
+        )}
+
+        {(!billing.discount || billing.discount === 0) && (
+          <div className="grand-total total-row">
+            <span>NET PAYABLE</span>
+            <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
+          </div>
+        )}
+
+        {billing.discount && billing.discount > 0 && (
+          <div className="grand-total total-row" style={{ marginTop: "4px" }}>
+            <span>NET PAYABLE</span>
+            <span>₹{billing.finalTotal?.toFixed(2) || "0.00"}</span>
+          </div>
+        )}
       </div>
 
-      {/* Amount in Words - MOVED BELOW NET PAYABLE */}
+      {/* Amount in Words - Use finalTotal if available */}
       <div className="amount-words">
-        Rupees {numberToWords(billing.grandTotal)}
+        Rupees {numberToWords(billing.finalTotal || billing.grandTotal)}
       </div>
 
       {/* Footer */}

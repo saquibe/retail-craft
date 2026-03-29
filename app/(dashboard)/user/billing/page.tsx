@@ -73,6 +73,7 @@ export default function BillingPage() {
     isLoaded,
     billingId,
     setSelectedCustomer,
+    setDiscount,
     addToCart,
     updateQuantity,
     removeFromCart,
@@ -444,7 +445,7 @@ export default function BillingPage() {
     setIsLoading(true);
 
     try {
-      const billingId = await generateInvoice(paymentMode);
+      const billingId = await generateInvoice(paymentMode, discount);
 
       if (billingId) {
         const response = await getBillingById(billingId);
@@ -930,7 +931,7 @@ export default function BillingPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 cursor-pointer"
                                   onClick={() =>
                                     updateQuantity(
                                       item._id,
@@ -946,7 +947,7 @@ export default function BillingPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  className="h-8 w-8"
+                                  className="h-8 w-8 cursor-pointer"
                                   onClick={() =>
                                     updateQuantity(
                                       item._id,
@@ -973,7 +974,7 @@ export default function BillingPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-600"
+                                className="h-8 w-8 text-red-600 cursor-pointer hover:bg-red-50"
                                 onClick={() => removeFromCart(item._id)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1013,7 +1014,7 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Price Breakdown */}
+              {/* Price Breakdown - Add discount input */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
@@ -1027,16 +1028,40 @@ export default function BillingPage() {
                   <span className="text-gray-600">Subtotal (Inc. Tax):</span>
                   <span className="font-medium">₹{subtotal.toFixed(2)}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      Discount ({discount}%):
-                    </span>
-                    <span className="font-medium text-red-600">
-                      -₹{discountAmount.toFixed(2)}
-                    </span>
+
+                {/* ADD THIS DISCOUNT SECTION */}
+                <div className="flex justify-between items-center gap-4 pt-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-sm text-gray-600">Discount (%):</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={discount}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val >= 0 && val <= 100) {
+                          setDiscount(val);
+                        }
+                      }}
+                      className="w-20 h-8 text-sm"
+                      disabled={cart.length === 0}
+                    />
+                    <span className="text-sm text-gray-500">%</span>
                   </div>
-                )}
+                  {discount > 0 && (
+                    <div className="text-right">
+                      <span className="text-sm text-gray-600">
+                        Discount Amt:
+                      </span>
+                      <span className="ml-2 font-medium text-red-600">
+                        -₹{((subtotal * discount) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <Separator className="my-2" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>

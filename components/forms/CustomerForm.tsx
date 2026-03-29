@@ -24,9 +24,8 @@ const baseCustomerSchema = {
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   mobile: z
     .string()
-    .regex(/^\d{10}$/, "Mobile must be 10 digits")
-    .optional()
-    .or(z.literal("")),
+    .min(1, "Mobile number is required")
+    .regex(/^\d{10}$/, "Mobile must be 10 digits"),
   address: z.string().min(1, "Address is required"),
   country: z.string().min(1, "Country is required"),
   state: z.string().min(1, "State is required"),
@@ -97,9 +96,9 @@ export default function CustomerForm({
       email: initialData?.email || "",
       mobile: initialData?.mobile || "",
       address: initialData?.address || "",
-      country: initialData?.country || "",
-      state: initialData?.state || "",
-      city: initialData?.city || "",
+      country: initialData?.country || "India",
+      state: initialData?.state || "Telangana",
+      city: initialData?.city || "Hyderabad",
       ...(customerType === "B2B" && {
         companyName: b2bInitial?.companyName || "",
         GstRegistrationType: b2bInitial?.GstRegistrationType || "",
@@ -128,6 +127,14 @@ export default function CustomerForm({
   const handleFormSubmit = (data: CustomerFormData) => {
     onSubmit(data);
   };
+
+  useEffect(() => {
+    if (!initialData) {
+      setValue("country", "India");
+      setValue("state", "Telangana");
+      setValue("city", "Hyderabad");
+    }
+  }, []);
 
   // GST Registration Type options
   const gstRegistrationTypes = [
@@ -214,7 +221,7 @@ export default function CustomerForm({
             {/* Mobile with Icon */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Mobile
+                Mobile *
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

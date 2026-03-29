@@ -23,6 +23,9 @@ export interface Billing {
   subTotal: number;
   totalTax: number;
   grandTotal: number;
+  discount?: number;
+  discountAmount?: number;
+  finalTotal?: number;
   status: "Draft" | "Completed";
   createdAt: string;
   updatedAt: string;
@@ -126,12 +129,14 @@ export const updateProductQuantity = async (
 export const completeBilling = async (
   billingId: string,
   paymentMode: string,
+  discount: number = 0,
 ): Promise<ApiResponse<Billing>> => {
   try {
     const response = await axiosInstance.post(
       `/billing/complete/${billingId}`,
       {
         paymentMode,
+        discount,
       },
     );
     return response.data;
