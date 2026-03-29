@@ -222,24 +222,20 @@ export default function CountryStateCitySelector({
       if (
         detectedLocation &&
         detectedLocation.country === selectedCountry &&
-        detectedLocation.state === selectedState
+        detectedLocation.state === selectedState &&
+        stateCities.length > 0
       ) {
-        // Check if detected city exists in the cities list
-        const cityExists = stateCities.some(
-          (c) => c.value === detectedLocation.city,
+        // normalize for safe comparison
+        const normalize = (str: string) => str.toLowerCase().trim();
+
+        const matchedCity = stateCities.find(
+          (c) => normalize(c.value) === normalize(detectedLocation.city),
         );
-        if (cityExists) {
-          setValue(cityField, detectedLocation.city, {
-            shouldValidate: true,
-            shouldDirty: false,
-          });
-        } else if (stateCities.length > 0) {
-          // Fallback to first city if detected city doesn't exist
-          setValue(cityField, stateCities[0]?.value || "", {
-            shouldValidate: true,
-            shouldDirty: false,
-          });
-        }
+
+        setValue(cityField, matchedCity?.value || stateCities[0].value, {
+          shouldValidate: true,
+          shouldDirty: false,
+        });
       }
     } else {
       setCities([]);
