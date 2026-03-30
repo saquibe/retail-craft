@@ -64,11 +64,13 @@ export default function PurchasesPage() {
     isLoaded,
     isLoading,
     totals,
+    discount,
     setSelectedSupplier,
     setInvoiceNumber,
     setInvoiceDate,
     setPlaceOfSupply,
     setReverseCharge,
+    setDiscount,
     scanBarcode,
     updateQuantity,
     removeProduct,
@@ -374,9 +376,10 @@ export default function PurchasesPage() {
       return;
     }
 
-    const success = await completePurchaseInvoice();
+    const success = await completePurchaseInvoice(discount);
     if (success) {
       setQuantity(1);
+      setDiscount(0);
     }
   };
 
@@ -979,7 +982,7 @@ export default function PurchasesPage() {
               <CardTitle className="text-lg">Purchase Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Price Breakdown */}
+              {/* Price Breakdown - Add discount input */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
@@ -993,11 +996,49 @@ export default function PurchasesPage() {
                     ₹{totals?.totalTax?.toFixed(2) || "0.00"}
                   </span>
                 </div>
+
+                {/* ADD DISCOUNT SECTION */}
+                <div className="flex justify-between items-center gap-4 pt-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-sm text-gray-600">Discount (%):</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={discount}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val >= 0 && val <= 100) {
+                          setDiscount(val);
+                        }
+                      }}
+                      className="w-20 h-8 text-sm"
+                      disabled={items.length === 0}
+                    />
+                    <span className="text-sm text-gray-500">%</span>
+                  </div>
+                  {discount > 0 && (
+                    <div className="text-right">
+                      <span className="text-sm text-gray-600">
+                        Discount Amt:
+                      </span>
+                      <span className="ml-2 font-medium text-red-600">
+                        -₹{((totals.grandTotal * discount) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <Separator className="my-2" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>
                   <span className="text-indigo-600">
-                    ₹{totals?.grandTotal?.toFixed(2) || "0.00"}
+                    ₹
+                    {(
+                      totals.grandTotal -
+                      (totals.grandTotal * discount) / 100
+                    ).toFixed(2)}
                   </span>
                 </div>
               </div>

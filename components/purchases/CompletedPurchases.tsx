@@ -37,7 +37,6 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
-  Truck,
   MapPin,
   Repeat,
   ChevronLeft,
@@ -46,6 +45,7 @@ import {
 import { getCompletedPurchases, PurchaseInvoice } from "@/lib/api/purchases";
 import { PurchaseInvoicePrint } from "./PurchaseInvoicePrint";
 import toast from "react-hot-toast";
+import React from "react";
 
 interface CompletedPurchasesProps {
   isOpen?: boolean;
@@ -249,7 +249,9 @@ export function CompletedPurchases({
                       <TableHead>Date</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Items</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Total Amount</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
+                      <TableHead className="text-right">Final Amount</TableHead>
                       <TableHead>Place of Supply</TableHead>
                       <TableHead>Reverse Charge</TableHead>
                       <TableHead className="text-right">Action</TableHead>
@@ -257,11 +259,8 @@ export function CompletedPurchases({
                   </TableHeader>
                   <TableBody>
                     {currentItems.map((purchase) => (
-                      <>
-                        <TableRow
-                          key={purchase._id}
-                          className="cursor-pointer hover:bg-gray-50"
-                        >
+                      <React.Fragment key={purchase._id}>
+                        <TableRow className="cursor-pointer hover:bg-gray-50">
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -310,8 +309,49 @@ export function CompletedPurchases({
                               ) || 0}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-medium text-indigo-600">
-                            {formatCurrency(purchase.grandTotal)}
+                          <TableCell className="text-right font-medium">
+                            {purchase.discount && purchase.discount > 0 ? (
+                              <span className="text-gray-400">
+                                {formatCurrency(purchase.grandTotal)}
+                              </span>
+                            ) : (
+                              <span className="text-indigo-600">
+                                {formatCurrency(purchase.grandTotal)}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {purchase.discount && purchase.discount > 0 ? (
+                              <div>
+                                <span className="text-sm font-medium text-red-600">
+                                  {purchase.discount}%
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  -
+                                  {formatCurrency(purchase.discountAmount || 0)}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {purchase.discount && purchase.discount > 0 ? (
+                              <div>
+                                <span className="text-green-600 font-bold">
+                                  {formatCurrency(
+                                    purchase.finalTotal || purchase.grandTotal,
+                                  )}
+                                </span>
+                                {/* <div className="text-xs text-gray-400">
+                                  {formatCurrency(purchase.grandTotal)}
+                                </div> */}
+                              </div>
+                            ) : (
+                              <span className="text-gray-600">
+                                {formatCurrency(purchase.grandTotal)}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
@@ -344,8 +384,8 @@ export function CompletedPurchases({
                         </TableRow>
                         {expandedPurchase === purchase._id && (
                           <TableRow>
-                            <TableCell colSpan={9} className="bg-gray-50 p-4">
-                              <div className="space-y-2">
+                            <TableCell colSpan={11} className="bg-gray-50 p-4">
+                              <div className="space-y-3">
                                 <h4 className="font-medium flex items-center gap-2">
                                   <Package className="w-4 h-4" />
                                   Items Details
@@ -405,11 +445,89 @@ export function CompletedPurchases({
                                     );
                                   })}
                                 </div>
+
+                                {/* Summary Section - Full Breakdown */}
+                                <div className="mt-4 pt-3 border-t">
+                                  <div className="space-y-2">
+                                    <h4 className="font-medium text-sm">
+                                      Summary
+                                    </h4>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-gray-600">
+                                        Subtotal:
+                                      </span>
+                                      <span className="font-medium">
+                                        ₹
+                                        {purchase.subTotal?.toFixed(2) ||
+                                          "0.00"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-gray-600">
+                                        Total Tax:
+                                      </span>
+                                      <span className="font-medium">
+                                        ₹
+                                        {purchase.totalTax?.toFixed(2) ||
+                                          "0.00"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-gray-600">
+                                        Grand Total (Before Discount):
+                                      </span>
+                                      <span className="font-medium text-indigo-600">
+                                        ₹
+                                        {purchase.grandTotal?.toFixed(2) ||
+                                          "0.00"}
+                                      </span>
+                                    </div>
+
+                                    {/* Discount Section */}
+                                    {purchase.discount &&
+                                    purchase.discount > 0 ? (
+                                      <>
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-600">
+                                            Discount ({purchase.discount}%):
+                                          </span>
+                                          <span className="text-red-600 font-medium">
+                                            -₹
+                                            {purchase.discountAmount?.toFixed(
+                                              2,
+                                            ) || "0.00"}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
+                                          <span className="text-gray-800">
+                                            Final Amount (After Discount):
+                                          </span>
+                                          <span className="text-green-600 text-lg">
+                                            ₹
+                                            {purchase.finalTotal?.toFixed(2) ||
+                                              "0.00"}
+                                          </span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
+                                        <span className="text-gray-800">
+                                          Total Amount:
+                                        </span>
+                                        <span className="text-indigo-600 text-lg">
+                                          ₹
+                                          {purchase.grandTotal?.toFixed(2) ||
+                                            "0.00"}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>

@@ -252,7 +252,7 @@ export function CompletedBillings({
                       <TableHead>Date</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Items</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Total Amount</TableHead>
                       <TableHead className="text-right">Discount</TableHead>
                       <TableHead className="text-right">Final Amount</TableHead>
                       <TableHead>Payment Mode</TableHead>

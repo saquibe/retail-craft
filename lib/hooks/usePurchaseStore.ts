@@ -20,6 +20,7 @@ interface PurchaseSession {
   invoiceDate: string;
   placeOfSupply: string;
   reverseCharge: string;
+  discount: number; // ADD THIS
   purchaseId?: string;
   lastUpdated: string;
 }
@@ -44,6 +45,7 @@ export const usePurchaseStore = () => {
     null,
   );
   const [isCreating, setIsCreating] = useState(false);
+  const [discount, setDiscount] = useState(0);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -57,6 +59,7 @@ export const usePurchaseStore = () => {
         setInvoiceDate(session.invoiceDate || format(new Date(), "yyyy-MM-dd"));
         setPlaceOfSupply(session.placeOfSupply || "");
         setReverseCharge(session.reverseCharge || "No");
+        setDiscount(session.discount || 0); // ADD THIS
         setPurchaseId(session.purchaseId);
       } catch (error) {
         console.error("🔴 [STORE] Error loading purchase session:", error);
@@ -76,6 +79,7 @@ export const usePurchaseStore = () => {
       invoiceDate,
       placeOfSupply,
       reverseCharge,
+      discount, // ADD THIS
       purchaseId,
       lastUpdated: new Date().toISOString(),
     };
@@ -85,7 +89,8 @@ export const usePurchaseStore = () => {
       (items && items.length > 0) ||
       invoiceNumber ||
       invoiceDate ||
-      placeOfSupply
+      placeOfSupply ||
+      discount > 0 // ADD THIS
     ) {
       localStorage.setItem(PURCHASE_SESSION_KEY, JSON.stringify(session));
     } else {
@@ -98,6 +103,7 @@ export const usePurchaseStore = () => {
     invoiceDate,
     placeOfSupply,
     reverseCharge,
+    discount, // ADD THIS to dependencies
     purchaseId,
     isLoaded,
   ]);
@@ -195,6 +201,7 @@ export const usePurchaseStore = () => {
     setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
     setPlaceOfSupply("");
     setReverseCharge("No");
+    setDiscount(0); // ADD THIS
     setPurchaseId(undefined);
     setPurchaseData(null);
     setIsCreating(false);
@@ -224,6 +231,7 @@ export const usePurchaseStore = () => {
         setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
         setPlaceOfSupply("");
         setReverseCharge("No");
+        setDiscount(0); // ADD THIS
       }
     },
     [purchaseId, items],
@@ -367,85 +375,100 @@ export const usePurchaseStore = () => {
     [purchaseId],
   );
 
-  // Complete purchase
-  const completePurchaseInvoice = useCallback(async (): Promise<boolean> => {
-    if (!purchaseId) {
-      toast.error("No active purchase session");
-      return false;
-    }
-
-    if (!items || items.length === 0) {
-      toast.error("No items in purchase invoice");
-      return false;
-    }
-    if (!invoiceNumber || !invoiceNumber.trim()) {
-      toast.error("Please enter invoice number");
-      return false;
-    }
-
-    if (!placeOfSupply || !placeOfSupply.trim()) {
-      toast.error("Please enter place of supply");
-      return false;
-    }
-
-    if (!invoiceDate) {
-      toast.error("Please select invoice date");
-      return false;
-    }
-
-    if (!reverseCharge) {
-      toast.error("Please select reverse charge");
-      return false;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await completePurchase(purchaseId);
-      if (response.success) {
-        toast.success("Purchase invoice completed successfully");
-
-        // Clear session after completion
-        setSelectedSupplier(null);
-        setItems([]);
-        setInvoiceNumber("");
-        setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
-        setPlaceOfSupply("");
-        setReverseCharge("No");
-        setPurchaseId(undefined);
-        setPurchaseData(null);
-        localStorage.removeItem(PURCHASE_SESSION_KEY);
-
-        return true;
+  // Complete purchase - ADD DISCOUNT PARAMETER
+  const completePurchaseInvoice = useCallback(
+    async (discountPercentage: number = 0): Promise<boolean> => {
+      if (!purchaseId) {
+        toast.error("No active purchase session");
+        return false;
       }
-      return false;
-    } catch (error: any) {
-      console.error("🔴 [STORE] Error completing purchase:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to complete purchase",
-      );
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    purchaseId,
-    items,
-    invoiceNumber,
-    invoiceDate,
-    placeOfSupply,
-    reverseCharge,
-  ]);
 
-  // Calculate totals
-  const totals = {
-    subTotal:
-      items?.reduce(
-        (sum, item) => sum + item.purchasePrice * item.quantity,
-        0,
-      ) || 0,
-    totalTax: items?.reduce((sum, item) => sum + item.taxAmount, 0) || 0,
-    grandTotal: items?.reduce((sum, item) => sum + item.totalAmount, 0) || 0,
+      if (!items || items.length === 0) {
+        toast.error("No items in purchase invoice");
+        return false;
+      }
+      if (!invoiceNumber || !invoiceNumber.trim()) {
+        toast.error("Please enter invoice number");
+        return false;
+      }
+
+      if (!placeOfSupply || !placeOfSupply.trim()) {
+        toast.error("Please enter place of supply");
+        return false;
+      }
+
+      if (!invoiceDate) {
+        toast.error("Please select invoice date");
+        return false;
+      }
+
+      if (!reverseCharge) {
+        toast.error("Please select reverse charge");
+        return false;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await completePurchase(purchaseId, discountPercentage);
+        if (response.success) {
+          toast.success("Purchase invoice completed successfully");
+
+          // Clear session after completion
+          setSelectedSupplier(null);
+          setItems([]);
+          setInvoiceNumber("");
+          setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
+          setPlaceOfSupply("");
+          setReverseCharge("No");
+          setDiscount(0);
+          setPurchaseId(undefined);
+          setPurchaseData(null);
+          localStorage.removeItem(PURCHASE_SESSION_KEY);
+
+          return true;
+        }
+        return false;
+      } catch (error: any) {
+        console.error("🔴 [STORE] Error completing purchase:", error);
+        toast.error(
+          error.response?.data?.message || "Failed to complete purchase",
+        );
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      purchaseId,
+      items,
+      invoiceNumber,
+      invoiceDate,
+      placeOfSupply,
+      reverseCharge,
+    ],
+  );
+
+  // Calculate totals with discount
+  const calculateFinalTotal = () => {
+    const grandTotal =
+      items?.reduce((sum, item) => sum + item.totalAmount, 0) || 0;
+    const discountAmount = (grandTotal * discount) / 100;
+    const finalTotal = grandTotal - discountAmount;
+
+    return {
+      subTotal:
+        items?.reduce(
+          (sum, item) => sum + item.purchasePrice * item.quantity,
+          0,
+        ) || 0,
+      totalTax: items?.reduce((sum, item) => sum + item.taxAmount, 0) || 0,
+      grandTotal,
+      discountAmount,
+      finalTotal,
+    };
   };
+
+  const totals = calculateFinalTotal();
 
   return {
     selectedSupplier,
@@ -454,6 +477,7 @@ export const usePurchaseStore = () => {
     invoiceDate,
     placeOfSupply,
     reverseCharge,
+    discount,
     purchaseId,
     isLoaded,
     isLoading,
@@ -464,6 +488,7 @@ export const usePurchaseStore = () => {
     setInvoiceDate,
     setPlaceOfSupply,
     setReverseCharge,
+    setDiscount,
     scanBarcode,
     updateQuantity,
     removeProduct,

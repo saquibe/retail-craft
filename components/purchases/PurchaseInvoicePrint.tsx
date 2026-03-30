@@ -160,7 +160,7 @@ export function PurchaseInvoicePrint({
           </tbody>
         </table>
 
-        {/* Summary */}
+        {/* Summary - Add discount */}
         <div className="text-right space-y-1 border-t-2 border-black pt-4">
           <p className="text-sm">
             <span className="font-bold inline-block w-32">Subtotal:</span>
@@ -174,10 +174,33 @@ export function PurchaseInvoicePrint({
               ₹{purchase.totalTax?.toFixed(2)}
             </span>
           </p>
+
+          {/* ADD DISCOUNT DISPLAY */}
+          {purchase.discount && purchase.discount > 0 && (
+            <>
+              <p className="text-sm">
+                <span className="font-bold inline-block w-32">
+                  Discount ({purchase.discount}%):
+                </span>
+                <span className="inline-block w-32 text-red-600">
+                  -₹{purchase.discountAmount?.toFixed(2)}
+                </span>
+              </p>
+              <p className="text-sm">
+                <span className="font-bold inline-block w-32">
+                  Final Total:
+                </span>
+                <span className="inline-block w-32">
+                  ₹{purchase.finalTotal?.toFixed(2)}
+                </span>
+              </p>
+            </>
+          )}
+
           <p className="text-lg font-bold">
             <span className="inline-block w-32">Grand Total:</span>
             <span className="inline-block w-32">
-              ₹{purchase.grandTotal?.toFixed(2)}
+              ₹{(purchase.finalTotal || purchase.grandTotal)?.toFixed(2)}
             </span>
           </p>
         </div>
