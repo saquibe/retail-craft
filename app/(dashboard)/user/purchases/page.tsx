@@ -47,7 +47,6 @@ import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
 import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
 import { getProducts, Product, searchProducts } from "@/lib/api/products";
-import { addProductToPurchase } from "@/lib/api/purchases";
 
 export default function PurchasesPage() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -199,15 +198,15 @@ export default function PurchasesPage() {
     reverseCharge &&
     purchaseId;
 
-  const canAddProducts =
-    selectedSupplier &&
-    invoiceNumber &&
-    invoiceNumber.trim() !== "" &&
-    invoiceDate &&
-    placeOfSupply &&
-    placeOfSupply.trim() !== "" &&
-    reverseCharge &&
-    purchaseId;
+  // const canAddProducts =
+  //   selectedSupplier &&
+  //   invoiceNumber &&
+  //   invoiceNumber.trim() !== "" &&
+  //   invoiceDate &&
+  //   placeOfSupply &&
+  //   placeOfSupply.trim() !== "" &&
+  //   reverseCharge &&
+  //   purchaseId;
 
   // Add product from selection dialog
   const handleAddSelectedProduct = async (product: any) => {
