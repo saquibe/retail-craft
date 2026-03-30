@@ -109,63 +109,149 @@ export const usePurchaseStore = () => {
   ]);
 
   // Create purchase ONLY when ALL required fields are filled
-  useEffect(() => {
-    const createPurchaseWhenReady = async () => {
-      const hasAllFields =
-        selectedSupplier &&
-        invoiceNumber &&
-        invoiceNumber.trim() !== "" &&
-        invoiceDate &&
-        placeOfSupply &&
-        placeOfSupply.trim() !== "" &&
-        reverseCharge;
+  // useEffect(() => {
+  //   const createPurchaseWhenReady = async () => {
+  //     const hasAllFields =
+  //       selectedSupplier &&
+  //       invoiceNumber &&
+  //       invoiceNumber.trim() !== "" &&
+  //       invoiceDate &&
+  //       placeOfSupply &&
+  //       placeOfSupply.trim() !== "" &&
+  //       reverseCharge;
 
-      if (hasAllFields && !purchaseId && !isCreating && !isLoading) {
-        setIsCreating(true);
-        setIsLoading(true);
+  //     if (hasAllFields && !purchaseId && !isCreating && !isLoading) {
+  //       setIsCreating(true);
+  //       setIsLoading(true);
 
-        try {
-          const response = await createPurchase({
-            supplierId: selectedSupplier._id,
-            invoiceNumber: invoiceNumber,
-            invoiceDate: invoiceDate,
-            placeOfSupply: placeOfSupply,
-            reverseCharge: reverseCharge,
-          });
+  //       try {
+  //         const response = await createPurchase({
+  //           supplierId: selectedSupplier._id,
+  //           invoiceNumber: invoiceNumber,
+  //           invoiceDate: invoiceDate,
+  //           placeOfSupply: placeOfSupply,
+  //           reverseCharge: reverseCharge,
+  //         });
 
-          if (response.success && response.data) {
-            setPurchaseId(response.data._id);
-            setPurchaseData(response.data);
-            toast.success("Purchase session created");
-          } else {
-            toast.error(response.message || "Failed to create purchase");
-          }
-        } catch (error: any) {
-          console.error("🔴 [STORE] Error creating purchase:", error);
-          if (
-            error.response?.status === 400 &&
-            error.response?.data?.message?.includes(
-              "Invoice number already exists",
-            )
-          ) {
-            toast.error(
-              `Invoice number "${invoiceNumber}" already exists. Please use a different invoice number.`,
-            );
-            setInvoiceNumber("");
-          } else {
-            toast.error(
-              error.response?.data?.message ||
-                "Failed to create purchase session",
-            );
-          }
-        } finally {
-          setIsCreating(false);
-          setIsLoading(false);
-        }
+  //         if (response.success && response.data) {
+  //           setPurchaseId(response.data._id);
+  //           setPurchaseData(response.data);
+  //           toast.success("Purchase session created");
+  //         } else {
+  //           toast.error(response.message || "Failed to create purchase");
+  //         }
+  //       } catch (error: any) {
+  //         console.error("🔴 [STORE] Error creating purchase:", error);
+  //         if (
+  //           error.response?.status === 400 &&
+  //           error.response?.data?.message?.includes(
+  //             "Invoice number already exists",
+  //           )
+  //         ) {
+  //           toast.error(
+  //             `Invoice number "${invoiceNumber}" already exists. Please use a different invoice number.`,
+  //           );
+  //           setInvoiceNumber("");
+  //         } else {
+  //           toast.error(
+  //             error.response?.data?.message ||
+  //               "Failed to create purchase session",
+  //           );
+  //         }
+  //       } finally {
+  //         setIsCreating(false);
+  //         setIsLoading(false);
+  //       }
+  //     }
+  //   };
+
+  //   createPurchaseWhenReady();
+  // }, [
+  //   selectedSupplier,
+  //   invoiceNumber,
+  //   invoiceDate,
+  //   placeOfSupply,
+  //   reverseCharge,
+  //   purchaseId,
+  //   isCreating,
+  //   isLoading,
+  // ]);
+
+  // Add this function to usePurchaseStore
+  const createPurchaseSession = useCallback(async () => {
+    // Validate all fields
+    if (!selectedSupplier) {
+      toast.error("Please select a supplier");
+      return false;
+    }
+
+    if (!invoiceNumber || invoiceNumber.trim() === "") {
+      toast.error("Please enter invoice number");
+      return false;
+    }
+
+    if (!invoiceDate) {
+      toast.error("Please select invoice date");
+      return false;
+    }
+
+    if (!placeOfSupply || placeOfSupply.trim() === "") {
+      toast.error("Please enter place of supply");
+      return false;
+    }
+
+    if (!reverseCharge) {
+      toast.error("Please select reverse charge");
+      return false;
+    }
+
+    // Check if already has purchaseId
+    if (purchaseId) {
+      toast("Purchase session already created");
+      return true;
+    }
+
+    setIsCreating(true);
+    setIsLoading(true);
+
+    try {
+      const response = await createPurchase({
+        supplierId: selectedSupplier._id,
+        invoiceNumber: invoiceNumber,
+        invoiceDate: invoiceDate,
+        placeOfSupply: placeOfSupply,
+        reverseCharge: reverseCharge,
+      });
+
+      if (response.success && response.data) {
+        setPurchaseId(response.data._id);
+        setPurchaseData(response.data);
+        toast.success("Purchase session created");
+        return true;
+      } else {
+        toast.error(response.message || "Failed to create purchase");
+        return false;
       }
-    };
-
-    createPurchaseWhenReady();
+    } catch (error: any) {
+      console.error("🔴 [STORE] Error creating purchase:", error);
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.message?.includes("Invoice number already exists")
+      ) {
+        toast.error(
+          `Invoice number "${invoiceNumber}" already exists. Please use a different invoice number.`,
+        );
+        setInvoiceNumber("");
+      } else {
+        toast.error(
+          error.response?.data?.message || "Failed to create purchase session",
+        );
+      }
+      return false;
+    } finally {
+      setIsCreating(false);
+      setIsLoading(false);
+    }
   }, [
     selectedSupplier,
     invoiceNumber,
@@ -173,8 +259,6 @@ export const usePurchaseStore = () => {
     placeOfSupply,
     reverseCharge,
     purchaseId,
-    isCreating,
-    isLoading,
   ]);
 
   // Clear session - ALWAYS delete the draft from database
@@ -483,6 +567,7 @@ export const usePurchaseStore = () => {
     isLoading,
     purchaseData,
     totals,
+    isCreating,
     setSelectedSupplier: updateSupplier,
     setInvoiceNumber,
     setInvoiceDate,
@@ -494,5 +579,6 @@ export const usePurchaseStore = () => {
     removeProduct,
     completePurchaseInvoice,
     clearSession,
+    createPurchaseSession,
   };
 };

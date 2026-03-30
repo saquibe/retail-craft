@@ -65,6 +65,7 @@ export default function PurchasesPage() {
     isLoading,
     totals,
     discount,
+    isCreating,
     setSelectedSupplier,
     setInvoiceNumber,
     setInvoiceDate,
@@ -76,6 +77,7 @@ export default function PurchasesPage() {
     removeProduct,
     completePurchaseInvoice,
     clearSession,
+    createPurchaseSession,
   } = usePurchaseStore();
 
   // Local state
@@ -194,7 +196,18 @@ export default function PurchasesPage() {
     invoiceDate &&
     placeOfSupply &&
     placeOfSupply.trim() !== "" &&
-    reverseCharge;
+    reverseCharge &&
+    purchaseId;
+
+  const canAddProducts =
+    selectedSupplier &&
+    invoiceNumber &&
+    invoiceNumber.trim() !== "" &&
+    invoiceDate &&
+    placeOfSupply &&
+    placeOfSupply.trim() !== "" &&
+    reverseCharge &&
+    purchaseId;
 
   // Add product from selection dialog
   const handleAddSelectedProduct = async (product: any) => {
@@ -687,27 +700,93 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              {/* Required Message */}
+              {selectedSupplier &&
+                invoiceNumber &&
+                invoiceDate &&
+                placeOfSupply &&
+                reverseCharge &&
+                !purchaseId && (
+                  <div className="pt-4">
+                    <Button
+                      className="w-full"
+                      onClick={async () => {
+                        const success = await createPurchaseSession();
+                        if (success) {
+                          toast.success(
+                            "Session created! You can now add products.",
+                          );
+                          // Focus on barcode input
+                          setTimeout(() => {
+                            barcodeInputRef.current?.focus();
+                          }, 100);
+                        }
+                      }}
+                      disabled={isLoading || isCreating}
+                    >
+                      {isLoading || isCreating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating Session...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Create Purchase Session
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+              {/* Show message when all fields are filled but session not created */}
+              {selectedSupplier &&
+                invoiceNumber &&
+                invoiceDate &&
+                placeOfSupply &&
+                reverseCharge &&
+                !purchaseId &&
+                !isLoading && (
+                  <div className="flex items-center gap-2 text-blue-600 bg-blue-50 p-3 rounded-lg">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <p className="text-sm">
+                      All details filled. Click "Create Purchase Session" to
+                      start adding products.
+                    </p>
+                  </div>
+                )}
+
+              {/* Show session created message */}
+              {purchaseId && (
+                <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                  <Check className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-sm">
+                    Purchase session active. You can now add products.
+                  </p>
+                </div>
+              )}
+
+              {/* Required Message - Update this section */}
               {(!selectedSupplier ||
                 !invoiceNumber ||
                 !invoiceDate ||
                 !placeOfSupply ||
-                !reverseCharge) && (
-                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <p className="text-sm">
-                    {!selectedSupplier
-                      ? "Please select a supplier to start"
-                      : !invoiceNumber
-                      ? "Please enter invoice number"
-                      : !invoiceDate
-                      ? "Please select invoice date"
-                      : !placeOfSupply
-                      ? "Please enter place of supply"
-                      : "Please select reverse charge"}
-                  </p>
-                </div>
-              )}
+                !reverseCharge) &&
+                !purchaseId && (
+                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <p className="text-sm">
+                      {!selectedSupplier
+                        ? "Please select a supplier to start"
+                        : !invoiceNumber
+                        ? "Please enter invoice number"
+                        : !invoiceDate
+                        ? "Please select invoice date"
+                        : !placeOfSupply
+                        ? "Please enter place of supply"
+                        : "Please select reverse charge"}
+                    </p>
+                  </div>
+                )}
             </CardContent>
           </Card>
 
