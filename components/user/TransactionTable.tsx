@@ -21,7 +21,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-interface Transaction {
+export interface Transaction {
   id: string;
   customerName?: string;
   supplierName?: string;
