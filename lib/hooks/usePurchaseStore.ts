@@ -226,7 +226,7 @@ export const usePurchaseStore = () => {
       if (response.success && response.data) {
         setPurchaseId(response.data._id);
         setPurchaseData(response.data);
-        toast.success("Purchase session created");
+        // toast.success("Purchase session created");
         return true;
       } else {
         toast.error(response.message || "Failed to create purchase");

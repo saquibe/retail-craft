@@ -53,7 +53,7 @@ const SIZE_OPTIONS = [
 // Define the product schema
 const productSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
-  itemCode: z.string().optional().default(""),
+  itemCode: z.string().min(1, "Item code is required"),
   barCode: z.string().min(1, "Barcode is required"),
   color: z.string().min(1, "Color is required"),
   size: z.enum([
@@ -81,7 +81,7 @@ const productSchema = z.object({
     .min(0, "Quantity cannot be negative")
     .optional()
     .default(0),
-  hsnCode: z.string().optional().default(""),
+  hsnCode: z.string().min(1, "HSN code is required"),
   salesTax: z.coerce.number().min(0, "Sales tax must be a positive number"),
   purchaseTax: z.coerce
     .number()
@@ -156,12 +156,11 @@ export default function ProductForm({
               Product Name *
             </label>
             <div className="relative">
-              <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              {/* <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
               <Input
                 {...register("productName")}
                 error={errors.productName?.message}
                 placeholder="Enter product name"
-                className="pl-10"
               />
             </div>
           </div>
@@ -169,15 +168,14 @@ export default function ProductForm({
           {/* Item Code */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Item Code
+              Item Code *
             </label>
             <div className="relative">
-              <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              {/* <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
               <Input
                 {...register("itemCode")}
                 error={errors.itemCode?.message}
-                placeholder="Enter item code (optional)"
-                className="pl-10"
+                placeholder="Enter item code"
               />
             </div>
           </div>
@@ -188,12 +186,11 @@ export default function ProductForm({
               Barcode *
             </label>
             <div className="relative">
-              <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              {/* <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
               <Input
                 {...register("barCode")}
                 error={errors.barCode?.message}
                 placeholder="Enter barcode"
-                className="pl-10"
               />
             </div>
           </div>
@@ -204,12 +201,11 @@ export default function ProductForm({
               Color *
             </label>
             <div className="relative">
-              <Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              {/* <Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
               <Input
                 {...register("color")}
                 error={errors.color?.message}
                 placeholder="Enter color (e.g., Red, Blue, Black)"
-                className="pl-10"
               />
             </div>
           </div>
@@ -248,15 +244,14 @@ export default function ProductForm({
           {/* HSN Code */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              HSN Code
+              HSN Code *
             </label>
             <div className="relative">
-              <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              {/* <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
               <Input
                 {...register("hsnCode")}
                 error={errors.hsnCode?.message}
-                placeholder="Enter HSN code (optional)"
-                className="pl-10"
+                placeholder="Enter HSN code"
               />
             </div>
           </div>
@@ -371,7 +366,6 @@ export default function ProductForm({
               error={errors.shortDescription?.message}
               placeholder="Enter a brief description of the product (optional)"
               rows={3}
-              className="pl-10"
             />
           </div>
         </div>

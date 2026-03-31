@@ -702,7 +702,7 @@ export default function PurchasesPage() {
                 !purchaseId && (
                   <div className="pt-4">
                     <Button
-                      className="w-full"
+                      className="w-full cursor-pointer"
                       onClick={async () => {
                         const success = await createPurchaseSession();
                         if (success) {
