@@ -57,6 +57,7 @@ import {
 } from "@/lib/api/billing";
 import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
 import { CompletedBillings } from "@/components/billing/CompletedBillings";
+import BillingPageSkeleton from "@/components/skeletons/BillingPageSkeleton";
 
 interface BillingItem extends Product {
   cartQuantity: number;
@@ -465,14 +466,7 @@ export default function BillingPage() {
 
   // Show loading while restoring session
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Restoring your session...</p>
-        </div>
-      </div>
-    );
+    return <BillingPageSkeleton />;
   }
 
   return (

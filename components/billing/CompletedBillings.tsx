@@ -45,6 +45,7 @@ import {
 import { getCompletedBillings, Billing } from "@/lib/api/billing";
 import { ThermalInvoice } from "./ThermalInvoice";
 import toast from "react-hot-toast";
+import CompletedBillingsSkeleton from "../skeletons/CompletedBillingsSkeleton";
 
 interface CompletedBillingsProps {
   isOpen?: boolean;
@@ -228,9 +229,7 @@ export function CompletedBillings({
 
           {/* Billings Table */}
           {isLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-            </div>
+            <CompletedBillingsSkeleton rows={6} />
           ) : filteredBillings.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-20" />

@@ -1,3 +1,4 @@
+//app/(dashboard)/user/purchases/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -47,6 +48,7 @@ import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
 import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
 import { getProducts, Product, searchProducts } from "@/lib/api/products";
+import PurchasePageSkeleton from "@/components/skeletons/PurchasePageSkeleton";
 
 export default function PurchasesPage() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -416,14 +418,7 @@ export default function PurchasesPage() {
 
   // Show loading while restoring session
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Restoring your session...</p>
-        </div>
-      </div>
-    );
+    return <PurchasePageSkeleton />;
   }
 
   return (

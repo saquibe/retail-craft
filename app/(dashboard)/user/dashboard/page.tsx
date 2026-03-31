@@ -8,6 +8,7 @@ import { useDashboard } from "@/lib/hooks/useDashboard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardStatsGrid } from "@/components/dashboard/DashboardStatsGrid";
 import { Loader2 } from "lucide-react";
+import UserDashboardSkeleton from "@/components/skeletons/UserDashboardSkeleton";
 
 export default function UserDashboardPage() {
   const { user } = useAuth();
@@ -38,14 +39,7 @@ export default function UserDashboardPage() {
   };
 
   if (loading || !dashboardData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <UserDashboardSkeleton />;
   }
 
   const { stats, receivables, payables } = dashboardData;

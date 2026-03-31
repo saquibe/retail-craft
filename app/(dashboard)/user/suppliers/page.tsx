@@ -1,3 +1,4 @@
+//app/(dashboard)/user/suppliers/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -51,6 +52,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import SuppliersSkeleton from "@/components/skeletons/SuppliersSkeleton";
 
 export default function SuppliersPage() {
   const { user } = useAuth();
@@ -184,9 +186,7 @@ export default function SuppliersPage() {
 
       {/* Suppliers Grid */}
       {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
+        <SuppliersSkeleton count={6} />
       ) : filteredSuppliers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

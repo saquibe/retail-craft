@@ -46,6 +46,7 @@ import { getCompletedPurchases, PurchaseInvoice } from "@/lib/api/purchases";
 import { PurchaseInvoicePrint } from "./PurchaseInvoicePrint";
 import toast from "react-hot-toast";
 import React from "react";
+import CompletedBillingsSkeleton from "../skeletons/CompletedBillingsSkeleton";
 
 interface CompletedPurchasesProps {
   isOpen?: boolean;
@@ -223,9 +224,7 @@ export function CompletedPurchases({
 
           {/* Purchases Table */}
           {isLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-            </div>
+            <CompletedBillingsSkeleton rows={6} />
           ) : filteredPurchases.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-20" />

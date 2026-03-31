@@ -20,6 +20,7 @@ import {
   Mail,
   Building2,
 } from "lucide-react";
+import ProfilePageSkeleton from "@/components/skeletons/ProfilePageSkeleton";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -208,11 +209,7 @@ export default function UserProfile() {
   };
 
   if (isFetching) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <ProfilePageSkeleton />;
   }
 
   const branchInfo = getBranchInfo();

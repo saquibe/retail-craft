@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import CustomersSkeleton from "@/components/skeletons/CustomersSkeleton";
 
 export default function CustomersPage() {
   const { user } = useAuth();
@@ -216,9 +217,7 @@ export default function CustomersPage() {
 
       {/* Customers Grid */}
       {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
+        <CustomersSkeleton />
       ) : filteredCustomers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

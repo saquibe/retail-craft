@@ -1,3 +1,4 @@
+//app/(dashboard)/user/products/page.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -70,6 +71,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ProductsSkeleton from "@/components/skeletons/ProductsSkeleton";
 
 // Size colors for visual distinction
 const SIZE_COLORS: Record<string, string> = {
@@ -427,9 +429,7 @@ export default function ProductsPage() {
 
       {/* Products Grid */}
       {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
+        <ProductsSkeleton count={itemsPerPage} />
       ) : filteredProducts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
