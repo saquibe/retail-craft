@@ -1,4 +1,3 @@
-//app/(dashboard)/user/purchases/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -39,6 +38,7 @@ import {
   Calendar,
   MapPin,
   Repeat,
+  Layers,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getSuppliers, Supplier } from "@/lib/api/suppliers";
@@ -66,6 +66,7 @@ export default function PurchasesPage() {
     isLoading,
     totals,
     discount,
+    freightCharge,
     isCreating,
     setSelectedSupplier,
     setInvoiceNumber,
@@ -73,6 +74,7 @@ export default function PurchasesPage() {
     setPlaceOfSupply,
     setReverseCharge,
     setDiscount,
+    setFreightCharge,
     scanBarcode,
     updateQuantity,
     removeProduct,
@@ -101,7 +103,9 @@ export default function PurchasesPage() {
   const [showProductSelectionDialog, setShowProductSelectionDialog] =
     useState(false);
   const [selectedBarcode, setSelectedBarcode] = useState("");
-  const [freightCharge, setFreightCharge] = useState(0);
+  const [showBulkAddDialog, setShowBulkAddDialog] = useState(false);
+  const [bulkQuantity, setBulkQuantity] = useState(1);
+  const [bulkProduct, setBulkProduct] = useState<Product | null>(null);
 
   // Load suppliers and products on mount
   useEffect(() => {
@@ -201,16 +205,6 @@ export default function PurchasesPage() {
     reverseCharge &&
     purchaseId;
 
-  // const canAddProducts =
-  //   selectedSupplier &&
-  //   invoiceNumber &&
-  //   invoiceNumber.trim() !== "" &&
-  //   invoiceDate &&
-  //   placeOfSupply &&
-  //   placeOfSupply.trim() !== "" &&
-  //   reverseCharge &&
-  //   purchaseId;
-
   // Add product from selection dialog
   const handleAddSelectedProduct = async (product: any) => {
     if (!selectedSupplier) {
@@ -239,6 +233,38 @@ export default function PurchasesPage() {
       }
     } catch (error: any) {
       console.error("🔴 [PAGE] Error adding selected product:", error);
+      toast.error(error.response?.data?.message || "Failed to add product");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Handle bulk add
+  const handleBulkAdd = async () => {
+    if (!bulkProduct) return;
+
+    setIsScanning(true);
+    try {
+      const result = await scanBarcode(
+        bulkProduct.barCode,
+        bulkQuantity,
+        bulkProduct._id,
+      );
+
+      if (result === true) {
+        toast.success(
+          `${bulkQuantity} x ${bulkProduct.productName} added to purchase`,
+        );
+        setShowBulkAddDialog(false);
+        setBulkQuantity(1);
+        setBulkProduct(null);
+        setSearchTerm("");
+        setShowSearchResults(false);
+      } else {
+        toast.error("Failed to add product");
+      }
+    } catch (error: any) {
+      console.error("Error in bulk add:", error);
       toast.error(error.response?.data?.message || "Failed to add product");
     } finally {
       setIsScanning(false);
@@ -487,7 +513,7 @@ export default function PurchasesPage() {
                     disabled={!!selectedSupplier}
                   />
 
-                  {/* Search Results Dropdown - Improved width */}
+                  {/* Search Results Dropdown */}
                   {showSupplierResults &&
                     supplierSearch.trim() !== "" &&
                     !selectedSupplier && (
@@ -711,7 +737,6 @@ export default function PurchasesPage() {
                           toast.success(
                             "Session created! You can now add products.",
                           );
-                          // Focus on barcode input
                           setTimeout(() => {
                             barcodeInputRef.current?.focus();
                           }, 100);
@@ -761,7 +786,7 @@ export default function PurchasesPage() {
                 </div>
               )}
 
-              {/* Required Message - Update this section */}
+              {/* Required Message */}
               {(!selectedSupplier ||
                 !invoiceNumber ||
                 !invoiceDate ||
@@ -786,7 +811,7 @@ export default function PurchasesPage() {
             </CardContent>
           </Card>
 
-          {/* Combined Search & Scan Card - Fixed width dropdown */}
+          {/* Combined Search & Scan Card */}
           <Card className={`${!allDetailsFilled ? "opacity-50" : ""}`}>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -838,7 +863,7 @@ export default function PurchasesPage() {
                   </Button>
                 </div>
 
-                {/* Search Results Dropdown - Fixed width to match input */}
+                {/* Search Results Dropdown */}
                 {showSearchResults &&
                   allDetailsFilled &&
                   searchTerm.trim() !== "" && (
@@ -852,7 +877,6 @@ export default function PurchasesPage() {
                           <div
                             key={product._id}
                             className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => handleSearchResultClick(product)}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
@@ -893,15 +917,52 @@ export default function PurchasesPage() {
                                 <div className="text-sm font-medium text-indigo-600">
                                   ₹{product.purchasePrice}
                                 </div>
+                                <div className="flex gap-1 mt-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setBulkProduct(product);
+                                      setShowBulkAddDialog(true);
+                                      setShowSearchResults(false);
+                                    }}
+                                    className="h-7 text-xs"
+                                  >
+                                    <Layers className="w-3 h-3 mr-1" />
+                                    Bulk
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      handleSearchResultClick(product)
+                                    }
+                                    className="h-7 text-xs"
+                                  >
+                                    Add
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
                         ))
                       ) : (
                         <div className="p-4 text-center">
-                          <p className="text-gray-500 break-words">
+                          <p className="text-gray-500 mb-2 break-words">
                             No products found matching "{searchTerm}"
                           </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setScannedBarcode(searchTerm);
+                              setShowCreateProductDialog(true);
+                              setShowSearchResults(false);
+                            }}
+                            className="text-indigo-600 border-indigo-200"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create New Product
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -909,7 +970,8 @@ export default function PurchasesPage() {
               </div>
               <p className="text-xs text-gray-500 mt-2">
                 Type to search by name/barcode or scan barcode. If multiple
-                products found, you'll be prompted to select one.
+                products found, you'll be prompted to select one. Click "Bulk"
+                to add multiple quantities at once.
               </p>
             </CardContent>
           </Card>
@@ -1022,26 +1084,13 @@ export default function PurchasesPage() {
                               {item.taxPercent}%
                             </TableCell>
                             <TableCell className="text-right">
-                              ₹
-                              {(
-                                (item.purchasePrice *
-                                  item.quantity *
-                                  item.taxPercent) /
-                                100
-                              ).toFixed(2)}
+                              ₹{taxAmount.toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
-                              ₹{(item.purchasePrice * item.quantity).toFixed(2)}
+                              ₹{baseAmount.toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              ₹
-                              {(
-                                item.purchasePrice * item.quantity +
-                                (item.purchasePrice *
-                                  item.quantity *
-                                  item.taxPercent) /
-                                  100
-                              ).toFixed(2)}
+                              ₹{totalAmount.toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -1072,7 +1121,7 @@ export default function PurchasesPage() {
               <CardTitle className="text-lg">Purchase Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Price Breakdown - Add discount and freight inputs */}
+              {/* Price Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
@@ -1110,9 +1159,9 @@ export default function PurchasesPage() {
                   </div>
                   {discount > 0 && (
                     <div className="text-right">
-                      {/* <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600">
                         Discount Amt:
-                      </span> */}
+                      </span>
                       <span className="ml-2 font-medium text-red-600">
                         -₹{((totals.grandTotal * discount) / 100).toFixed(2)}
                       </span>
@@ -1144,7 +1193,7 @@ export default function PurchasesPage() {
                   </div>
                   {freightCharge > 0 && (
                     <div className="text-right">
-                      {/* <span className="text-sm text-gray-600">Added:</span> */}
+                      <span className="text-sm text-gray-600">Added:</span>
                       <span className="ml-2 font-medium text-blue-600">
                         +₹{freightCharge.toFixed(2)}
                       </span>
@@ -1206,11 +1255,13 @@ export default function PurchasesPage() {
           </Card>
         </div>
       </div>
+
       {/* Completed Purchases Section */}
       <CompletedPurchases
         isOpen={showCompletedPurchases}
         onToggle={() => setShowCompletedPurchases(!showCompletedPurchases)}
       />
+
       {/* New Supplier Dialog */}
       <Dialog
         open={showNewSupplierDialog}
@@ -1305,6 +1356,113 @@ export default function PurchasesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Add Dialog */}
+      <Dialog open={showBulkAddDialog} onOpenChange={setShowBulkAddDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Add Multiple Quantities</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="text-center">
+              <p className="text-lg font-medium">{bulkProduct?.productName}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Price: ₹{bulkProduct?.purchasePrice}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Quantity:</label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setBulkQuantity(Math.max(1, bulkQuantity - 1))}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Input
+                  type="number"
+                  min="1"
+                  value={bulkQuantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val) && val > 0) {
+                      setBulkQuantity(val);
+                    } else if (e.target.value === "") {
+                      setBulkQuantity(1);
+                    }
+                  }}
+                  className="flex-1 text-center text-lg"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => setBulkQuantity(bulkQuantity + 1)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                Use +/- buttons or type quantity directly
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal:</span>
+                <span>
+                  ₹
+                  {((bulkProduct?.purchasePrice || 0) * bulkQuantity).toFixed(
+                    2,
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span>Tax ({bulkProduct?.purchaseTax || 0}%):</span>
+                <span>
+                  ₹
+                  {(
+                    ((bulkProduct?.purchasePrice || 0) *
+                      bulkQuantity *
+                      (bulkProduct?.purchaseTax || 0)) /
+                    100
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between font-bold mt-2 pt-2 border-t">
+                <span>Total:</span>
+                <span className="text-indigo-600">
+                  ₹
+                  {(
+                    (bulkProduct?.purchasePrice || 0) * bulkQuantity +
+                    ((bulkProduct?.purchasePrice || 0) *
+                      bulkQuantity *
+                      (bulkProduct?.purchaseTax || 0)) /
+                      100
+                  ).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowBulkAddDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleBulkAdd}>
+                Add {bulkQuantity} Items
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Product Dialog */}
       <CreateProductDialog
         open={showCreateProductDialog}
