@@ -11,6 +11,7 @@ import {
   FiUser,
   FiX,
   FiCreditCard,
+  FiActivity,
 } from "react-icons/fi";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -25,6 +26,7 @@ const userMenuItems = [
   { name: "Dashboard", href: "/user/dashboard", icon: FiHome },
   { name: "Customers", href: "/user/customers", icon: FiUsers },
   { name: "Products", href: "/user/products", icon: FiPackage },
+  { name: "Inventory", href: "/user/inventory", icon: FiActivity },
   { name: "Billing to Customer", href: "/user/billing", icon: FiCreditCard },
   { name: "Suppliers", href: "/user/suppliers", icon: FiUsers },
   {
