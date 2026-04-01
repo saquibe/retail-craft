@@ -101,6 +101,7 @@ export default function PurchasesPage() {
   const [showProductSelectionDialog, setShowProductSelectionDialog] =
     useState(false);
   const [selectedBarcode, setSelectedBarcode] = useState("");
+  const [freightCharge, setFreightCharge] = useState(0);
 
   // Load suppliers and products on mount
   useEffect(() => {
@@ -390,10 +391,11 @@ export default function PurchasesPage() {
       return;
     }
 
-    const success = await completePurchaseInvoice(discount);
+    const success = await completePurchaseInvoice(discount, freightCharge);
     if (success) {
       setQuantity(1);
       setDiscount(0);
+      setFreightCharge(0);
     }
   };
 
@@ -961,9 +963,9 @@ export default function PurchasesPage() {
                       {items.map((item) => {
                         const priceWithQty = item.purchasePrice * item.quantity;
                         const taxAmount =
-                          (priceWithQty * item.taxPercent) /
-                          (100 + item.taxPercent);
-                        const baseAmount = priceWithQty - taxAmount;
+                          (priceWithQty * item.taxPercent) / 100;
+                        const baseAmount = priceWithQty;
+                        const totalAmount = priceWithQty + taxAmount;
 
                         return (
                           <TableRow key={item.productId}>
@@ -1020,13 +1022,26 @@ export default function PurchasesPage() {
                               {item.taxPercent}%
                             </TableCell>
                             <TableCell className="text-right">
-                              ₹{taxAmount.toFixed(2)}
+                              ₹
+                              {(
+                                (item.purchasePrice *
+                                  item.quantity *
+                                  item.taxPercent) /
+                                100
+                              ).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
-                              ₹{baseAmount.toFixed(2)}
+                              ₹{(item.purchasePrice * item.quantity).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              ₹{priceWithQty.toFixed(2)}
+                              ₹
+                              {(
+                                item.purchasePrice * item.quantity +
+                                (item.purchasePrice *
+                                  item.quantity *
+                                  item.taxPercent) /
+                                  100
+                              ).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -1057,7 +1072,7 @@ export default function PurchasesPage() {
               <CardTitle className="text-lg">Purchase Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Price Breakdown - Add discount input */}
+              {/* Price Breakdown - Add discount and freight inputs */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
@@ -1072,7 +1087,7 @@ export default function PurchasesPage() {
                   </span>
                 </div>
 
-                {/* ADD DISCOUNT SECTION */}
+                {/* DISCOUNT SECTION */}
                 <div className="flex justify-between items-center gap-4 pt-2">
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-sm text-gray-600">Discount (%):</span>
@@ -1095,11 +1110,43 @@ export default function PurchasesPage() {
                   </div>
                   {discount > 0 && (
                     <div className="text-right">
-                      <span className="text-sm text-gray-600">
+                      {/* <span className="text-sm text-gray-600">
                         Discount Amt:
-                      </span>
+                      </span> */}
                       <span className="ml-2 font-medium text-red-600">
                         -₹{((totals.grandTotal * discount) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* FREIGHT CHARGE SECTION */}
+                <div className="flex justify-between items-center gap-4 pt-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-sm text-gray-600">
+                      Freight Charge:
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={freightCharge}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val >= 0) {
+                          setFreightCharge(val);
+                        }
+                      }}
+                      className="w-24 h-8 text-sm"
+                      disabled={items.length === 0}
+                    />
+                    <span className="text-sm text-gray-500">₹</span>
+                  </div>
+                  {freightCharge > 0 && (
+                    <div className="text-right">
+                      {/* <span className="text-sm text-gray-600">Added:</span> */}
+                      <span className="ml-2 font-medium text-blue-600">
+                        +₹{freightCharge.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -1112,7 +1159,8 @@ export default function PurchasesPage() {
                     ₹
                     {(
                       totals.grandTotal -
-                      (totals.grandTotal * discount) / 100
+                      (totals.grandTotal * discount) / 100 +
+                      freightCharge
                     ).toFixed(2)}
                   </span>
                 </div>

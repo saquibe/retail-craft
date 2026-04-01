@@ -249,6 +249,9 @@ export function CompletedPurchases({
                       <TableHead>Supplier</TableHead>
                       <TableHead>Items</TableHead>
                       <TableHead className="text-right">Total Amount</TableHead>
+                      <TableHead className="text-right">
+                        Freight Charges
+                      </TableHead>
                       <TableHead className="text-right">Discount</TableHead>
                       <TableHead className="text-right">Final Amount</TableHead>
                       <TableHead>Place of Supply</TableHead>
@@ -310,13 +313,25 @@ export function CompletedPurchases({
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {purchase.discount && purchase.discount > 0 ? (
-                              <span className="text-gray-400">
+                              <span className="text-gray-400 line-through">
                                 {formatCurrency(purchase.grandTotal)}
                               </span>
                             ) : (
                               <span className="text-indigo-600">
                                 {formatCurrency(purchase.grandTotal)}
                               </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {purchase.freightCharge &&
+                            purchase.freightCharge > 0 ? (
+                              <div>
+                                <span className="text-sm font-medium text-blue-600">
+                                  +{formatCurrency(purchase.freightCharge)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -342,9 +357,12 @@ export function CompletedPurchases({
                                     purchase.finalTotal || purchase.grandTotal,
                                   )}
                                 </span>
-                                {/* <div className="text-xs text-gray-400">
-                                  {formatCurrency(purchase.grandTotal)}
-                                </div> */}
+                                {purchase.freightCharge &&
+                                  purchase.freightCharge > 0 && (
+                                    <div className="text-xs text-blue-600">
+                                      (Incl. freight)
+                                    </div>
+                                  )}
                               </div>
                             ) : (
                               <span className="text-gray-600">
@@ -482,6 +500,22 @@ export function CompletedPurchases({
                                       </span>
                                     </div>
 
+                                    {/* Freight Charge Section */}
+                                    {purchase.freightCharge &&
+                                      purchase.freightCharge > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-600">
+                                            Freight Charge:
+                                          </span>
+                                          <span className="text-blue-600 font-medium">
+                                            +₹
+                                            {purchase.freightCharge?.toFixed(
+                                              2,
+                                            ) || "0.00"}
+                                          </span>
+                                        </div>
+                                      )}
+
                                     {/* Discount Section */}
                                     {purchase.discount &&
                                     purchase.discount > 0 ? (
@@ -499,7 +533,8 @@ export function CompletedPurchases({
                                         </div>
                                         <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
                                           <span className="text-gray-800">
-                                            Final Amount (After Discount):
+                                            Final Amount (After Discount &
+                                            Freight):
                                           </span>
                                           <span className="text-green-600 text-lg">
                                             ₹

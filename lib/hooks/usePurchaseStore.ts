@@ -20,7 +20,8 @@ interface PurchaseSession {
   invoiceDate: string;
   placeOfSupply: string;
   reverseCharge: string;
-  discount: number; // ADD THIS
+  discount: number;
+  freightCharge: number;
   purchaseId?: string;
   lastUpdated: string;
 }
@@ -46,6 +47,7 @@ export const usePurchaseStore = () => {
   );
   const [isCreating, setIsCreating] = useState(false);
   const [discount, setDiscount] = useState(0);
+  const [freightCharge, setFreightCharge] = useState(0);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -59,7 +61,8 @@ export const usePurchaseStore = () => {
         setInvoiceDate(session.invoiceDate || format(new Date(), "yyyy-MM-dd"));
         setPlaceOfSupply(session.placeOfSupply || "");
         setReverseCharge(session.reverseCharge || "No");
-        setDiscount(session.discount || 0); // ADD THIS
+        setDiscount(session.discount || 0);
+        setFreightCharge(session.freightCharge || 0);
         setPurchaseId(session.purchaseId);
       } catch (error) {
         console.error("🔴 [STORE] Error loading purchase session:", error);
@@ -79,7 +82,8 @@ export const usePurchaseStore = () => {
       invoiceDate,
       placeOfSupply,
       reverseCharge,
-      discount, // ADD THIS
+      discount,
+      freightCharge,
       purchaseId,
       lastUpdated: new Date().toISOString(),
     };
@@ -90,7 +94,8 @@ export const usePurchaseStore = () => {
       invoiceNumber ||
       invoiceDate ||
       placeOfSupply ||
-      discount > 0 // ADD THIS
+      discount > 0 ||
+      freightCharge > 0
     ) {
       localStorage.setItem(PURCHASE_SESSION_KEY, JSON.stringify(session));
     } else {
@@ -103,7 +108,8 @@ export const usePurchaseStore = () => {
     invoiceDate,
     placeOfSupply,
     reverseCharge,
-    discount, // ADD THIS to dependencies
+    discount,
+    freightCharge,
     purchaseId,
     isLoaded,
   ]);
@@ -285,7 +291,8 @@ export const usePurchaseStore = () => {
     setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
     setPlaceOfSupply("");
     setReverseCharge("No");
-    setDiscount(0); // ADD THIS
+    setDiscount(0);
+    setFreightCharge(0);
     setPurchaseId(undefined);
     setPurchaseData(null);
     setIsCreating(false);
@@ -315,7 +322,8 @@ export const usePurchaseStore = () => {
         setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
         setPlaceOfSupply("");
         setReverseCharge("No");
-        setDiscount(0); // ADD THIS
+        setDiscount(0);
+        setFreightCharge(0);
       }
     },
     [purchaseId, items],
@@ -461,7 +469,10 @@ export const usePurchaseStore = () => {
 
   // Complete purchase - ADD DISCOUNT PARAMETER
   const completePurchaseInvoice = useCallback(
-    async (discountPercentage: number = 0): Promise<boolean> => {
+    async (
+      discountPercentage: number = 0,
+      freightChargeValue: number = 0,
+    ): Promise<boolean> => {
       if (!purchaseId) {
         toast.error("No active purchase session");
         return false;
@@ -493,7 +504,11 @@ export const usePurchaseStore = () => {
 
       setIsLoading(true);
       try {
-        const response = await completePurchase(purchaseId, discountPercentage);
+        const response = await completePurchase(
+          purchaseId,
+          discountPercentage,
+          freightChargeValue,
+        );
         if (response.success) {
           toast.success("Purchase invoice completed successfully");
 
@@ -505,6 +520,7 @@ export const usePurchaseStore = () => {
           setPlaceOfSupply("");
           setReverseCharge("No");
           setDiscount(0);
+          setFreightCharge(0); // ADD THIS
           setPurchaseId(undefined);
           setPurchaseData(null);
           localStorage.removeItem(PURCHASE_SESSION_KEY);
@@ -562,6 +578,7 @@ export const usePurchaseStore = () => {
     placeOfSupply,
     reverseCharge,
     discount,
+    freightCharge,
     purchaseId,
     isLoaded,
     isLoading,
@@ -574,6 +591,7 @@ export const usePurchaseStore = () => {
     setPlaceOfSupply,
     setReverseCharge,
     setDiscount,
+    setFreightCharge,
     scanBarcode,
     updateQuantity,
     removeProduct,

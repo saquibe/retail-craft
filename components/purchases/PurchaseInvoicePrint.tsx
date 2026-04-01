@@ -162,7 +162,7 @@ export function PurchaseInvoicePrint({
           </tbody>
         </table>
 
-        {/* Summary - Add discount */}
+        {/* Summary - Add discount and freight */}
         <div className="text-right space-y-1 border-t-2 border-black pt-4">
           <p className="text-sm">
             <span className="font-bold inline-block w-32">Subtotal:</span>
@@ -177,7 +177,19 @@ export function PurchaseInvoicePrint({
             </span>
           </p>
 
-          {/* ADD DISCOUNT DISPLAY */}
+          {/* Freight Charge Display */}
+          {purchase.freightCharge && purchase.freightCharge > 0 && (
+            <p className="text-sm">
+              <span className="font-bold inline-block w-32">
+                Freight Charge:
+              </span>
+              <span className="inline-block w-32 text-blue-600">
+                +₹{purchase.freightCharge?.toFixed(2)}
+              </span>
+            </p>
+          )}
+
+          {/* Discount Display */}
           {purchase.discount && purchase.discount > 0 && (
             <>
               <p className="text-sm">

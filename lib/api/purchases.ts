@@ -49,6 +49,7 @@ export interface PurchaseInvoice {
   discount?: number;
   discountAmount?: number;
   finalTotal?: number;
+  freightCharge?: number;
   status: "Draft" | "Completed";
   createdAt: string;
   updatedAt: string;
@@ -172,11 +173,12 @@ export const updatePurchaseQuantity = async (
 export const completePurchase = async (
   id: string,
   discount: number = 0,
+  freightCharge: number = 0,
 ): Promise<ApiResponse<PurchaseInvoice>> => {
   try {
     const response = await axiosInstance.post(
       `/purchase-invoice/complete/${id}`,
-      { discount },
+      { discount, freightCharge },
     );
     return response.data;
   } catch (error) {
