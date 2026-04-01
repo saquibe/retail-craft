@@ -151,14 +151,27 @@ export const useBillingStore = () => {
   };
 
   // Add to cart
-  const addToCart = async (product: Product) => {
+  const addToCart = async (
+    product: Product,
+    selectedProductId?: string,
+  ): Promise<boolean> => {
     if (!billingId) {
       toast.error("Billing session not initialized");
-      return;
+      return false;
     }
 
     try {
-      const response = await addProductToBilling(billingId, product.barCode, 1);
+      const response = await addProductToBilling(
+        billingId,
+        product.barCode,
+        1,
+        selectedProductId,
+      );
+
+      // Handle multiple products case
+      if (response.multiple && response.data && Array.isArray(response.data)) {
+        throw { response, multiple: true };
+      }
 
       if (response.success && response.data) {
         setCart((prev) => {
@@ -167,14 +180,7 @@ export const useBillingStore = () => {
           if (existing) {
             return prev.map((item) =>
               item._id === product._id
-                ? {
-                    ...item,
-                    cartQuantity: existing.cartQuantity + 1,
-                    quantity:
-                      response.data?.items?.find(
-                        (i: any) => i.productId === product._id,
-                      )?.quantity || item.quantity,
-                  }
+                ? { ...item, cartQuantity: existing.cartQuantity + 1 }
                 : item,
             );
           }
@@ -182,13 +188,17 @@ export const useBillingStore = () => {
           return [...prev, { ...product, cartQuantity: 1 }];
         });
 
-        toast.success("Product added to cart");
+        toast.success(`${product.productName} added to cart`);
+        return true;
       }
+
+      return false;
     } catch (error: any) {
-      console.error("Error adding product:", error);
-      const errorMessage =
-        error.response?.data?.message || "Failed to add product";
-      toast.error(errorMessage);
+      if (error.multiple && error.response) {
+        throw error.response;
+      }
+      toast.error(error.response?.data?.message || "Failed to add product");
+      return false;
     }
   };
 
@@ -266,7 +276,6 @@ export const useBillingStore = () => {
   const clearCart = async () => {
     if (!billingId || cart.length === 0) return;
 
-    // Remove all items one by one
     for (const item of cart) {
       try {
         await removeProductFromBilling(billingId, item._id);
@@ -283,6 +292,8 @@ export const useBillingStore = () => {
   const generateInvoice = async (
     paymentMode: string,
     discountPercentage: number = 0,
+    freightCharge: number = 0,
+    remarks?: string,
   ): Promise<string | null> => {
     if (!billingId) {
       toast.error("No active billing session");
@@ -299,12 +310,19 @@ export const useBillingStore = () => {
       return null;
     }
 
+    if (paymentMode === "Pay Later" && (!remarks || remarks.trim() === "")) {
+      toast.error("Please enter remarks for Pay Later payment");
+      return null;
+    }
+
     setIsLoading(true);
     try {
       const response = await completeBilling(
         billingId,
         paymentMode,
         discountPercentage,
+        freightCharge,
+        remarks,
       );
       if (response.success) {
         toast.success(response.message || "Invoice generated successfully");

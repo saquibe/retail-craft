@@ -947,6 +947,7 @@ export default function PurchasesPage() {
                           Purchase Price
                         </TableHead>
                         <TableHead className="text-center">Quantity</TableHead>
+                        <TableHead className="text-center">Unit</TableHead>
                         <TableHead className="text-right">Tax %</TableHead>
                         <TableHead className="text-right">Tax Amt</TableHead>
                         <TableHead className="text-right">Base Amt</TableHead>
@@ -1014,6 +1015,7 @@ export default function PurchasesPage() {
                                 </Button>
                               </div>
                             </TableCell>
+                            <TableCell className="text-right">Pcs.</TableCell>
                             <TableCell className="text-right">
                               {item.taxPercent}%
                             </TableCell>

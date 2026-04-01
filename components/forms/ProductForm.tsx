@@ -6,20 +6,7 @@ import { z } from "zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import { SearchSelect } from "../ui/search-select";
-import {
-  Package,
-  Barcode,
-  Hash,
-  Percent,
-  Tag,
-  FileText,
-  IndianRupee,
-  Palette,
-  Ruler,
-  Box,
-  Receipt,
-} from "lucide-react";
+import { Percent, FileText, IndianRupee } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -318,7 +305,7 @@ export default function ProductForm({
           {/* B2C Price */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
-              B2C Sale Price (₹) *
+              MRP (₹) *
             </label>
             <div className="relative">
               <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

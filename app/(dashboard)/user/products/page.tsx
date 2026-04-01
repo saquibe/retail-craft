@@ -637,7 +637,7 @@ export default function ProductsPage() {
                           isInactive ? "text-gray-400" : "text-gray-500"
                         }`}
                       >
-                        B2C
+                        MRP
                       </p>
                       <p
                         className={`text-sm font-semibold ${

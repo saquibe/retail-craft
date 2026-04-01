@@ -26,10 +26,12 @@ export interface Billing {
   discount?: number;
   discountAmount?: number;
   finalTotal?: number;
+  freightCharge?: number;
   status: "Draft" | "Completed";
   createdAt: string;
   updatedAt: string;
   paymentMode?: string;
+  remarks?: string;
 }
 
 export interface ApiResponse<T> {
@@ -130,14 +132,24 @@ export const completeBilling = async (
   billingId: string,
   paymentMode: string,
   discount: number = 0,
+  freightCharge: number = 0,
+  remarks?: string,
 ): Promise<ApiResponse<Billing>> => {
   try {
+    const payload: any = {
+      paymentMode,
+      discount,
+      freightCharge,
+    };
+
+    // Add remarks only for Pay Later
+    if (paymentMode === "Pay Later" && remarks) {
+      payload.remarks = remarks;
+    }
+
     const response = await axiosInstance.post(
       `/billing/complete/${billingId}`,
-      {
-        paymentMode,
-        discount,
-      },
+      payload,
     );
     return response.data;
   } catch (error) {

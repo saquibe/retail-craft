@@ -105,6 +105,9 @@ export default function BillingPage() {
   const [showProductSelectionDialog, setShowProductSelectionDialog] =
     useState(false);
   const [selectedBarcode, setSelectedBarcode] = useState("");
+  const [freightCharge, setFreightCharge] = useState(0);
+  const [payLaterRemarks, setPayLaterRemarks] = useState("");
+  const [showRemarksInput, setShowRemarksInput] = useState(false);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -192,29 +195,18 @@ export default function BillingPage() {
     setLoading(true);
 
     try {
-      const response = await addProductToBilling(
-        billingId,
-        product.barCode,
-        1,
-        product._id,
-      );
-
-      if (response.success && response.data) {
-        const fullProduct = products.find((p) => p._id === product._id);
-        if (fullProduct) {
-          await addToCart(fullProduct);
+      const fullProduct = products.find((p) => p._id === product._id);
+      if (fullProduct) {
+        const success = await addToCart(fullProduct, product._id);
+        if (success) {
+          setShowProductSelectionDialog(false);
+          setMultipleProducts([]);
+          setProductSearch("");
         }
-        // toast.success("Product added to cart");
-        setShowProductSelectionDialog(false);
-        setMultipleProducts([]);
-      } else {
-        toast.error(response.message || "Failed to add product");
       }
     } catch (error: any) {
       console.error("Error adding product:", error);
-      const errorMessage =
-        error.response?.data?.message || "Failed to add product";
-      toast.error(errorMessage);
+      toast.error(error?.message || "Failed to add product");
     } finally {
       setLoading(false);
     }
@@ -241,35 +233,20 @@ export default function BillingPage() {
     setLoading(true);
 
     try {
-      const response = await addProductToBilling(billingId, cleanInput, 1);
-      if (response.multiple && response.data && Array.isArray(response.data)) {
-        setMultipleProducts(response.data);
-        setSelectedBarcode(cleanInput);
-        setShowProductSelectionDialog(true);
-        setProductSearch("");
-        return;
-      }
-      if (response.success && response.data && !Array.isArray(response.data)) {
-        const product = products.find((p) => p.barCode === cleanInput);
-        if (product) {
-          await addToCart(product);
-        }
-        // toast.success("Product added to cart");
-        setProductSearch("");
-      } else if (response.success === false) {
-        toast.error(response.message || "Failed to add product");
+      const result = await addToCart({ barCode: cleanInput } as Product);
+      if (result) {
         setProductSearch("");
       }
     } catch (error: any) {
-      console.error("Error in handleBarcodeScan:", error);
-      if (error.response?.status === 404) {
-        toast.error("Product not found");
+      if (error.multiple && error.data && Array.isArray(error.data)) {
+        setMultipleProducts(error.data);
+        setSelectedBarcode(cleanInput);
+        setShowProductSelectionDialog(true);
+        setProductSearch("");
       } else {
-        const errorMessage =
-          error.response?.data?.message || "Error processing input";
-        toast.error(errorMessage);
+        toast.error(error?.message || "Failed to add product");
+        setProductSearch("");
       }
-      setProductSearch("");
     } finally {
       setLoading(false);
     }
@@ -290,34 +267,23 @@ export default function BillingPage() {
     setLoading(true);
 
     try {
-      const response = await addProductToBilling(billingId, product.barCode, 1);
-
-      // Check if multiple products were found
-      if (response.multiple && response.data && Array.isArray(response.data)) {
-        setMultipleProducts(response.data);
-        setSelectedBarcode(product.barCode);
-        setShowProductSelectionDialog(true);
-        setProductSearch("");
-        setShowSearchResults(false);
-        return;
-      }
-      if (response.success && response.data && !Array.isArray(response.data)) {
-        await addToCart(product);
-        // toast.success("Product added to cart");
-        setProductSearch("");
-        setShowSearchResults(false);
-      } else if (response.success === false) {
-        toast.error(response.message || "Failed to add product");
+      const result = await addToCart(product);
+      if (result) {
         setProductSearch("");
         setShowSearchResults(false);
       }
     } catch (error: any) {
-      console.error("Error adding product:", error);
-      const errorMessage =
-        error.response?.data?.message || "Failed to add product";
-      toast.error(errorMessage);
-      setProductSearch("");
-      setShowSearchResults(false);
+      if (error.multiple && error.data && Array.isArray(error.data)) {
+        setMultipleProducts(error.data);
+        setSelectedBarcode(product.barCode);
+        setShowProductSelectionDialog(true);
+        setProductSearch("");
+        setShowSearchResults(false);
+      } else {
+        toast.error(error?.message || "Failed to add product");
+        setProductSearch("");
+        setShowSearchResults(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -423,7 +389,7 @@ export default function BillingPage() {
   }, [cart, selectedCustomer]);
 
   const discountAmount = (subtotal * discount) / 100;
-  const grandTotal = subtotal - discountAmount;
+  const grandTotal = subtotal - discountAmount + freightCharge;
   const balance = paidAmount - grandTotal;
 
   // Handle generate invoice
@@ -443,10 +409,24 @@ export default function BillingPage() {
       return;
     }
 
+    // Validate Pay Later remarks
+    if (
+      paymentMode === "Pay Later" &&
+      (!payLaterRemarks || payLaterRemarks.trim() === "")
+    ) {
+      toast.error("Please enter remarks for Pay Later payment");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const billingId = await generateInvoice(paymentMode, discount);
+      const billingId = await generateInvoice(
+        paymentMode,
+        discount,
+        freightCharge,
+        payLaterRemarks,
+      );
 
       if (billingId) {
         const response = await getBillingById(billingId);
@@ -454,6 +434,9 @@ export default function BillingPage() {
         if (response.success && response.data) {
           setBillingData(response.data);
           setPaymentMode("");
+          setFreightCharge(0);
+          setPayLaterRemarks("");
+          setShowRemarksInput(false);
         }
       }
     } catch (error) {
@@ -884,6 +867,7 @@ export default function BillingPage() {
                           Price (Inc. Tax)
                         </TableHead>
                         <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-right">Unit</TableHead>
                         <TableHead className="text-right">Tax %</TableHead>
                         <TableHead className="text-right">Tax Amt</TableHead>
                         <TableHead className="text-right">Base Amt</TableHead>
@@ -954,6 +938,7 @@ export default function BillingPage() {
                                 </Button>
                               </div>
                             </TableCell>
+                            <TableCell className="text-right">Pcs.</TableCell>
                             <TableCell className="text-right">{tax}%</TableCell>
                             <TableCell className="text-right">
                               ₹{taxAmount.toFixed(2)}
@@ -1008,7 +993,7 @@ export default function BillingPage() {
                 </div>
               )}
 
-              {/* Price Breakdown - Add discount input */}
+              {/* Price Breakdown */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
@@ -1023,7 +1008,7 @@ export default function BillingPage() {
                   <span className="font-medium">₹{subtotal.toFixed(2)}</span>
                 </div>
 
-                {/* ADD THIS DISCOUNT SECTION */}
+                {/* Discount Section */}
                 <div className="flex justify-between items-center gap-4 pt-2">
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-sm text-gray-600">Discount (%):</span>
@@ -1046,11 +1031,39 @@ export default function BillingPage() {
                   </div>
                   {discount > 0 && (
                     <div className="text-right">
-                      <span className="text-sm text-gray-600">
-                        Discount Amt:
-                      </span>
                       <span className="ml-2 font-medium text-red-600">
                         -₹{((subtotal * discount) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ADD FREIGHT CHARGE SECTION */}
+                <div className="flex justify-between items-center gap-4 pt-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-sm text-gray-600">
+                      Freight Charge:
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={freightCharge}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val >= 0) {
+                          setFreightCharge(val);
+                        }
+                      }}
+                      className="w-24 h-8 text-sm"
+                      disabled={cart.length === 0}
+                    />
+                    <span className="text-sm text-gray-500">₹</span>
+                  </div>
+                  {freightCharge > 0 && (
+                    <div className="text-right">
+                      <span className="ml-2 font-medium text-blue-600">
+                        +₹{freightCharge.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -1070,7 +1083,7 @@ export default function BillingPage() {
                 <Label className="text-sm font-medium text-gray-700">
                   Payment Mode <span className="text-red-500">*</span>
                 </Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <Button
                     type="button"
                     variant={paymentMode === "Cash" ? "default" : "outline"}
@@ -1079,7 +1092,11 @@ export default function BillingPage() {
                         ? "bg-green-600 hover:bg-green-700"
                         : "hover:bg-green-50"
                     }`}
-                    onClick={() => setPaymentMode("Cash")}
+                    onClick={() => {
+                      setPaymentMode("Cash");
+                      setShowRemarksInput(false);
+                      setPayLaterRemarks("");
+                    }}
                     disabled={cart.length === 0}
                   >
                     Cash
@@ -1092,7 +1109,11 @@ export default function BillingPage() {
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "hover:bg-blue-50"
                     }`}
-                    onClick={() => setPaymentMode("UPI")}
+                    onClick={() => {
+                      setPaymentMode("UPI");
+                      setShowRemarksInput(false);
+                      setPayLaterRemarks("");
+                    }}
                     disabled={cart.length === 0}
                   >
                     UPI
@@ -1109,12 +1130,55 @@ export default function BillingPage() {
                         ? "bg-purple-600 hover:bg-purple-700"
                         : "hover:bg-purple-50"
                     }`}
-                    onClick={() => setPaymentMode("Debit/Credit Card")}
+                    onClick={() => {
+                      setPaymentMode("Debit/Credit Card");
+                      setShowRemarksInput(false);
+                      setPayLaterRemarks("");
+                    }}
                     disabled={cart.length === 0}
                   >
                     Card
                   </Button>
+                  {/* ADD PAY LATER BUTTON */}
+                  <Button
+                    type="button"
+                    variant={
+                      paymentMode === "Pay Later" ? "default" : "outline"
+                    }
+                    className={`cursor-pointer ${
+                      paymentMode === "Pay Later"
+                        ? "bg-orange-600 hover:bg-orange-700"
+                        : "hover:bg-orange-50"
+                    }`}
+                    onClick={() => {
+                      setPaymentMode("Pay Later");
+                      setShowRemarksInput(true);
+                    }}
+                    disabled={cart.length === 0}
+                  >
+                    Pay Later
+                  </Button>
                 </div>
+
+                {/* Remarks Input for Pay Later */}
+                {showRemarksInput && paymentMode === "Pay Later" && (
+                  <div className="mt-3">
+                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Remarks <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter reason for Pay Later (e.g., Credit sale, Due payment, etc.)"
+                      value={payLaterRemarks}
+                      onChange={(e) => setPayLaterRemarks(e.target.value)}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Required: Please provide remarks for this Pay Later
+                      transaction
+                    </p>
+                  </div>
+                )}
+
                 {cart.length > 0 && !paymentMode && (
                   <p className="text-xs text-amber-600">
                     Please select payment mode

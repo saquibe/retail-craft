@@ -368,6 +368,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
           <tr>
             <th className="product-col">Product</th>
             <th className="qty-col text-right">QTY</th>
+            <th className="qty-col text-right">Unit</th>
             <th className="price-col text-right">MRP</th>
             <th className="amount-col text-right">Net Amt</th>
           </tr>
@@ -380,6 +381,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                 <div className="product-code">{item.barCode}</div>
               </td>
               <td className="qty-col text-right">{item.quantity}</td>
+              <td className="qty-col text-right">Pcs.</td>
               <td className="price-col text-right">₹{item.price.toFixed(2)}</td>
               <td className="amount-col text-right">
                 ₹{(item.price * item.quantity).toFixed(2)}
@@ -415,7 +417,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
         </tbody>
       </table>
 
-      {/* Totals - Add discount */}
+      {/* Totals */}
       <div className="totals">
         <div className="total-row">
           <span>Subtotal</span>
@@ -430,7 +432,17 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
           <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
         </div>
 
-        {/* ADD DISCOUNT DISPLAY */}
+        {/* ADD FREIGHT CHARGE DISPLAY */}
+        {billing.freightCharge && billing.freightCharge > 0 && (
+          <div className="total-row">
+            <span>Freight Charge</span>
+            <span className="text-blue-600">
+              +₹{billing.freightCharge?.toFixed(2) || "0.00"}
+            </span>
+          </div>
+        )}
+
+        {/* Discount Display */}
         {billing.discount && billing.discount > 0 && (
           <>
             <div className="total-row">
@@ -439,20 +451,9 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
                 -₹{billing.discountAmount?.toFixed(2) || "0.00"}
               </span>
             </div>
-            <div
-              className="total-row"
-              style={{
-                borderTop: "1px dashed #000",
-                marginTop: "4px",
-                paddingTop: "4px",
-              }}
-            >
-              <span style={{ fontWeight: "bold" }}>
-                Final Total (After Discount)
-              </span>
-              <span style={{ fontWeight: "bold", color: "#4f46e5" }}>
-                ₹{billing.finalTotal?.toFixed(2) || "0.00"}
-              </span>
+            <div className="total-row">
+              <span>Final Total (After Discount)</span>
+              <span>₹{billing.finalTotal?.toFixed(2) || "0.00"}</span>
             </div>
           </>
         )}

@@ -132,6 +132,7 @@ export function PurchaseInvoicePrint({
               <th className="text-left py-2">Product</th>
               <th className="text-left py-2">Barcode</th>
               <th className="text-right py-2">Qty</th>
+              <th className="text-right py-2">Unit</th>
               <th className="text-right py-2">Price</th>
               <th className="text-right py-2">Tax %</th>
               <th className="text-right py-2">Tax Amt</th>
@@ -145,6 +146,7 @@ export function PurchaseInvoicePrint({
                 <td className="py-2">{item.productName}</td>
                 <td className="py-2 font-mono">{item.barCode}</td>
                 <td className="text-right py-2">{item.quantity}</td>
+                <td className="text-right py-2">Pcs.</td>
                 <td className="text-right py-2">
                   ₹{item.purchasePrice.toFixed(2)}
                 </td>

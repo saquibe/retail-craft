@@ -41,6 +41,8 @@ import {
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
+  Truck,
+  MessageSquare,
 } from "lucide-react";
 import { getCompletedBillings, Billing } from "@/lib/api/billing";
 import { ThermalInvoice } from "./ThermalInvoice";
@@ -95,6 +97,7 @@ export function CompletedBillings({
         billing.customerId?.email?.toLowerCase().includes(searchLower) ||
         billing.customerId?.mobile?.includes(searchLower) ||
         billing.paymentMode?.toLowerCase().includes(searchLower) ||
+        billing.remarks?.toLowerCase().includes(searchLower) ||
         // Search in items
         billing.items?.some(
           (item) =>
@@ -139,6 +142,8 @@ export function CompletedBillings({
         return "bg-blue-100 text-blue-800";
       case "Debit/Credit Card":
         return "bg-purple-100 text-purple-800";
+      case "Pay Later":
+        return "bg-orange-100 text-orange-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -215,7 +220,7 @@ export function CompletedBillings({
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search by invoice, customer, items, payment mode..."
+                placeholder="Search by invoice, customer, items, payment mode, remarks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -252,6 +257,7 @@ export function CompletedBillings({
                       <TableHead>Customer</TableHead>
                       <TableHead>Items</TableHead>
                       <TableHead className="text-right">Total Amount</TableHead>
+                      <TableHead className="text-right">Freight</TableHead>
                       <TableHead className="text-right">Discount</TableHead>
                       <TableHead className="text-right">Final Amount</TableHead>
                       <TableHead>Payment Mode</TableHead>
@@ -324,8 +330,28 @@ export function CompletedBillings({
                               ) || 0}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-medium text-indigo-600">
-                            {formatCurrency(billing.grandTotal)}
+                          <TableCell className="text-right font-medium">
+                            {billing.discount && billing.discount > 0 ? (
+                              <span className="text-gray-400 line-through">
+                                {formatCurrency(billing.grandTotal)}
+                              </span>
+                            ) : (
+                              <span className="text-indigo-600">
+                                {formatCurrency(billing.grandTotal)}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {billing.freightCharge &&
+                            billing.freightCharge > 0 ? (
+                              <div>
+                                <span className="text-sm font-medium text-blue-600">
+                                  +{formatCurrency(billing.freightCharge)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             {billing.discount && billing.discount > 0 ? (
@@ -338,17 +364,24 @@ export function CompletedBillings({
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-gray-400">N/A</span>
+                              <span className="text-gray-400">-</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right font-semibold">
-                            {" "}
                             {billing.discount && billing.discount > 0 ? (
-                              <span className="text-green-600">
-                                {formatCurrency(
-                                  billing.finalTotal || billing.grandTotal,
-                                )}
-                              </span>
+                              <div>
+                                <span className="text-green-600 font-bold">
+                                  {formatCurrency(
+                                    billing.finalTotal || billing.grandTotal,
+                                  )}
+                                </span>
+                                {billing.freightCharge &&
+                                  billing.freightCharge > 0 && (
+                                    <div className="text-xs text-blue-600">
+                                      (Incl. freight)
+                                    </div>
+                                  )}
+                              </div>
                             ) : (
                               <span className="text-gray-600">
                                 {formatCurrency(billing.grandTotal)}
@@ -361,7 +394,11 @@ export function CompletedBillings({
                                 billing.paymentMode || "",
                               )}
                             >
-                              <CreditCard className="w-3 h-3 mr-1" />
+                              {billing.paymentMode === "Pay Later" ? (
+                                <MessageSquare className="w-3 h-3 mr-1" />
+                              ) : (
+                                <CreditCard className="w-3 h-3 mr-1" />
+                              )}
                               {billing.paymentMode || "N/A"}
                             </Badge>
                           </TableCell>
@@ -378,7 +415,7 @@ export function CompletedBillings({
                         </TableRow>
                         {expandedBilling === billing._id && (
                           <TableRow>
-                            <TableCell colSpan={10} className="bg-gray-50 p-4">
+                            <TableCell colSpan={11} className="bg-gray-50 p-4">
                               <div className="space-y-3">
                                 <h4 className="font-medium flex items-center gap-2">
                                   <ShoppingBag className="w-4 h-4" />
@@ -464,6 +501,23 @@ export function CompletedBillings({
                                       </span>
                                     </div>
 
+                                    {/* Freight Charge Section */}
+                                    {billing.freightCharge &&
+                                      billing.freightCharge > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-600">
+                                            <Truck className="w-3 h-3 inline mr-1" />
+                                            Freight Charge:
+                                          </span>
+                                          <span className="text-blue-600 font-medium">
+                                            +₹
+                                            {billing.freightCharge?.toFixed(
+                                              2,
+                                            ) || "0.00"}
+                                          </span>
+                                        </div>
+                                      )}
+
                                     {/* Discount Section */}
                                     {billing.discount &&
                                     billing.discount > 0 ? (
@@ -481,7 +535,8 @@ export function CompletedBillings({
                                         </div>
                                         <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
                                           <span className="text-gray-800">
-                                            Final Amount (After Discount):
+                                            Final Amount (After Discount &
+                                            Freight):
                                           </span>
                                           <span className="text-green-600 text-lg">
                                             ₹
@@ -504,6 +559,24 @@ export function CompletedBillings({
                                         </span>
                                       </div>
                                     )}
+
+                                    {/* Remarks for Pay Later */}
+                                    {billing.paymentMode === "Pay Later" &&
+                                      billing.remarks && (
+                                        <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                          <div className="flex items-start gap-2">
+                                            <MessageSquare className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                                            <div>
+                                              <p className="text-xs font-medium text-orange-800">
+                                                Payment Remarks:
+                                              </p>
+                                              <p className="text-sm text-orange-700">
+                                                {billing.remarks}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
                                   </div>
                                 </div>
                               </div>
