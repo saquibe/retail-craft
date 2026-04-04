@@ -41,7 +41,14 @@ import {
   TrendingDown,
   RefreshCw,
 } from "lucide-react";
-import { getProducts, Product, deleteProduct } from "@/lib/api/products";
+import {
+  getProducts,
+  Product,
+  deleteProduct,
+  ProductFormData,
+  updateProduct,
+  createProduct,
+} from "@/lib/api/products";
 import ProductForm from "@/components/forms/ProductForm";
 import toast from "react-hot-toast";
 import InventorySkeleton from "@/components/skeletons/InventorySkeleton";
@@ -186,14 +193,40 @@ export default function InventoryPage() {
   // Handle create new product
   const handleCreateProduct = () => {
     setSelectedProduct(null);
-    setIsEditMode(true);
+    setIsEditMode(false);
     setShowProductDialog(true);
   };
 
-  // Handle product form submit
-  const handleProductSubmit = async (data: any) => {
-    loadProducts();
-    setShowProductDialog(false);
+  const handleProductSubmit = async (data: ProductFormData) => {
+    try {
+      if (isEditMode && selectedProduct) {
+        // Update existing product - remove quantity for edit mode
+        const { quantity, ...updateData } = data;
+        const response = await updateProduct(selectedProduct._id, updateData);
+        if (response.success) {
+          toast.success("Product updated successfully!");
+          await loadProducts();
+          setShowProductDialog(false);
+          setSelectedProduct(null);
+          setIsEditMode(false);
+        } else {
+          toast.error(response.message || "Failed to update product");
+        }
+      } else {
+        // Create new product
+        const response = await createProduct(data);
+        if (response.success) {
+          toast.success("Product created successfully!");
+          await loadProducts();
+          setShowProductDialog(false);
+        } else {
+          toast.error(response.message || "Failed to create product");
+        }
+      }
+    } catch (error: any) {
+      console.error("Product submit error:", error);
+      toast.error(error.response?.data?.message || "Failed to save product");
+    }
   };
 
   // Get stock status badge
@@ -395,15 +428,20 @@ export default function InventoryPage() {
                       <TableHead className="text-right">MRP</TableHead>
                       <TableHead className="text-right">Tax %</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      {/* <TableHead className="text-right">Action</TableHead> */}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {currentItems.map((product) => (
                       <TableRow key={product._id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{product.productName}</p>
+                        <TableCell className="max-w-[200px]">
+                          <div className="min-w-0">
+                            <p
+                              className="font-medium truncate"
+                              title={product.productName}
+                            >
+                              {product.productName}
+                            </p>
                             {product.color && (
                               <p className="text-xs text-gray-500">
                                 Color: {product.color}
@@ -419,7 +457,7 @@ export default function InventoryPage() {
                         <TableCell className="font-mono text-sm">
                           {product.barCode}
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
+                        <TableCell className="font-mono text-sm max-w-[120px] truncate">
                           {product.itemCode || "-"}
                         </TableCell>
                         <TableCell className="text-right font-medium">
@@ -451,7 +489,7 @@ export default function InventoryPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </Button> */}
-                            <Button
+                            {/* <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
@@ -471,7 +509,7 @@ export default function InventoryPage() {
                               title="Delete Product"
                             >
                               <Trash2 className="w-4 h-4" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </TableCell>
                       </TableRow>

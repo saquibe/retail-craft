@@ -73,31 +73,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import ProductsSkeleton from "@/components/skeletons/ProductsSkeleton";
 
-// Size colors for visual distinction
-const SIZE_COLORS: Record<string, string> = {
-  XXXS: "bg-rose-100 text-rose-800",
-  XXS: "bg-pink-100 text-pink-800",
-  XS: "bg-fuchsia-100 text-fuchsia-800",
-  S: "bg-blue-100 text-blue-800",
-  M: "bg-green-100 text-green-800",
-  L: "bg-yellow-100 text-yellow-800",
-  XL: "bg-purple-100 text-purple-800",
-  XXL: "bg-red-100 text-red-800",
-  XXXL: "bg-orange-100 text-orange-800",
-  "4XL": "bg-indigo-100 text-indigo-800",
-  "5XL": "bg-teal-100 text-teal-800",
-  "6XL": "bg-cyan-100 text-cyan-800",
-  "7XL": "bg-emerald-100 text-emerald-800",
-  "8XL": "bg-lime-100 text-lime-800",
-  "9XL": "bg-amber-100 text-amber-800",
-  "10XL": "bg-sky-100 text-sky-800",
-  FREE: "bg-gray-200 text-gray-800",
-  CUSTOM: "bg-black text-white",
-};
-
 export default function ProductsPage() {
   const { user } = useAuth();
-  const [allProducts, setAllProducts] = useState<Product[]>([]); // Store all products
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -533,10 +511,9 @@ export default function ProductsPage() {
                         }`}
                       />
                       <Badge
-                        className={`${
-                          SIZE_COLORS[product.size] ||
-                          "bg-gray-100 text-gray-800"
-                        } ${isInactive ? "opacity-50" : ""}`}
+                        className={`bg-gray-100 text-gray-800 ${
+                          isInactive ? "opacity-50" : ""
+                        }`}
                       >
                         Size {product.size}
                       </Badge>
@@ -803,6 +780,7 @@ export default function ProductsPage() {
                 quantity: selectedProduct.quantity,
                 hsnCode: selectedProduct.hsnCode,
                 salesTax: selectedProduct.salesTax,
+                purchaseTax: selectedProduct.purchaseTax,
                 shortDescription: selectedProduct.shortDescription,
                 b2bSalePrice: selectedProduct.b2bSalePrice,
                 b2cSalePrice: selectedProduct.b2cSalePrice,

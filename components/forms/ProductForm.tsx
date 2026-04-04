@@ -1,68 +1,20 @@
 "use client";
 
-import { useForm, Controller, type Resolver } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Percent, FileText, IndianRupee } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-
-// Size options
-const SIZE_OPTIONS = [
-  { value: "XXXS", label: "Triple Extra Small (XXXS)" },
-  { value: "XXS", label: "Double Extra Small (XXS)" },
-  { value: "XS", label: "Extra Small (XS)" },
-  { value: "S", label: "Small (S)" },
-  { value: "M", label: "Medium (M)" },
-  { value: "L", label: "Large (L)" },
-  { value: "XL", label: "Extra Large (XL)" },
-  { value: "XXL", label: "Double Extra Large (XXL)" },
-  { value: "XXXL", label: "Triple Extra Large (XXXL)" },
-  { value: "4XL", label: "Quadruple Extra Large (4XL)" },
-  { value: "5XL", label: "Quintuple Extra Large (5XL)" },
-  { value: "6XL", label: "Sextuple Extra Large (6XL)" },
-  { value: "7XL", label: "Septuple Extra Large (7XL)" },
-  { value: "8XL", label: "Octuple Extra Large (8XL)" },
-  { value: "9XL", label: "Nonuple Extra Large (9XL)" },
-  { value: "10XL", label: "Decuple Extra Large (10XL)" },
-  { value: "FREE", label: "Free Size" },
-  { value: "CUSTOM", label: "Custom Size" },
-];
 
 // Define the product schema
 const productSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
   itemCode: z.string().min(1, "Item code is required"),
-  barCode: z.string().min(1, "Barcode is required"),
+  barCode: z.string().regex(/^\d+$/, "Barcode must be numeric"),
   color: z.string().min(1, "Color is required"),
-  size: z.enum([
-    "XXXS",
-    "XXS",
-    "XS",
-    "S",
-    "M",
-    "L",
-    "XL",
-    "XXL",
-    "XXXL",
-    "4XL",
-    "5XL",
-    "6XL",
-    "7XL",
-    "8XL",
-    "9XL",
-    "10XL",
-    "FREE",
-    "CUSTOM",
-  ]),
+  size: z.string().min(1, "Size is required"),
   quantity: z.coerce
     .number()
     .min(0, "Quantity cannot be negative")
@@ -110,7 +62,7 @@ export default function ProductForm({
       itemCode: initialData?.itemCode || "",
       barCode: initialData?.barCode || "",
       color: initialData?.color || "",
-      size: initialData?.size || "M",
+      size: initialData?.size || "",
       quantity: initialData?.quantity || 0,
       hsnCode: initialData?.hsnCode || "",
       salesTax: initialData?.salesTax || 0,
@@ -175,6 +127,7 @@ export default function ProductForm({
             <div className="relative">
               {/* <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
               <Input
+                type="number"
                 {...register("barCode")}
                 error={errors.barCode?.message}
                 placeholder="Enter barcode"
@@ -199,33 +152,14 @@ export default function ProductForm({
 
           {/* Size */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
               Size *
             </label>
-
-            <Controller
-              name="size"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="cursor-pointer w-full">
-                    <SelectValue placeholder="Select size" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {SIZE_OPTIONS.map((size) => (
-                      <SelectItem key={size.value} value={size.value}>
-                        {size.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+            <Input
+              {...register("size")}
+              error={errors.size?.message}
+              placeholder="Enter size (e.g., M, XL, 42, Custom)"
             />
-
-            {errors.size && (
-              <p className="text-sm text-red-500 mt-1">{errors.size.message}</p>
-            )}
           </div>
 
           {/* HSN Code */}
