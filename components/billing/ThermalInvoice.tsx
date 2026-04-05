@@ -278,9 +278,13 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
     return result.trim() + " Only";
   };
 
-  // Group items by tax rate
+  // Calculate taxable amount (base amount without tax) for each item
+  // Formula: Taxable Amount = Total Amount / (1 + Tax Rate/100)
   const itemsByTax = billing.items.reduce((acc, item) => {
-    const taxableAmt = item.price * item.quantity;
+    // Calculate taxable amount (base amount excluding tax)
+    const totalAmount = item.price * item.quantity;
+    const taxableAmt = totalAmount / (1 + item.taxPercent / 100);
+    const taxAmount = totalAmount - taxableAmt;
 
     if (!acc[item.taxPercent]) {
       acc[item.taxPercent] = {
@@ -292,11 +296,16 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
     }
 
     acc[item.taxPercent].taxableAmt += taxableAmt;
-    acc[item.taxPercent].cgst += item.taxAmount / 2;
-    acc[item.taxPercent].sgst += item.taxAmount / 2;
+    acc[item.taxPercent].cgst += taxAmount / 2;
+    acc[item.taxPercent].sgst += taxAmount / 2;
 
     return acc;
   }, {} as Record<number, { rate: number; taxableAmt: number; cgst: number; sgst: number }>);
+
+  // Calculate final total and rounded values
+  const finalTotal = billing.finalTotal || billing.grandTotal;
+  const roundedGrandTotal = Math.round(finalTotal);
+  const roundOffAmount = roundedGrandTotal - finalTotal;
 
   // Safely access branch data
   const branch = billing.branchId || {};
@@ -314,10 +323,9 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
         padding: "4px",
       }}
     >
-      {/* Store Header - Fixed */}
+      {/* Store Header */}
       <div className="store-section">
-        <img src="/logo.jpeg" className="logo" />
-
+        <img src="/logo.jpeg" className="logo" alt="Logo" />
         <div className="store-name">
           {branch.branchName?.toUpperCase() || "VAMANA AGENCIES"}
         </div>
@@ -362,7 +370,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
 
       <div className="divider"></div>
 
-      {/* Items Table - Fixed column widths */}
+      {/* Items Table */}
       <table>
         <thead>
           <tr>
@@ -393,7 +401,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
 
       <div className="divider"></div>
 
-      {/* Tax Table - Fixed column widths */}
+      {/* Tax Table - CGST and SGST */}
       <table>
         <thead>
           <tr>
@@ -420,29 +428,11 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
       {/* Totals */}
       <div className="totals">
         <div className="total-row">
-          <span>Subtotal</span>
+          <span>Base Amount</span>
           <span>₹{billing.subTotal?.toFixed(2) || "0.00"}</span>
         </div>
-        <div className="total-row">
-          <span>Total Tax</span>
-          <span>₹{billing.totalTax?.toFixed(2) || "0.00"}</span>
-        </div>
-        <div className="total-row">
-          <span>Grand Total (Before Discount)</span>
-          <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
-        </div>
 
-        {/* ADD FREIGHT CHARGE DISPLAY */}
-        {billing.freightCharge && billing.freightCharge > 0 && (
-          <div className="total-row">
-            <span>Freight Charge</span>
-            <span className="text-blue-600">
-              +₹{billing.freightCharge?.toFixed(2) || "0.00"}
-            </span>
-          </div>
-        )}
-
-        {/* Discount Display */}
+        {/* Discount Section */}
         {billing.discount && billing.discount > 0 && (
           <>
             <div className="total-row">
@@ -452,30 +442,64 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
               </span>
             </div>
             <div className="total-row">
-              <span>Final Total (After Discount)</span>
-              <span>₹{billing.finalTotal?.toFixed(2) || "0.00"}</span>
+              <span>Amount after Discount</span>
+              <span>
+                ₹{(billing.subTotal - (billing.discountAmount || 0)).toFixed(2)}
+              </span>
             </div>
           </>
         )}
 
-        {(!billing.discount || billing.discount === 0) && (
-          <div className="grand-total total-row">
-            <span>NET PAYABLE</span>
-            <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
+        <div className="total-row">
+          <span>Total Tax (GST)</span>
+          <span>₹{billing.totalTax?.toFixed(2) || "0.00"}</span>
+        </div>
+
+        <div className="total-row">
+          <span>Subtotal (Inc. Tax)</span>
+          <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
+        </div>
+
+        {/* Freight Charge */}
+        {billing.freightCharge && billing.freightCharge > 0 && (
+          <div className="total-row">
+            <span>Freight Charge</span>
+            <span className="text-blue-600">
+              +₹{billing.freightCharge?.toFixed(2) || "0.00"}
+            </span>
           </div>
         )}
 
-        {billing.discount && billing.discount > 0 && (
-          <div className="grand-total total-row" style={{ marginTop: "4px" }}>
-            <span>NET PAYABLE</span>
-            <span>₹{billing.finalTotal?.toFixed(2) || "0.00"}</span>
+        {/* Grand Total */}
+        <div className="total-row">
+          <span>Grand Total</span>
+          <span>₹{finalTotal.toFixed(2)}</span>
+        </div>
+
+        {/* Rounded Off */}
+        {roundOffAmount !== 0 && (
+          <div className="total-row">
+            <span>Rounded Off</span>
+            <span
+              className={roundOffAmount > 0 ? "text-blue-600" : "text-red-600"}
+            >
+              {roundOffAmount > 0
+                ? `+₹${roundOffAmount.toFixed(2)}`
+                : `-₹${Math.abs(roundOffAmount).toFixed(2)}`}
+            </span>
           </div>
         )}
+
+        {/* NET PAYABLE */}
+        <div className="grand-total total-row">
+          <span>NET PAYABLE</span>
+          <span>₹{roundedGrandTotal.toFixed(2)}</span>
+        </div>
       </div>
 
-      {/* Amount in Words - Use finalTotal if available */}
+      {/* Amount in Words */}
       <div className="amount-words">
-        Rupees {numberToWords(billing.finalTotal || billing.grandTotal)}
+        Rupees {numberToWords(roundedGrandTotal)}
       </div>
 
       {/* Footer */}

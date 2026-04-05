@@ -391,6 +391,8 @@ export default function BillingPage() {
   const discountAmount = (subtotal * discount) / 100;
   const grandTotal = subtotal - discountAmount + freightCharge;
   const balance = paidAmount - grandTotal;
+  const roundedGrandTotal = Math.round(grandTotal);
+  const roundOffAmount = roundedGrandTotal - grandTotal;
 
   // Handle generate invoice
   const handleGenerateInvoice = async () => {
@@ -846,6 +848,20 @@ export default function BillingPage() {
                 )}
               </div>
             </CardHeader>
+            {cart.length > 0 && (
+              <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-lg mx-6">
+                <div>
+                  <span className="text-sm text-gray-600">Total Products:</span>
+                  <span className="ml-2 font-semibold">{cart.length}</span>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-600">Total Quantity:</span>
+                  <span className="ml-2 font-semibold">
+                    {cart.reduce((sum, item) => sum + item.cartQuantity, 0)}
+                  </span>
+                </div>
+              </div>
+            )}
             <CardContent>
               {cart.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
@@ -868,8 +884,8 @@ export default function BillingPage() {
                         </TableHead>
                         <TableHead className="text-center">Qty</TableHead>
                         <TableHead className="text-right">Unit</TableHead>
-                        <TableHead className="text-right">Tax %</TableHead>
-                        <TableHead className="text-right">Tax Amt</TableHead>
+                        <TableHead className="text-right">SGST</TableHead>
+                        <TableHead className="text-right">CGST</TableHead>
                         <TableHead className="text-right">Base Amt</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="text-right w-[100px]">
@@ -939,9 +955,11 @@ export default function BillingPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right">Pcs.</TableCell>
-                            <TableCell className="text-right">{tax}%</TableCell>
                             <TableCell className="text-right">
-                              ₹{taxAmount.toFixed(2)}
+                              ₹{(taxAmount / 2).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              ₹{(taxAmount / 2).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
                               ₹{baseAmount.toFixed(2)}
@@ -970,7 +988,7 @@ export default function BillingPage() {
           </Card>
         </div>
 
-        {/* Right Column - Payment Summary - Keep as is */}
+        {/* Right Column - Payment Summary */}
         <div className="space-y-6">
           <Card className="sticky top-6">
             <CardHeader className="pb-3">
@@ -995,21 +1013,14 @@ export default function BillingPage() {
 
               {/* Price Breakdown */}
               <div className="space-y-2">
+                {/* 1. Base Amount */}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
                   <span className="font-medium">₹{baseTotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Tax (GST):</span>
-                  <span className="font-medium">₹{taxTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal (Inc. Tax):</span>
-                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-                </div>
 
-                {/* Discount Section */}
-                <div className="flex justify-between items-center gap-4 pt-2">
+                {/* 2. Discount on Base Amount */}
+                <div className="flex justify-between items-center gap-4">
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-sm text-gray-600">Discount (%):</span>
                     <Input
@@ -1032,14 +1043,62 @@ export default function BillingPage() {
                   {discount > 0 && (
                     <div className="text-right">
                       <span className="ml-2 font-medium text-red-600">
-                        -₹{((subtotal * discount) / 100).toFixed(2)}
+                        -₹{discountAmount.toFixed(2)}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* ADD FREIGHT CHARGE SECTION */}
-                <div className="flex justify-between items-center gap-4 pt-2">
+                {/* 3. Amount after Discount */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Amount after Discount:</span>
+                  <span className="font-medium">
+                    ₹{(baseTotal - discountAmount).toFixed(2)}
+                  </span>
+                </div>
+
+                {/* 4. Tax Breakdown (SGST & CGST) */}
+                <div className="space-y-1 pt-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      SGST (
+                      {(
+                        (taxTotal / 2 / (baseTotal - discountAmount)) *
+                        100
+                      ).toFixed(1)}
+                      %):
+                    </span>
+                    <span className="font-medium">
+                      ₹{(taxTotal / 2).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">
+                      CGST (
+                      {(
+                        (taxTotal / 2 / (baseTotal - discountAmount)) *
+                        100
+                      ).toFixed(1)}
+                      %):
+                    </span>
+                    <span className="font-medium">
+                      ₹{(taxTotal / 2).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Tax (GST):</span>
+                    <span className="font-medium">₹{taxTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* 5. Subtotal after tax */}
+                {/* <div className="flex justify-between text-sm pt-2">
+                  <span className="text-gray-600">Subtotal (After Tax):</span>
+                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                </div> */}
+
+                {/* 6. Freight Charge */}
+                <div className="flex justify-between items-center gap-4">
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-sm text-gray-600">
                       Freight Charge:
@@ -1070,20 +1129,47 @@ export default function BillingPage() {
                 </div>
 
                 <Separator className="my-2" />
+
+                {/* 7. Grand Total (Before Rounding) */}
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>
                   <span className="text-indigo-600">
                     ₹{grandTotal.toFixed(2)}
                   </span>
                 </div>
+
+                {/* 8. Rounded Off */}
+                {roundOffAmount !== 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Rounded Off:</span>
+                    <span
+                      className={`font-medium ${
+                        roundOffAmount > 0 ? "text-blue-600" : "text-red-600"
+                      }`}
+                    >
+                      {roundOffAmount > 0
+                        ? `+₹${roundOffAmount.toFixed(2)}`
+                        : `-₹${Math.abs(roundOffAmount).toFixed(2)}`}
+                    </span>
+                  </div>
+                )}
+
+                {/* 9. Final Rounded Total */}
+                <div className="flex justify-between font-bold text-xl pt-2 border-t-2 border-gray-200">
+                  <span>Rounded Total:</span>
+                  <span className="text-green-600">
+                    ₹{roundedGrandTotal.toFixed(2)}
+                  </span>
+                </div>
               </div>
 
-              {/* Payment Mode Selection */}
+              {/* Payment Mode Selection - Same as before */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-700">
                   Payment Mode <span className="text-red-500">*</span>
                 </Label>
                 <div className="grid grid-cols-4 gap-2">
+                  {/* Payment buttons - keep as is */}
                   <Button
                     type="button"
                     variant={paymentMode === "Cash" ? "default" : "outline"}
@@ -1139,7 +1225,6 @@ export default function BillingPage() {
                   >
                     Card
                   </Button>
-                  {/* ADD PAY LATER BUTTON */}
                   <Button
                     type="button"
                     variant={
@@ -1196,7 +1281,8 @@ export default function BillingPage() {
                     !selectedCustomer ||
                     cart.length === 0 ||
                     !paymentMode ||
-                    isLoading
+                    isLoading ||
+                    (paymentMode === "Pay Later" && !payLaterRemarks.trim())
                   }
                 >
                   {isLoading ? (

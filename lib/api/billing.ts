@@ -32,6 +32,7 @@ export interface Billing {
   updatedAt: string;
   paymentMode?: string;
   remarks?: string;
+  paymentStatus?: "Pending" | "Paid";
 }
 
 export interface ApiResponse<T> {
@@ -199,6 +200,27 @@ export const getCompletedBillings = async (): Promise<
     return response.data;
   } catch (error) {
     console.error("Get completed billings error:", error);
+    throw error;
+  }
+};
+
+// =====================================================
+// GET /api/billing/payment-status/<billingId> - update payment status of a billing
+// =====================================================
+export const updatePaymentStatus = async (
+  billingId: string,
+  paymentStatus: "Pending" | "Paid",
+): Promise<ApiResponse<Billing>> => {
+  try {
+    const response = await axiosInstance.put(
+      `/billing/payment-status/${billingId}`,
+      {
+        paymentStatus,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Update payment status error:", error);
     throw error;
   }
 };
