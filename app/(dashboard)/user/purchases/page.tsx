@@ -46,7 +46,6 @@ import { createSupplier, SupplierFormData } from "@/lib/api/suppliers";
 import { usePurchaseStore } from "@/lib/hooks/usePurchaseStore";
 import CreateProductDialog from "@/components/purchases/CreateProductDialog";
 import SupplierForm from "@/components/forms/SupplierForm";
-import { CompletedPurchases } from "@/components/purchases/CompletedPurchases";
 import { getProducts, Product, searchProducts } from "@/lib/api/products";
 import PurchasePageSkeleton from "@/components/skeletons/PurchasePageSkeleton";
 
@@ -92,7 +91,6 @@ export default function PurchasesPage() {
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
   const [showCreateProductDialog, setShowCreateProductDialog] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState("");
-  const [showCompletedPurchases, setShowCompletedPurchases] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,11 +104,21 @@ export default function PurchasesPage() {
   const [showBulkAddDialog, setShowBulkAddDialog] = useState(false);
   const [bulkQuantity, setBulkQuantity] = useState(1);
   const [bulkProduct, setBulkProduct] = useState<Product | null>(null);
+  const [paymentMode, setPaymentMode] = useState<string>("");
+  const [payLaterRemarks, setPayLaterRemarks] = useState("");
+  const [showRemarksInput, setShowRemarksInput] = useState(false);
 
   // Load suppliers and products on mount
   useEffect(() => {
     loadSuppliers();
     loadProducts();
+  }, []);
+
+  // Set default place of supply if not set
+  useEffect(() => {
+    if (!placeOfSupply) {
+      setPlaceOfSupply("Telangana");
+    }
   }, []);
 
   // Close dropdowns when clicking outside
@@ -410,18 +418,35 @@ export default function PurchasesPage() {
     }
   };
 
-  // Handle complete purchase
+  // Handle complete purchase with payment details
   const handleCompletePurchase = async () => {
     if (items.length === 0) {
       toast.error("No items in purchase invoice");
       return;
     }
 
-    const success = await completePurchaseInvoice(discount, freightCharge);
+    if (!paymentMode) {
+      toast.error("Please select payment mode");
+      return;
+    }
+
+    if (paymentMode === "Pay Later" && !payLaterRemarks.trim()) {
+      toast.error("Please enter remarks for Pay Later payment");
+      return;
+    }
+
+    const success = await completePurchaseInvoice(
+      discount,
+      freightCharge,
+      paymentMode,
+      payLaterRemarks,
+    );
+
     if (success) {
-      setQuantity(1);
-      setDiscount(0);
-      setFreightCharge(0);
+      // Reset payment mode and remarks after successful completion
+      setPaymentMode("");
+      setPayLaterRemarks("");
+      setShowRemarksInput(false);
     }
   };
 
@@ -687,41 +712,6 @@ export default function PurchasesPage() {
                 />
               </div>
 
-              {/* Reverse Charge Selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <Repeat className="w-4 h-4 text-gray-400" />
-                  <span>Reverse Charge</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-4 p-2 bg-gray-50 rounded-lg">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="reverseCharge"
-                      value="Yes"
-                      checked={reverseCharge === "Yes"}
-                      onChange={(e) => setReverseCharge(e.target.value)}
-                      disabled={!selectedSupplier}
-                      className="w-4 h-4 text-indigo-600 cursor-pointer"
-                    />
-                    <span className="text-sm">Yes</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="reverseCharge"
-                      value="No"
-                      checked={reverseCharge === "No"}
-                      onChange={(e) => setReverseCharge(e.target.value)}
-                      disabled={!selectedSupplier}
-                      className="w-4 h-4 text-indigo-600 cursor-pointer"
-                    />
-                    <span className="text-sm">No</span>
-                  </label>
-                </div>
-              </div>
-
               {selectedSupplier &&
                 invoiceNumber &&
                 invoiceDate &&
@@ -981,14 +971,29 @@ export default function PurchasesPage() {
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-lg">Received Items</CardTitle>
-                <div className="flex items-center gap-4">
+                {/* <div className="flex items-center gap-4">
                   <span className="text-sm text-gray-600">
                     Total Qty:{" "}
                     {items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
                   </span>
-                </div>
+                </div> */}
               </div>
             </CardHeader>
+            {/* Total Products and Quantity */}
+            {items && items.length > 0 && (
+              <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-lg mx-6">
+                <div>
+                  <span className="text-sm text-gray-600">Total Products:</span>
+                  <span className="ml-2 font-semibold">{items.length}</span>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-600">Total Quantity:</span>
+                  <span className="ml-2 font-semibold">
+                    {items.reduce((sum, item) => sum + item.quantity, 0)}
+                  </span>
+                </div>
+              </div>
+            )}
             <CardContent>
               {!items || items.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
@@ -1012,8 +1017,8 @@ export default function PurchasesPage() {
                         </TableHead>
                         <TableHead className="text-center">Quantity</TableHead>
                         <TableHead className="text-center">Unit</TableHead>
-                        <TableHead className="text-right">Tax %</TableHead>
-                        <TableHead className="text-right">Tax Amt</TableHead>
+                        <TableHead className="text-right">SGST</TableHead>
+                        <TableHead className="text-right">CGST</TableHead>
                         <TableHead className="text-right">Base Amt</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="text-right w-[100px]">
@@ -1081,10 +1086,10 @@ export default function PurchasesPage() {
                             </TableCell>
                             <TableCell className="text-right">Pcs.</TableCell>
                             <TableCell className="text-right">
-                              {item.taxPercent}%
+                              ₹{(taxAmount / 2).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
-                              ₹{taxAmount.toFixed(2)}
+                              ₹{(taxAmount / 2).toFixed(2)}
                             </TableCell>
                             <TableCell className="text-right">
                               ₹{baseAmount.toFixed(2)}
@@ -1114,7 +1119,7 @@ export default function PurchasesPage() {
           </Card>
         </div>
 
-        {/* Right Column - Summary */}
+        {/* Right Column - Purchase Summary */}
         <div className="space-y-6">
           <Card className="sticky top-6">
             <CardHeader className="pb-3">
@@ -1123,21 +1128,16 @@ export default function PurchasesPage() {
             <CardContent className="space-y-4">
               {/* Price Breakdown */}
               <div className="space-y-2">
+                {/* 1. Base Amount */}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Base Amount:</span>
                   <span className="font-medium">
-                    ₹{totals?.subTotal?.toFixed(2) || "0.00"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Tax:</span>
-                  <span className="font-medium">
-                    ₹{totals?.totalTax?.toFixed(2) || "0.00"}
+                    ₹{totals.subTotal.toFixed(2)}
                   </span>
                 </div>
 
-                {/* DISCOUNT SECTION */}
-                <div className="flex justify-between items-center gap-4 pt-2">
+                {/* 2. Discount on Base Amount */}
+                <div className="flex justify-between items-center gap-4">
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-sm text-gray-600">Discount (%):</span>
                     <Input
@@ -1159,18 +1159,45 @@ export default function PurchasesPage() {
                   </div>
                   {discount > 0 && (
                     <div className="text-right">
-                      <span className="text-sm text-gray-600">
-                        Discount Amt:
-                      </span>
                       <span className="ml-2 font-medium text-red-600">
-                        -₹{((totals.grandTotal * discount) / 100).toFixed(2)}
+                        -₹{totals.discountAmount.toFixed(2)}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* FREIGHT CHARGE SECTION */}
-                <div className="flex justify-between items-center gap-4 pt-2">
+                {/* 3. Amount after Discount */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Amount after Discount:</span>
+                  <span className="font-medium">
+                    ₹{totals.afterDiscount.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* 4. Tax Breakdown (SGST & CGST) */}
+                <div className="space-y-1 pt-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">SGST:</span>
+                    <span className="font-medium">
+                      ₹{(totals.totalTax / 2).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">CGST:</span>
+                    <span className="font-medium">
+                      ₹{(totals.totalTax / 2).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Tax (GST):</span>
+                    <span className="font-medium">
+                      ₹{totals.totalTax.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 5. Freight Charge */}
+                <div className="flex justify-between items-center gap-4">
                   <div className="flex items-center gap-2 flex-1">
                     <span className="text-sm text-gray-600">
                       Freight Charge:
@@ -1193,7 +1220,6 @@ export default function PurchasesPage() {
                   </div>
                   {freightCharge > 0 && (
                     <div className="text-right">
-                      <span className="text-sm text-gray-600">Added:</span>
                       <span className="ml-2 font-medium text-blue-600">
                         +₹{freightCharge.toFixed(2)}
                       </span>
@@ -1202,17 +1228,154 @@ export default function PurchasesPage() {
                 </div>
 
                 <Separator className="my-2" />
+
+                {/* 6. Grand Total (Before Rounding) */}
                 <div className="flex justify-between font-bold text-lg">
                   <span>Grand Total:</span>
                   <span className="text-indigo-600">
-                    ₹
-                    {(
-                      totals.grandTotal -
-                      (totals.grandTotal * discount) / 100 +
-                      freightCharge
-                    ).toFixed(2)}
+                    ₹{totals.finalTotal.toFixed(2)}
                   </span>
                 </div>
+
+                {/* 7. Rounded Off */}
+                {totals.roundOffAmount !== 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Rounded Off:</span>
+                    <span
+                      className={`font-medium ${
+                        totals.roundOffAmount > 0
+                          ? "text-blue-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {totals.roundOffAmount > 0
+                        ? `+₹${totals.roundOffAmount.toFixed(2)}`
+                        : `-₹${Math.abs(totals.roundOffAmount).toFixed(2)}`}
+                    </span>
+                  </div>
+                )}
+
+                {/* 8. Final Rounded Total */}
+                <div className="flex justify-between font-bold text-xl pt-2 border-t-2 border-gray-200">
+                  <span>Rounded Total:</span>
+                  <span className="text-green-600">
+                    ₹{totals.roundedFinalTotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Mode Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Payment Mode <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button
+                    type="button"
+                    variant={paymentMode === "Cash" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      paymentMode === "Cash"
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "hover:bg-green-50"
+                    }`}
+                    onClick={() => {
+                      setPaymentMode("Cash");
+                      setShowRemarksInput(false);
+                      setPayLaterRemarks("");
+                    }}
+                    disabled={items.length === 0}
+                  >
+                    Cash
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={paymentMode === "UPI" ? "default" : "outline"}
+                    className={`cursor-pointer ${
+                      paymentMode === "UPI"
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "hover:bg-blue-50"
+                    }`}
+                    onClick={() => {
+                      setPaymentMode("UPI");
+                      setShowRemarksInput(false);
+                      setPayLaterRemarks("");
+                    }}
+                    disabled={items.length === 0}
+                  >
+                    UPI
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      paymentMode === "Debit/Credit Card"
+                        ? "default"
+                        : "outline"
+                    }
+                    className={`cursor-pointer ${
+                      paymentMode === "Debit/Credit Card"
+                        ? "bg-purple-600 hover:bg-purple-700"
+                        : "hover:bg-purple-50"
+                    }`}
+                    onClick={() => {
+                      setPaymentMode("Debit/Credit Card");
+                      setShowRemarksInput(false);
+                      setPayLaterRemarks("");
+                    }}
+                    disabled={items.length === 0}
+                  >
+                    Card
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      paymentMode === "Pay Later" ? "default" : "outline"
+                    }
+                    className={`cursor-pointer ${
+                      paymentMode === "Pay Later"
+                        ? "bg-orange-600 hover:bg-orange-700"
+                        : "hover:bg-orange-50"
+                    }`}
+                    onClick={() => {
+                      setPaymentMode("Pay Later");
+                      setShowRemarksInput(true);
+                    }}
+                    disabled={items.length === 0}
+                  >
+                    Pay Later
+                  </Button>
+                </div>
+
+                {/* Remarks Input for Pay Later */}
+                {showRemarksInput && paymentMode === "Pay Later" && (
+                  <div className="mt-3">
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">
+                      Remarks <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="Enter reason for Pay Later (e.g., Credit purchase, Due payment, etc.)"
+                      value={payLaterRemarks}
+                      onChange={(e) => setPayLaterRemarks(e.target.value)}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Required: Please provide remarks for this Pay Later
+                      transaction
+                    </p>
+                  </div>
+                )}
+
+                {items.length > 0 && !paymentMode && (
+                  <p className="text-xs text-amber-600">
+                    Please select payment mode
+                  </p>
+                )}
+                {paymentMode === "Pay Later" &&
+                  showRemarksInput &&
+                  !payLaterRemarks.trim() && (
+                    <p className="text-xs text-red-500">
+                      Remarks is required for Pay Later
+                    </p>
+                  )}
               </div>
 
               {/* Action Buttons */}
@@ -1220,23 +1383,24 @@ export default function PurchasesPage() {
                 <Button
                   className="w-full cursor-pointer"
                   size="lg"
-                  onClick={handleCompletePurchase}
+                  onClick={handleCompletePurchase} // Change from direct call to handleCompletePurchase
                   disabled={
                     !selectedSupplier ||
                     !invoiceNumber ||
                     !invoiceDate ||
                     !placeOfSupply ||
-                    !reverseCharge ||
                     !items ||
                     items.length === 0 ||
                     isLoading ||
-                    !purchaseId
+                    !purchaseId ||
+                    !paymentMode ||
+                    (paymentMode === "Pay Later" && !payLaterRemarks.trim())
                   }
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {!purchaseId ? "Creating session..." : "Processing..."}
+                      Processing...
                     </>
                   ) : (
                     <>
@@ -1248,19 +1412,13 @@ export default function PurchasesPage() {
               </div>
 
               {/* Items Count */}
-              <div className="text-center text-sm text-gray-500 pt-2">
+              {/* <div className="text-center text-sm text-gray-500 pt-2">
                 Total Items: {items?.length || 0}
-              </div>
+              </div> */}
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* Completed Purchases Section */}
-      <CompletedPurchases
-        isOpen={showCompletedPurchases}
-        onToggle={() => setShowCompletedPurchases(!showCompletedPurchases)}
-      />
 
       {/* New Supplier Dialog */}
       <Dialog

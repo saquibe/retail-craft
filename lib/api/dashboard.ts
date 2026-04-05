@@ -1,4 +1,4 @@
-// lib/api/dashboard.ts
+import axiosInstance from "./axios";
 export interface DashboardStats {
   totalSales: number;
   totalInvoices: number;
@@ -22,32 +22,50 @@ export interface DashboardStats {
   avgBills: number;
 }
 
-export interface Receivable {
-  id: string;
-  customerName: string;
-  invoiceNo: string;
-  invoiceDate: string;
-  dueDate: string;
-  amount: number;
-  paidAmount: number;
-  pendingAmount: number;
-  status: "pending" | "paid";
-}
-
-export interface Payable {
-  id: string;
-  supplierName: string;
-  billNo: string;
-  billDate: string;
-  dueDate: string;
-  amount: number;
-  paidAmount: number;
-  pendingAmount: number;
-  status: "pending" | "paid";
-}
-
 export interface DashboardData {
   stats: DashboardStats;
-  receivables: Receivable[];
-  payables: Payable[];
+  receivables: any[];
+  payables: any[];
 }
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  count?: number;
+}
+
+// Get complete dashboard data
+export const getDashboardData = async (
+  range: "today" | "week" | "month" | "year" = "month",
+): Promise<ApiResponse<DashboardData>> => {
+  try {
+    const response = await axiosInstance.get(`/dashboard?range=${range}`);
+    return response.data;
+  } catch (error) {
+    console.error("Get dashboard data error:", error);
+    throw error;
+  }
+};
+
+// Get receivables only
+export const getReceivables = async (): Promise<ApiResponse<any[]>> => {
+  try {
+    const response = await axiosInstance.get("/dashboard/receivables");
+    return response.data;
+  } catch (error) {
+    console.error("Get receivables error:", error);
+    throw error;
+  }
+};
+
+// Get payables only
+export const getPayables = async (): Promise<ApiResponse<any[]>> => {
+  try {
+    const response = await axiosInstance.get("/dashboard/payables");
+    return response.data;
+  } catch (error) {
+    console.error("Get payables error:", error);
+    throw error;
+  }
+};

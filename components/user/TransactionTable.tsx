@@ -16,10 +16,13 @@ import {
   Search,
   ArrowUpDown,
   Eye,
-  Download,
   ChevronLeft,
   ChevronRight,
+  CheckCircle,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export interface Transaction {
   id: string;
@@ -32,22 +35,27 @@ export interface Transaction {
   amount: number;
   paidAmount: number;
   pendingAmount: number;
-  status: "pending" | "partial" | "overdue";
+  status: "pending" | "paid";
+  paymentMode?: string;
+  daysOverdue?: number;
 }
 
 interface TransactionTableProps {
   type: "receivable" | "payable";
   data: Transaction[];
   onViewDetails: (id: string) => void;
-  onDownload?: (id: string) => void;
+  onMarkPaid?: (id: string) => Promise<void>;
+  updatingPaymentId?: string | null;
 }
 
 export function TransactionTable({
   type,
   data,
   onViewDetails,
-  onDownload,
+  onMarkPaid,
+  updatingPaymentId,
 }: TransactionTableProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<keyof Transaction>("dueDate");
@@ -90,8 +98,7 @@ export function TransactionTable({
   const getStatusBadge = (status: string) => {
     const variants = {
       pending: "bg-yellow-100 text-yellow-800",
-      partial: "bg-blue-100 text-blue-800",
-      overdue: "bg-red-100 text-red-800",
+      paid: "bg-green-100 text-green-800",
     };
     return (
       variants[status as keyof typeof variants] || "bg-gray-100 text-gray-800"
@@ -124,22 +131,37 @@ export function TransactionTable({
     }
   };
 
+  const handleViewDetails = (id: string) => {
+    if (type === "receivable") {
+      router.push(`/user/customer-invoices?view=${id}`);
+    } else {
+      router.push(`/user/supplier-invoices?view=${id}`);
+    }
+    onViewDetails(id);
+  };
+
+  const handleMarkPaid = async (id: string) => {
+    if (onMarkPaid) {
+      await onMarkPaid(id);
+    }
+  };
+
   const totalPending = filteredData.reduce(
     (sum, item) => sum + item.pendingAmount,
     0,
   );
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white rounded-lg shadow overflow-hidden">
       {/* Header with summary */}
-      <div className="p-4 border-b flex justify-between items-center">
+      <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h3 className="text-lg font-semibold">{title}</h3>
           <p className="text-sm text-gray-500">
             Total Pending: {formatCurrency(totalPending)}
           </p>
         </div>
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
           <Input
             placeholder={`Search ${
@@ -152,93 +174,144 @@ export function TransactionTable({
         </div>
       </div>
 
-      {/* Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[180px]">
-              <Button variant="ghost" onClick={() => toggleSort(nameField)}>
-                {type === "receivable" ? "Customer" : "Supplier"}
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead>
-              <Button variant="ghost" onClick={() => toggleSort(documentField)}>
-                {type === "receivable" ? "Invoice No" : "Bill No"}
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead>Invoice Date</TableHead>
-            <TableHead>Due Date</TableHead>
-            <TableHead className="text-right">
-              <Button variant="ghost" onClick={() => toggleSort("amount")}>
-                Amount
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-            </TableHead>
-            <TableHead className="text-right">Paid</TableHead>
-            <TableHead className="text-right">Pending</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginatedData.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item[nameField]}</TableCell>
-              <TableCell>{item[documentField]}</TableCell>
-              <TableCell>{formatDate(item.invoiceDate)}</TableCell>
-              <TableCell>{formatDate(item.dueDate)}</TableCell>
-              <TableCell className="text-right">
-                {formatCurrency(item.amount)}
-              </TableCell>
-              <TableCell className="text-right">
-                {formatCurrency(item.paidAmount)}
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                <span
-                  className={
-                    item.pendingAmount > 0 ? "text-red-600" : "text-green-600"
-                  }
-                >
-                  {formatCurrency(item.pendingAmount)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <Badge className={getStatusBadge(item.status)}>
-                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
+      {/* Table with horizontal scroll */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[1100px]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[180px]">
+                  <Button variant="ghost" onClick={() => toggleSort(nameField)}>
+                    {type === "receivable" ? "Customer" : "Supplier"}
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    onClick={() => onViewDetails(item.id)}
-                    title="View Details"
+                    onClick={() => toggleSort(documentField)}
                   >
-                    <Eye className="h-4 w-4" />
+                    {type === "receivable" ? "Invoice No" : "Bill No"}
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
-                  {onDownload && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onDownload(item.id)}
-                      title="Download"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </TableHead>
+                <TableHead>Invoice Date</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead className="text-center">Overdue</TableHead>
+                <TableHead className="text-right">
+                  <Button variant="ghost" onClick={() => toggleSort("amount")}>
+                    Amount
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-right">Paid</TableHead>
+                <TableHead className="text-right">Pending</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedData.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="text-center py-8 text-gray-500"
+                  >
+                    No {type === "receivable" ? "receivables" : "payables"}{" "}
+                    found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedData.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">
+                      {item[nameField]}
+                    </TableCell>
+                    <TableCell>{item[documentField]}</TableCell>
+                    <TableCell>{formatDate(item.invoiceDate)}</TableCell>
+                    <TableCell>{formatDate(item.dueDate)}</TableCell>
+                    <TableCell className="text-center">
+                      {item.daysOverdue &&
+                      item.daysOverdue > 0 &&
+                      item.pendingAmount > 0 ? (
+                        <Badge
+                          variant="destructive"
+                          className="bg-red-100 text-red-800"
+                        >
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {item.daysOverdue} day
+                          {item.daysOverdue !== 1 ? "s" : ""}
+                        </Badge>
+                      ) : item.pendingAmount > 0 ? (
+                        <Badge variant="outline" className="text-yellow-600">
+                          Due soon
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.amount)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.paidAmount)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      <span
+                        className={
+                          item.pendingAmount > 0
+                            ? "text-red-600"
+                            : "text-green-600"
+                        }
+                      >
+                        {formatCurrency(item.pendingAmount)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusBadge(item.status)}>
+                        {item.status.charAt(0).toUpperCase() +
+                          item.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewDetails(item.id)}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {/* {item.status === "pending" && onMarkPaid && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleMarkPaid(item.id)}
+                            disabled={updatingPaymentId === item.id}
+                            title="Mark as Paid"
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            {updatingPaymentId === item.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )} */}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="p-4 border-t flex justify-between items-center">
+        <div className="p-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-gray-500">
             Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
             {Math.min(currentPage * itemsPerPage, filteredData.length)} of{" "}

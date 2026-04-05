@@ -1,3 +1,4 @@
+//app/(dashboard)/user/customer-invoices/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,98 +34,90 @@ import {
   Eye,
   FileText,
   Calendar,
-  Building2,
+  User,
+  CreditCard,
   Package,
   ChevronDown,
   ChevronUp,
+  ShoppingBag,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
+  Truck,
   MessageSquare,
+  Plus,
 } from "lucide-react";
 import {
-  getCompletedPurchases,
-  PurchaseInvoice,
-  updatePurchasePaymentStatus,
-} from "@/lib/api/purchases";
-import { PurchaseInvoicePrint } from "./PurchaseInvoicePrint";
+  getCompletedBillings,
+  Billing,
+  updatePaymentStatus,
+} from "@/lib/api/billing";
+import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 import React from "react";
-import CompletedBillingsSkeleton from "../skeletons/CompletedBillingsSkeleton";
 
-interface CompletedPurchasesProps {
-  isOpen?: boolean;
-  onToggle?: () => void;
-}
-
-export function CompletedPurchases({
-  isOpen = false,
-  onToggle,
-}: CompletedPurchasesProps) {
-  const [purchases, setPurchases] = useState<PurchaseInvoice[]>([]);
-  const [filteredPurchases, setFilteredPurchases] = useState<PurchaseInvoice[]>(
-    [],
-  );
-  const [isLoading, setIsLoading] = useState(false);
+export default function CustomerInvoicesPage() {
+  const router = useRouter();
+  const [billings, setBillings] = useState<Billing[]>([]);
+  const [filteredBillings, setFilteredBillings] = useState<Billing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPurchase, setSelectedPurchase] =
-    useState<PurchaseInvoice | null>(null);
+  const [selectedBilling, setSelectedBilling] = useState<Billing | null>(null);
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
-  const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
+  const [expandedBilling, setExpandedBilling] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Load completed purchases when opened
+  // Load completed billings on mount
   useEffect(() => {
-    if (isOpen) {
-      loadCompletedPurchases();
-    }
-  }, [isOpen]);
+    loadCompletedBillings();
+  }, []);
 
   // Reset to first page when search term changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Filter purchases based on search term
+  // Filter billings based on search term
   useEffect(() => {
     if (!searchTerm.trim()) {
-      setFilteredPurchases(purchases);
+      setFilteredBillings(billings);
       return;
     }
 
     const searchLower = searchTerm.toLowerCase();
-    const filtered = purchases.filter(
-      (purchase) =>
-        purchase.invoiceNumber.toLowerCase().includes(searchLower) ||
-        purchase.supplierId?.name?.toLowerCase().includes(searchLower) ||
-        purchase.supplierId?.email?.toLowerCase().includes(searchLower) ||
-        purchase.supplierId?.mobile?.includes(searchLower) ||
-        purchase.paymentMode?.toLowerCase().includes(searchLower) ||
-        purchase.paymentStatus?.toLowerCase().includes(searchLower) ||
-        purchase.items?.some(
+    const filtered = billings.filter(
+      (billing) =>
+        billing.invoiceNumber.toLowerCase().includes(searchLower) ||
+        billing.customerId?.name?.toLowerCase().includes(searchLower) ||
+        billing.customerId?.email?.toLowerCase().includes(searchLower) ||
+        billing.customerId?.mobile?.includes(searchLower) ||
+        billing.paymentMode?.toLowerCase().includes(searchLower) ||
+        billing.remarks?.toLowerCase().includes(searchLower) ||
+        billing.paymentStatus?.toLowerCase().includes(searchLower) ||
+        billing.items?.some(
           (item) =>
             item.productName.toLowerCase().includes(searchLower) ||
             item.barCode.toLowerCase().includes(searchLower),
         ),
     );
-    setFilteredPurchases(filtered);
-  }, [searchTerm, purchases]);
+    setFilteredBillings(filtered);
+  }, [searchTerm, billings]);
 
-  const loadCompletedPurchases = async () => {
+  const loadCompletedBillings = async () => {
     setIsLoading(true);
     try {
-      const response = await getCompletedPurchases();
+      const response = await getCompletedBillings();
       if (response.success && response.data) {
-        setPurchases(response.data);
-        setFilteredPurchases(response.data);
+        setBillings(response.data);
+        setFilteredBillings(response.data);
       }
     } catch (error) {
-      console.error("Error loading completed purchases:", error);
-      toast.error("Failed to load completed purchase invoices");
+      console.error("Error loading completed billings:", error);
+      toast.error("Failed to load completed billings");
     } finally {
       setIsLoading(false);
     }
@@ -132,16 +125,16 @@ export function CompletedPurchases({
 
   // Handle payment status update
   const handleUpdatePaymentStatus = async (
-    purchaseId: string,
+    billingId: string,
     currentStatus: string,
   ) => {
     const newStatus = currentStatus === "Paid" ? "Pending" : "Paid";
-    setUpdatingPayment(purchaseId);
+    setUpdatingPayment(billingId);
     try {
-      const response = await updatePurchasePaymentStatus(purchaseId, newStatus);
+      const response = await updatePaymentStatus(billingId, newStatus);
       if (response.success) {
         toast.success(`Payment status updated to ${newStatus}`);
-        loadCompletedPurchases();
+        loadCompletedBillings();
       } else {
         toast.error(response.message || "Failed to update payment status");
       }
@@ -158,11 +151,11 @@ export function CompletedPurchases({
   // Get current page data
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredPurchases.slice(
+  const currentItems = filteredBillings.slice(
     indexOfFirstItem,
     indexOfLastItem,
   );
-  const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredBillings.length / itemsPerPage);
 
   // Get payment mode badge color
   const getPaymentModeBadge = (mode: string) => {
@@ -201,13 +194,13 @@ export function CompletedPurchases({
     }).format(amount);
   };
 
-  const handleViewInvoice = (purchase: PurchaseInvoice) => {
-    setSelectedPurchase(purchase);
+  const handleViewInvoice = (billing: Billing) => {
+    setSelectedBilling(billing);
     setShowInvoiceDialog(true);
   };
 
-  const toggleExpand = (purchaseId: string) => {
-    setExpandedPurchase(expandedPurchase === purchaseId ? null : purchaseId);
+  const toggleExpand = (billingId: string) => {
+    setExpandedBilling(expandedBilling === billingId ? null : billingId);
   };
 
   // Handle page change
@@ -234,36 +227,32 @@ export function CompletedPurchases({
   };
 
   return (
-    <Card className="mt-6">
-      <CardHeader className="pb-3 cursor-pointer" onClick={onToggle}>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Completed Purchase Invoices
-            {purchases.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {purchases.length}
-              </Badge>
-            )}
-          </CardTitle>
-          <Button variant="ghost" size="sm">
-            {isOpen ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </Button>
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Customer Invoices</h1>
+          <p className="text-gray-500 mt-1">
+            View and manage all completed customer invoices
+          </p>
         </div>
-      </CardHeader>
+        <Button
+          onClick={() => router.push("/user/billing")}
+          className="cursor-pointer"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New Invoice
+        </Button>
+      </div>
 
-      {isOpen && (
-        <CardContent className="space-y-4">
-          {/* Search Bar */}
+      {/* Search Bar */}
+      <Card>
+        <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search by invoice, supplier, items, payment mode, payment status..."
+                placeholder="Search by invoice, customer, items, payment mode, payment status, remarks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -271,46 +260,51 @@ export function CompletedPurchases({
             </div>
             <Button
               variant="outline"
-              onClick={loadCompletedPurchases}
+              onClick={loadCompletedBillings}
               size="sm"
+              className="cursor-pointer"
             >
               <FileText className="w-4 h-4 mr-2" />
               Refresh
             </Button>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Purchases Table */}
+      {/* Billings Table */}
+      <Card>
+        <CardContent className="pt-6">
           {isLoading ? (
-            <CompletedBillingsSkeleton rows={6} />
-          ) : filteredPurchases.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="space-y-4">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-16 bg-gray-100 animate-pulse rounded"
+                />
+              ))}
+            </div>
+          ) : filteredBillings.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="text-lg mb-2">
-                No completed purchase invoices found
-              </p>
+              <p className="text-lg mb-2">No completed billings found</p>
               <p className="text-sm">
                 {searchTerm
                   ? "Try a different search term"
-                  : "Complete a purchase invoice to see it here"}
+                  : "Complete a billing to see it here"}
               </p>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <div className="min-w-[1000px]">
-                  <Table>
-                    <TableHeader>
+              <div className="w-full overflow-x-auto">
+                <div className="inline-block min-w-full align-middle">
+                  <Table className="min-w-full whitespace-nowrap">
+                    <TableHeader className="sticky top-0 bg-white z-10">
                       <TableRow>
                         <TableHead className="w-8"></TableHead>
                         <TableHead>Invoice #</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Supplier</TableHead>
+                        <TableHead>Customer</TableHead>
                         <TableHead>Items</TableHead>
-                        <TableHead className="text-right">
-                          Total Amount
-                        </TableHead>
-                        <TableHead className="text-right">Freight</TableHead>
-                        <TableHead className="text-right">Discount</TableHead>
                         <TableHead className="text-right">
                           Final Amount
                         </TableHead>
@@ -320,17 +314,17 @@ export function CompletedPurchases({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {currentItems.map((purchase) => (
-                        <React.Fragment key={purchase._id}>
+                      {currentItems.map((billing) => (
+                        <React.Fragment key={billing._id}>
                           <TableRow className="cursor-pointer hover:bg-gray-50">
                             <TableCell>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
-                                onClick={() => toggleExpand(purchase._id)}
+                                onClick={() => toggleExpand(billing._id)}
                               >
-                                {expandedPurchase === purchase._id ? (
+                                {expandedBilling === billing._id ? (
                                   <ChevronUp className="h-4 w-4" />
                                 ) : (
                                   <ChevronDown className="h-4 w-4" />
@@ -338,141 +332,93 @@ export function CompletedPurchases({
                               </Button>
                             </TableCell>
                             <TableCell className="font-medium">
-                              {purchase.invoiceNumber}
+                              {billing.invoiceNumber}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3 text-gray-400" />
                                 {format(
-                                  new Date(purchase.invoiceDate),
+                                  new Date(billing.createdAt),
                                   "dd/MM/yyyy",
                                 )}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {format(new Date(billing.createdAt), "hh:mm a")}
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
-                                <Building2 className="w-3 h-3 text-gray-400" />
-                                {purchase.supplierId?.name || "N/A"}
+                                <User className="w-3 h-3 text-gray-400" />
+                                {billing.customerId?.name || "N/A"}
                               </div>
-                              <div className="text-xs text-gray-500">
-                                GST: {purchase.supplierId?.gstIn}
-                              </div>
+                              {billing.customerId?.customerType && (
+                                <Badge
+                                  className={
+                                    billing.customerId.customerType === "B2B"
+                                      ? "bg-purple-100 text-purple-800 text-xs mt-1"
+                                      : "bg-green-100 text-green-800 text-xs mt-1"
+                                  }
+                                >
+                                  {billing.customerId.customerType}
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Package className="w-3 h-3 text-gray-400" />
-                                {purchase.items?.length || 0} items
+                                {billing.items?.length || 0} items
                               </div>
                               <div className="text-xs text-gray-500">
                                 Total Qty:{" "}
-                                {purchase.items?.reduce(
+                                {billing.items?.reduce(
                                   (sum, item) => sum + item.quantity,
                                   0,
                                 ) || 0}
                               </div>
                             </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {purchase.discount && purchase.discount > 0 ? (
-                                <span className="text-gray-400 line-through">
-                                  {formatCurrency(purchase.grandTotal)}
-                                </span>
-                              ) : (
-                                <span className="text-indigo-600">
-                                  {formatCurrency(purchase.grandTotal)}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {purchase.freightCharge &&
-                              purchase.freightCharge > 0 ? (
-                                <div>
-                                  <span className="text-sm font-medium text-blue-600">
-                                    +{formatCurrency(purchase.freightCharge)}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {purchase.discount && purchase.discount > 0 ? (
-                                <div>
-                                  <span className="text-sm font-medium text-red-600">
-                                    {purchase.discount}%
-                                  </span>
-                                  <div className="text-xs text-gray-500">
-                                    -
-                                    {formatCurrency(
-                                      purchase.discountAmount || 0,
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </TableCell>
                             <TableCell className="text-right font-semibold">
-                              {purchase.discount && purchase.discount > 0 ? (
-                                <div>
-                                  <span className="text-green-600 font-bold">
-                                    {formatCurrency(
-                                      purchase.finalTotal ||
-                                        purchase.grandTotal,
-                                    )}
-                                  </span>
-                                  {purchase.freightCharge &&
-                                    purchase.freightCharge > 0 && (
-                                      <div className="text-xs text-blue-600">
-                                        (Incl. freight)
-                                      </div>
-                                    )}
-                                </div>
-                              ) : (
-                                <span className="text-gray-600">
-                                  {formatCurrency(purchase.grandTotal)}
-                                </span>
+                              {formatCurrency(
+                                billing.finalTotal || billing.grandTotal || 0,
                               )}
                             </TableCell>
                             <TableCell>
                               <Badge
                                 className={getPaymentModeBadge(
-                                  purchase.paymentMode || "",
+                                  billing.paymentMode || "",
                                 )}
                               >
-                                {purchase.paymentMode === "Pay Later" ? (
+                                {billing.paymentMode === "Pay Later" ? (
                                   <MessageSquare className="w-3 h-3 mr-1" />
                                 ) : (
                                   <CreditCard className="w-3 h-3 mr-1" />
                                 )}
-                                {purchase.paymentMode || "N/A"}
+                                {billing.paymentMode || "N/A"}
                               </Badge>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Badge
                                   className={getPaymentStatusBadge(
-                                    purchase.paymentStatus || "Pending",
+                                    billing.paymentStatus || "Pending",
                                   )}
                                 >
-                                  {purchase.paymentStatus || "Pending"}
+                                  {billing.paymentStatus || "Pending"}
                                 </Badge>
-                                {purchase.paymentMode === "Pay Later" &&
-                                  purchase.paymentStatus !== "Paid" && (
+                                {billing.paymentMode === "Pay Later" &&
+                                  billing.paymentStatus !== "Paid" && (
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
                                         handleUpdatePaymentStatus(
-                                          purchase._id,
-                                          purchase.paymentStatus || "Pending",
+                                          billing._id,
+                                          billing.paymentStatus || "Pending",
                                         )
                                       }
-                                      disabled={
-                                        updatingPayment === purchase._id
-                                      }
-                                      className="h-6 text-xs whitespace-nowrap"
+                                      disabled={updatingPayment === billing._id}
+                                      className="h-6 text-xs"
                                     >
-                                      {updatingPayment === purchase._id ? (
+                                      {updatingPayment === billing._id ? (
                                         <Loader2 className="w-3 h-3 animate-spin" />
                                       ) : (
                                         "Mark Paid"
@@ -485,14 +431,13 @@ export function CompletedPurchases({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleViewInvoice(purchase)}
+                                onClick={() => handleViewInvoice(billing)}
                               >
-                                <Eye className="w-4 h-4 mr-1" />
-                                View
+                                <Eye className="w-4 h-4 mr-1" /> View
                               </Button>
                             </TableCell>
                           </TableRow>
-                          {expandedPurchase === purchase._id && (
+                          {expandedBilling === billing._id && (
                             <TableRow>
                               <TableCell
                                 colSpan={12}
@@ -500,91 +445,65 @@ export function CompletedPurchases({
                               >
                                 <div className="space-y-3">
                                   <h4 className="font-medium flex items-center gap-2">
-                                    <Package className="w-4 h-4" />
-                                    Items Details
+                                    <ShoppingBag className="w-4 h-4" /> Items
+                                    Details
                                   </h4>
                                   <div className="grid gap-2">
-                                    {purchase.items?.map((item, idx) => {
-                                      const priceWithQty =
-                                        item.purchasePrice * item.quantity;
-                                      const taxAmount =
-                                        (priceWithQty * item.taxPercent) / 100;
-                                      return (
-                                        <div
-                                          key={idx}
-                                          className="flex justify-between items-center text-sm p-2 bg-white rounded border"
-                                        >
-                                          <div className="flex-1">
-                                            <p className="font-medium">
-                                              {item.productName}
-                                            </p>
-                                            <p className="text-xs text-gray-500">
-                                              Barcode: {item.barCode}
-                                            </p>
+                                    {billing.items?.map((item, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex justify-between items-center text-sm p-2 bg-white rounded border"
+                                      >
+                                        <div className="flex-1">
+                                          <p className="font-medium">
+                                            {item.productName}
+                                          </p>
+                                          <p className="text-xs text-gray-500">
+                                            Code: {item.barCode}
+                                          </p>
+                                        </div>
+                                        <div className="flex gap-4">
+                                          <div className="text-right">
+                                            <span className="text-gray-500 text-xs">
+                                              Qty:
+                                            </span>
+                                            <span className="ml-1 font-medium">
+                                              {item.quantity}
+                                            </span>
                                           </div>
-                                          <div className="flex gap-4">
-                                            <div className="text-right">
-                                              <span className="text-gray-500 text-xs">
-                                                Qty:
-                                              </span>
-                                              <span className="ml-1 font-medium">
-                                                {item.quantity}
-                                              </span>
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                              <span className="text-gray-500 text-xs">
-                                                Price:
-                                              </span>
-                                              <span className="ml-1 font-medium">
-                                                ₹{item.purchasePrice.toFixed(2)}
-                                              </span>
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                              <span className="text-gray-500 text-xs">
-                                                SGST:
-                                              </span>
-                                              <span className="ml-1 font-medium">
-                                                ₹{(taxAmount / 2).toFixed(2)}
-                                              </span>
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                              <span className="text-gray-500 text-xs">
-                                                CGST:
-                                              </span>
-                                              <span className="ml-1 font-medium">
-                                                ₹{(taxAmount / 2).toFixed(2)}
-                                              </span>
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                              <span className="text-gray-500 text-xs">
-                                                Total:
-                                              </span>
-                                              <span className="ml-1 font-medium text-indigo-600">
-                                                ₹
-                                                {(
-                                                  priceWithQty + taxAmount
-                                                ).toFixed(2)}
-                                              </span>
-                                            </div>
+                                          <div className="text-right min-w-[80px]">
+                                            <span className="text-gray-500 text-xs">
+                                              Price:
+                                            </span>
+                                            <span className="ml-1 font-medium">
+                                              ₹{item.price.toFixed(2)}
+                                            </span>
+                                          </div>
+                                          <div className="text-right min-w-[80px]">
+                                            <span className="text-gray-500 text-xs">
+                                              Total:
+                                            </span>
+                                            <span className="ml-1 font-medium text-indigo-600">
+                                              ₹
+                                              {(
+                                                item.price * item.quantity
+                                              ).toFixed(2)}
+                                            </span>
                                           </div>
                                         </div>
-                                      );
-                                    })}
+                                      </div>
+                                    ))}
                                   </div>
-
-                                  {/* Summary Section - Full Breakdown */}
+                                  {/* Summary Section */}
                                   <div className="mt-4 pt-3 border-t">
                                     <div className="space-y-2">
-                                      <h4 className="font-medium text-sm">
-                                        Summary
-                                      </h4>
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">
                                           Base Amount:
                                         </span>
                                         <span className="font-medium">
                                           ₹
-                                          {purchase.subTotal?.toFixed(2) ||
+                                          {billing.subTotal?.toFixed(2) ||
                                             "0.00"}
                                         </span>
                                       </div>
@@ -595,7 +514,7 @@ export function CompletedPurchases({
                                         <span className="font-medium">
                                           ₹
                                           {(
-                                            (purchase.totalTax || 0) / 2
+                                            (billing.totalTax || 0) / 2
                                           ).toFixed(2)}
                                         </span>
                                       </div>
@@ -606,7 +525,7 @@ export function CompletedPurchases({
                                         <span className="font-medium">
                                           ₹
                                           {(
-                                            (purchase.totalTax || 0) / 2
+                                            (billing.totalTax || 0) / 2
                                           ).toFixed(2)}
                                         </span>
                                       </div>
@@ -616,80 +535,62 @@ export function CompletedPurchases({
                                         </span>
                                         <span className="font-medium">
                                           ₹
-                                          {purchase.totalTax?.toFixed(2) ||
+                                          {billing.totalTax?.toFixed(2) ||
                                             "0.00"}
                                         </span>
                                       </div>
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">
-                                          Subtotal (Inc. Tax):
+                                          Subtotal:
                                         </span>
-                                        <span className="font-medium text-indigo-600">
+                                        <span className="font-medium">
                                           ₹
-                                          {purchase.grandTotal?.toFixed(2) ||
+                                          {billing.grandTotal?.toFixed(2) ||
                                             "0.00"}
                                         </span>
                                       </div>
-
-                                      {/* Freight Charge Section */}
-                                      {purchase.freightCharge &&
-                                        purchase.freightCharge > 0 && (
+                                      {billing.freightCharge &&
+                                        billing.freightCharge > 0 && (
                                           <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">
                                               Freight Charge:
                                             </span>
                                             <span className="text-blue-600 font-medium">
                                               +₹
-                                              {purchase.freightCharge?.toFixed(
+                                              {billing.freightCharge?.toFixed(
                                                 2,
-                                              ) || "0.00"}
+                                              )}
                                             </span>
                                           </div>
                                         )}
-
-                                      {/* Discount Section */}
-                                      {purchase.discount &&
-                                      purchase.discount > 0 ? (
-                                        <>
+                                      {billing.discount &&
+                                        billing.discount > 0 && (
                                           <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">
-                                              Discount ({purchase.discount}%):
+                                              Discount ({billing.discount}%):
                                             </span>
                                             <span className="text-red-600 font-medium">
                                               -₹
-                                              {purchase.discountAmount?.toFixed(
+                                              {billing.discountAmount?.toFixed(
                                                 2,
-                                              ) || "0.00"}
+                                              )}
                                             </span>
                                           </div>
-                                          <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
-                                            <span className="text-gray-800">
-                                              Final Amount:
-                                            </span>
-                                            <span className="text-green-600 text-lg">
-                                              ₹
-                                              {purchase.finalTotal?.toFixed(
-                                                2,
-                                              ) || "0.00"}
-                                            </span>
-                                          </div>
-                                        </>
-                                      ) : (
-                                        <div className="flex justify-between text-base font-bold pt-2 mt-1 border-t border-dashed">
-                                          <span className="text-gray-800">
-                                            Total Amount:
-                                          </span>
-                                          <span className="text-indigo-600 text-lg">
-                                            ₹
-                                            {purchase.grandTotal?.toFixed(2) ||
-                                              "0.00"}
-                                          </span>
-                                        </div>
-                                      )}
-
-                                      {/* Remarks for Pay Later */}
-                                      {purchase.paymentMode === "Pay Later" &&
-                                        purchase.remarks && (
+                                        )}
+                                      <div className="flex justify-between text-base font-bold pt-2 mt-2 border-t border-dashed">
+                                        <span className="text-gray-800">
+                                          Final Amount:
+                                        </span>
+                                        <span className="text-green-600 text-lg">
+                                          ₹
+                                          {(
+                                            billing.finalTotal ||
+                                            billing.grandTotal
+                                          )?.toFixed(2)}
+                                        </span>
+                                      </div>
+                                      {billing.paymentMode === "Pay Later" &&
+                                        billing.remarks && (
                                           <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
                                             <div className="flex items-start gap-2">
                                               <MessageSquare className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
@@ -698,7 +599,7 @@ export function CompletedPurchases({
                                                   Payment Remarks:
                                                 </p>
                                                 <p className="text-sm text-orange-700">
-                                                  {purchase.remarks}
+                                                  {billing.remarks}
                                                 </p>
                                               </div>
                                             </div>
@@ -719,7 +620,7 @@ export function CompletedPurchases({
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t mt-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-500">Show</span>
                     <Select
@@ -741,8 +642,8 @@ export function CompletedPurchases({
 
                   <div className="text-sm text-gray-500">
                     Showing {indexOfFirstItem + 1} to{" "}
-                    {Math.min(indexOfLastItem, filteredPurchases.length)} of{" "}
-                    {filteredPurchases.length} entries
+                    {Math.min(indexOfLastItem, filteredBillings.length)} of{" "}
+                    {filteredBillings.length} entries
                   </div>
 
                   <div className="flex gap-2">
@@ -752,8 +653,7 @@ export function CompletedPurchases({
                       onClick={goToPreviousPage}
                       disabled={currentPage === 1}
                     >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
+                      <ChevronLeft className="h-4 w-4" /> Previous
                     </Button>
                     <div className="flex gap-1">
                       {Array.from(
@@ -791,8 +691,7 @@ export function CompletedPurchases({
                       onClick={goToNextPage}
                       disabled={currentPage === totalPages}
                     >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
+                      Next <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </div>
                 </div>
@@ -800,24 +699,22 @@ export function CompletedPurchases({
             </>
           )}
         </CardContent>
-      )}
+      </Card>
 
       {/* View Invoice Dialog */}
       <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Purchase Invoice {selectedPurchase?.invoiceNumber}
-            </DialogTitle>
+            <DialogTitle>Invoice {selectedBilling?.invoiceNumber}</DialogTitle>
           </DialogHeader>
-          {selectedPurchase && (
-            <PurchaseInvoicePrint
-              purchase={selectedPurchase}
-              onPrint={() => setShowInvoiceDialog(false)}
+          {selectedBilling && (
+            <ThermalInvoice
+              billing={selectedBilling}
+              onPrinted={() => setShowInvoiceDialog(false)}
             />
           )}
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   );
 }

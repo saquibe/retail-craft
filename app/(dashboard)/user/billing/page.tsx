@@ -56,7 +56,6 @@ import {
   getBillingById,
 } from "@/lib/api/billing";
 import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
-import { CompletedBillings } from "@/components/billing/CompletedBillings";
 import BillingPageSkeleton from "@/components/skeletons/BillingPageSkeleton";
 
 interface BillingItem extends Product {
@@ -96,7 +95,6 @@ export default function BillingPage() {
   const [billingData, setBillingData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentMode, setPaymentMode] = useState<string>("");
-  const [showCompletedBillings, setShowCompletedBillings] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -1060,27 +1058,13 @@ export default function BillingPage() {
                 {/* 4. Tax Breakdown (SGST & CGST) */}
                 <div className="space-y-1 pt-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      SGST (
-                      {(
-                        (taxTotal / 2 / (baseTotal - discountAmount)) *
-                        100
-                      ).toFixed(1)}
-                      %):
-                    </span>
+                    <span className="text-gray-600">SGST:</span>
                     <span className="font-medium">
                       ₹{(taxTotal / 2).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
-                      CGST (
-                      {(
-                        (taxTotal / 2 / (baseTotal - discountAmount)) *
-                        100
-                      ).toFixed(1)}
-                      %):
-                    </span>
+                    <span className="text-gray-600">CGST:</span>
                     <span className="font-medium">
                       ₹{(taxTotal / 2).toFixed(2)}
                     </span>
@@ -1302,12 +1286,6 @@ export default function BillingPage() {
           </Card>
         </div>
       </div>
-
-      {/* Completed Billings Section */}
-      <CompletedBillings
-        isOpen={showCompletedBillings}
-        onToggle={() => setShowCompletedBillings(!showCompletedBillings)}
-      />
 
       {/* New Customer Dialog */}
       <Dialog

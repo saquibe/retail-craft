@@ -30,6 +30,32 @@ export function PurchaseInvoicePrint({
 
   if (!purchase) return null;
 
+  // Calculate rounded values
+  const finalTotal = purchase.finalTotal || purchase.grandTotal;
+  const roundedGrandTotal = Math.round(finalTotal);
+  const roundOffAmount = roundedGrandTotal - finalTotal;
+
+  // Group items by tax rate for tax table
+  const itemsByTax = purchase.items?.reduce((acc: any, item: any) => {
+    const baseAmount = item.purchasePrice * item.quantity;
+    const taxAmount = (baseAmount * item.taxPercent) / 100;
+
+    if (!acc[item.taxPercent]) {
+      acc[item.taxPercent] = {
+        rate: item.taxPercent,
+        taxableAmt: 0,
+        cgst: 0,
+        sgst: 0,
+      };
+    }
+
+    acc[item.taxPercent].taxableAmt += baseAmount;
+    acc[item.taxPercent].cgst += taxAmount / 2;
+    acc[item.taxPercent].sgst += taxAmount / 2;
+
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end print:hidden">
@@ -80,13 +106,14 @@ export function PurchaseInvoicePrint({
                 {format(new Date(purchase.invoiceDate), "dd MMM yyyy")}
               </p>
               <p className="text-sm">
-                <span className="font-bold">Place of Supply:</span>{" "}
-                {purchase.placeOfSupply}
+                <span className="font-bold">Payment Mode:</span>{" "}
+                {purchase.paymentMode || "N/A"}
               </p>
-              <p className="text-sm">
-                <span className="font-bold">Reverse Charge:</span>{" "}
-                {purchase.reverseCharge}
-              </p>
+              {purchase.paymentMode === "Pay Later" && purchase.remarks && (
+                <p className="text-sm">
+                  <span className="font-bold">Remarks:</span> {purchase.remarks}
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm">
@@ -103,6 +130,18 @@ export function PurchaseInvoicePrint({
                   }
                 >
                   {purchase.status}
+                </span>
+              </p>
+              <p className="text-sm">
+                <span className="font-bold">Payment Status:</span>{" "}
+                <span
+                  className={
+                    purchase.paymentStatus === "Paid"
+                      ? "text-green-600"
+                      : "text-orange-600"
+                  }
+                >
+                  {purchase.paymentStatus || "Pending"}
                 </span>
               </p>
             </div>
@@ -134,46 +173,111 @@ export function PurchaseInvoicePrint({
               <th className="text-right py-2">Qty</th>
               <th className="text-right py-2">Unit</th>
               <th className="text-right py-2">Price</th>
-              <th className="text-right py-2">Tax %</th>
-              <th className="text-right py-2">Tax Amt</th>
               <th className="text-right py-2">Total</th>
             </tr>
           </thead>
           <tbody>
-            {purchase.items?.map((item: any, index: number) => (
-              <tr key={item.productId} className="border-b">
-                <td className="py-2">{index + 1}</td>
-                <td className="py-2">{item.productName}</td>
-                <td className="py-2 font-mono">{item.barCode}</td>
-                <td className="text-right py-2">{item.quantity}</td>
-                <td className="text-right py-2">Pcs.</td>
-                <td className="text-right py-2">
-                  ₹{item.purchasePrice.toFixed(2)}
-                </td>
-                <td className="text-right py-2">{item.taxPercent}%</td>
-                <td className="text-right py-2">
-                  ₹{item.taxAmount.toFixed(2)}
-                </td>
-                <td className="text-right py-2">
-                  ₹{item.totalAmount.toFixed(2)}
-                </td>
-              </tr>
-            ))}
+            {purchase.items?.map((item: any, index: number) => {
+              const baseAmount = item.purchasePrice * item.quantity;
+              const taxAmount = (baseAmount * item.taxPercent) / 100;
+              const totalAmount = baseAmount + taxAmount;
+
+              return (
+                <tr key={item.productId} className="border-b">
+                  <td className="py-2">{index + 1}</td>
+                  <td className="py-2">{item.productName}</td>
+                  <td className="py-2 font-mono">{item.barCode}</td>
+                  <td className="text-right py-2">{item.quantity}</td>
+                  <td className="text-right py-2">Pcs.</td>
+                  <td className="text-right py-2">
+                    ₹{item.purchasePrice.toFixed(2)}
+                  </td>
+                  <td className="text-right py-2">₹{totalAmount.toFixed(2)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
-        {/* Summary - Add discount and freight */}
+        {/* Tax Table - SGST & CGST */}
+        {Object.keys(itemsByTax).length > 0 && (
+          <>
+            <div className="divider"></div>
+            <table className="w-full text-sm mb-6">
+              <thead>
+                <tr className="border-b border-black">
+                  <th className="text-left py-2">Tax Rate</th>
+                  <th className="text-right py-2">Taxable Amt.</th>
+                  <th className="text-right py-2">CGST</th>
+                  <th className="text-right py-2">SGST</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.values(itemsByTax).map((item: any, index: number) => (
+                  <tr key={index} className="border-b">
+                    <td className="py-2">{item.rate}%</td>
+                    <td className="text-right py-2">
+                      ₹{item.taxableAmt.toFixed(2)}
+                    </td>
+                    <td className="text-right py-2">₹{item.cgst.toFixed(2)}</td>
+                    <td className="text-right py-2">₹{item.sgst.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Summary */}
         <div className="text-right space-y-1 border-t-2 border-black pt-4">
           <p className="text-sm">
-            <span className="font-bold inline-block w-32">Subtotal:</span>
+            <span className="font-bold inline-block w-32">Base Amount:</span>
             <span className="inline-block w-32">
-              ₹{purchase.subTotal?.toFixed(2)}
+              ₹{purchase.subTotal?.toFixed(2) || "0.00"}
+            </span>
+          </p>
+
+          {/* Discount Section */}
+          {purchase.discount && purchase.discount > 0 && (
+            <>
+              <p className="text-sm">
+                <span className="font-bold inline-block w-32">
+                  Discount ({purchase.discount}%):
+                </span>
+                <span className="inline-block w-32 text-red-600">
+                  -₹{purchase.discountAmount?.toFixed(2) || "0.00"}
+                </span>
+              </p>
+              <p className="text-sm">
+                <span className="font-bold inline-block w-32">
+                  Amount after Discount:
+                </span>
+                <span className="inline-block w-32">
+                  ₹
+                  {(
+                    (purchase.subTotal || 0) - (purchase.discountAmount || 0)
+                  ).toFixed(2)}
+                </span>
+              </p>
+            </>
+          )}
+
+          <p className="text-sm">
+            <span className="font-bold inline-block w-32">SGST:</span>
+            <span className="inline-block w-32">
+              ₹{((purchase.totalTax || 0) / 2).toFixed(2)}
+            </span>
+          </p>
+          <p className="text-sm">
+            <span className="font-bold inline-block w-32">CGST:</span>
+            <span className="inline-block w-32">
+              ₹{((purchase.totalTax || 0) / 2).toFixed(2)}
             </span>
           </p>
           <p className="text-sm">
             <span className="font-bold inline-block w-32">Total Tax:</span>
             <span className="inline-block w-32">
-              ₹{purchase.totalTax?.toFixed(2)}
+              ₹{purchase.totalTax?.toFixed(2) || "0.00"}
             </span>
           </p>
 
@@ -184,37 +288,38 @@ export function PurchaseInvoicePrint({
                 Freight Charge:
               </span>
               <span className="inline-block w-32 text-blue-600">
-                +₹{purchase.freightCharge?.toFixed(2)}
+                +₹{purchase.freightCharge?.toFixed(2) || "0.00"}
               </span>
             </p>
           )}
 
-          {/* Discount Display */}
-          {purchase.discount && purchase.discount > 0 && (
-            <>
-              <p className="text-sm">
-                <span className="font-bold inline-block w-32">
-                  Discount ({purchase.discount}%):
-                </span>
-                <span className="inline-block w-32 text-red-600">
-                  -₹{purchase.discountAmount?.toFixed(2)}
-                </span>
-              </p>
-              <p className="text-sm">
-                <span className="font-bold inline-block w-32">
-                  Final Total:
-                </span>
-                <span className="inline-block w-32">
-                  ₹{purchase.finalTotal?.toFixed(2)}
-                </span>
-              </p>
-            </>
+          {/* Grand Total (Before Rounding) */}
+          <p className="text-sm">
+            <span className="font-bold inline-block w-32">Grand Total:</span>
+            <span className="inline-block w-32">₹{finalTotal.toFixed(2)}</span>
+          </p>
+
+          {/* Rounded Off */}
+          {roundOffAmount !== 0 && (
+            <p className="text-sm">
+              <span className="font-bold inline-block w-32">Rounded Off:</span>
+              <span
+                className={`inline-block w-32 ${
+                  roundOffAmount > 0 ? "text-blue-600" : "text-red-600"
+                }`}
+              >
+                {roundOffAmount > 0
+                  ? `+₹${roundOffAmount.toFixed(2)}`
+                  : `-₹${Math.abs(roundOffAmount).toFixed(2)}`}
+              </span>
+            </p>
           )}
 
+          {/* Final Rounded Total */}
           <p className="text-lg font-bold">
-            <span className="inline-block w-32">Grand Total:</span>
+            <span className="inline-block w-32">NET PAYABLE:</span>
             <span className="inline-block w-32">
-              ₹{(purchase.finalTotal || purchase.grandTotal)?.toFixed(2)}
+              ₹{roundedGrandTotal.toFixed(2)}
             </span>
           </p>
         </div>

@@ -467,11 +467,13 @@ export const usePurchaseStore = () => {
     [purchaseId],
   );
 
-  // Complete purchase - ADD DISCOUNT PARAMETER
+  // Complete purchase with payment details
   const completePurchaseInvoice = useCallback(
     async (
       discountPercentage: number = 0,
       freightChargeValue: number = 0,
+      paymentMode: string = "Cash",
+      remarks?: string,
     ): Promise<boolean> => {
       if (!purchaseId) {
         toast.error("No active purchase session");
@@ -497,8 +499,13 @@ export const usePurchaseStore = () => {
         return false;
       }
 
-      if (!reverseCharge) {
-        toast.error("Please select reverse charge");
+      if (!paymentMode) {
+        toast.error("Please select payment mode");
+        return false;
+      }
+
+      if (paymentMode === "Pay Later" && (!remarks || !remarks.trim())) {
+        toast.error("Remarks is required for Pay Later payment");
         return false;
       }
 
@@ -508,6 +515,8 @@ export const usePurchaseStore = () => {
           purchaseId,
           discountPercentage,
           freightChargeValue,
+          paymentMode,
+          remarks,
         );
         if (response.success) {
           toast.success("Purchase invoice completed successfully");
@@ -517,10 +526,9 @@ export const usePurchaseStore = () => {
           setItems([]);
           setInvoiceNumber("");
           setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
-          setPlaceOfSupply("");
-          setReverseCharge("No");
+          setPlaceOfSupply("Telangana");
           setDiscount(0);
-          setFreightCharge(0); // ADD THIS
+          setFreightCharge(0);
           setPurchaseId(undefined);
           setPurchaseData(null);
           localStorage.removeItem(PURCHASE_SESSION_KEY);
@@ -538,33 +546,36 @@ export const usePurchaseStore = () => {
         setIsLoading(false);
       }
     },
-    [
-      purchaseId,
-      items,
-      invoiceNumber,
-      invoiceDate,
-      placeOfSupply,
-      reverseCharge,
-    ],
+    [purchaseId, items, invoiceNumber, invoiceDate, placeOfSupply],
   );
 
   // Calculate totals with discount
   const calculateFinalTotal = () => {
-    const grandTotal =
-      items?.reduce((sum, item) => sum + item.totalAmount, 0) || 0;
-    const discountAmount = (grandTotal * discount) / 100;
-    const finalTotal = grandTotal - discountAmount;
+    const baseTotal =
+      items?.reduce(
+        (sum, item) => sum + item.purchasePrice * item.quantity,
+        0,
+      ) || 0;
+
+    const totalTax = items?.reduce((sum, item) => sum + item.taxAmount, 0) || 0;
+    const grandTotal = baseTotal + totalTax;
+    const discountAmount = (baseTotal * discount) / 100;
+    const afterDiscount = baseTotal - discountAmount;
+    const finalTotal = afterDiscount + totalTax + freightCharge;
+
+    // Rounded values
+    const roundedFinalTotal = Math.round(finalTotal);
+    const roundOffAmount = roundedFinalTotal - finalTotal;
 
     return {
-      subTotal:
-        items?.reduce(
-          (sum, item) => sum + item.purchasePrice * item.quantity,
-          0,
-        ) || 0,
-      totalTax: items?.reduce((sum, item) => sum + item.taxAmount, 0) || 0,
+      subTotal: baseTotal,
+      totalTax,
       grandTotal,
       discountAmount,
+      afterDiscount,
       finalTotal,
+      roundedFinalTotal,
+      roundOffAmount,
     };
   };
 

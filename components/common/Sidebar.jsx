@@ -12,6 +12,8 @@ import {
   FiX,
   FiCreditCard,
   FiActivity,
+  FiFileText,
+  FiClipboard,
 } from "react-icons/fi";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -24,15 +26,25 @@ const adminMenuItems = [
 
 const userMenuItems = [
   { name: "Dashboard", href: "/user/dashboard", icon: FiHome },
-  { name: "Customers", href: "/user/customers", icon: FiUsers },
   { name: "Products", href: "/user/products", icon: FiPackage },
   { name: "Inventory", href: "/user/inventory", icon: FiActivity },
+  { name: "Customers", href: "/user/customers", icon: FiUsers },
   { name: "Billing to Customer", href: "/user/billing", icon: FiCreditCard },
+  {
+    name: "Customer Invoices",
+    href: "/user/customer-invoices",
+    icon: FiFileText,
+  },
   { name: "Suppliers", href: "/user/suppliers", icon: FiUsers },
   {
-    name: "Suppliers Invoice",
+    name: "Suppliers Billing",
     href: "/user/purchases",
     icon: FiCreditCard,
+  },
+  {
+    name: "Supplier Invoices",
+    href: "/user/supplier-invoices",
+    icon: FiClipboard,
   },
   { name: "Profile", href: "/user/profile", icon: FiUser },
 ];

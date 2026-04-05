@@ -53,6 +53,9 @@ export interface PurchaseInvoice {
   status: "Draft" | "Completed";
   createdAt: string;
   updatedAt: string;
+  paymentMode?: string;
+  remarks?: string;
+  paymentStatus?: "Pending" | "Paid";
 }
 
 export interface CreatePurchaseData {
@@ -170,15 +173,22 @@ export const updatePurchaseQuantity = async (
 // =====================================================
 // POST /api/purchase-invoice/complete/:id - Complete purchase invoice
 // =====================================================
+// Update completePurchase function
 export const completePurchase = async (
   id: string,
   discount: number = 0,
   freightCharge: number = 0,
+  paymentMode: string = "Cash",
+  remarks?: string,
 ): Promise<ApiResponse<PurchaseInvoice>> => {
   try {
+    const payload: any = { discount, freightCharge, paymentMode };
+    if (paymentMode === "Pay Later" && remarks) {
+      payload.remarks = remarks;
+    }
     const response = await axiosInstance.post(
       `/purchase-invoice/complete/${id}`,
-      { discount, freightCharge },
+      payload,
     );
     return response.data;
   } catch (error) {
@@ -228,6 +238,27 @@ export const getCompletedPurchases = async (): Promise<
     return response.data;
   } catch (error) {
     console.error("Get completed purchases error:", error);
+    throw error;
+  }
+};
+
+// =====================================================
+// GET /api/purchase-invoice/payment-status/:id - Get purchase payment status
+// =====================================================
+export const updatePurchasePaymentStatus = async (
+  id: string,
+  paymentStatus: "Pending" | "Paid",
+): Promise<ApiResponse<PurchaseInvoice>> => {
+  try {
+    const response = await axiosInstance.put(
+      `/purchase-invoice/payment-status/${id}`,
+      {
+        paymentStatus,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Update purchase payment status error:", error);
     throw error;
   }
 };
