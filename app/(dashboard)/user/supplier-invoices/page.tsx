@@ -20,6 +20,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -66,6 +76,14 @@ export default function SupplierInvoicesPage() {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
+
+  // Confirmation dialog states
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingPurchaseId, setPendingPurchaseId] = useState<string | null>(
+    null,
+  );
+  const [pendingPurchaseStatus, setPendingPurchaseStatus] =
+    useState<string>("");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -122,15 +140,26 @@ export default function SupplierInvoicesPage() {
     }
   };
 
-  // Handle payment status update
-  const handleUpdatePaymentStatus = async (
-    purchaseId: string,
-    currentStatus: string,
-  ) => {
-    const newStatus = currentStatus === "Paid" ? "Pending" : "Paid";
-    setUpdatingPayment(purchaseId);
+  // Open confirmation dialog before updating payment status
+  const openConfirmDialog = (purchaseId: string, currentStatus: string) => {
+    setPendingPurchaseId(purchaseId);
+    setPendingPurchaseStatus(currentStatus);
+    setShowConfirmDialog(true);
+  };
+
+  // Handle payment status update after confirmation
+  const handleUpdatePaymentStatus = async () => {
+    if (!pendingPurchaseId) return;
+
+    const newStatus = pendingPurchaseStatus === "Paid" ? "Pending" : "Paid";
+    setUpdatingPayment(pendingPurchaseId);
+    setShowConfirmDialog(false);
+
     try {
-      const response = await updatePurchasePaymentStatus(purchaseId, newStatus);
+      const response = await updatePurchasePaymentStatus(
+        pendingPurchaseId,
+        newStatus,
+      );
       if (response.success) {
         toast.success(`Payment status updated to ${newStatus}`);
         loadCompletedPurchases();
@@ -144,6 +173,8 @@ export default function SupplierInvoicesPage() {
       );
     } finally {
       setUpdatingPayment(null);
+      setPendingPurchaseId(null);
+      setPendingPurchaseStatus("");
     }
   };
 
@@ -224,6 +255,13 @@ export default function SupplierInvoicesPage() {
     setItemsPerPage(Number(value));
     setCurrentPage(1);
   };
+
+  // Get the purchase details for confirmation message
+  const getPurchaseForConfirmation = () => {
+    return purchases.find((p) => p._id === pendingPurchaseId);
+  };
+
+  const purchaseToConfirm = getPurchaseForConfirmation();
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -400,7 +438,7 @@ export default function SupplierInvoicesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handleUpdatePaymentStatus(
+                                        openConfirmDialog(
                                           purchase._id,
                                           purchase.paymentStatus || "Pending",
                                         )
@@ -729,6 +767,57 @@ export default function SupplierInvoicesPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog for Mark Paid */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark invoice{" "}
+              <span className="font-semibold">
+                {purchaseToConfirm?.invoiceNumber}
+              </span>{" "}
+              as <span className="font-semibold text-green-600">Paid</span>.
+              <br />
+              <br />
+              Supplier:{" "}
+              <span className="font-semibold">
+                {purchaseToConfirm?.supplierId?.name}
+              </span>
+              <br />
+              Amount:{" "}
+              <span className="font-semibold">
+                {formatCurrency(
+                  purchaseToConfirm?.finalTotal ||
+                    purchaseToConfirm?.grandTotal ||
+                    0,
+                )}
+              </span>
+              <br />
+              <br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowConfirmDialog(false);
+                setPendingPurchaseId(null);
+                setPendingPurchaseStatus("");
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUpdatePaymentStatus}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Yes, Mark as Paid
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

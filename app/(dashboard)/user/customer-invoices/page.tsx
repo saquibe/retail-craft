@@ -1,4 +1,3 @@
-//app/(dashboard)/user/customer-invoices/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,6 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -66,6 +75,11 @@ export default function CustomerInvoicesPage() {
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [expandedBilling, setExpandedBilling] = useState<string | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
+
+  // Confirmation dialog states
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingBillingId, setPendingBillingId] = useState<string | null>(null);
+  const [pendingBillingStatus, setPendingBillingStatus] = useState<string>("");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,15 +137,23 @@ export default function CustomerInvoicesPage() {
     }
   };
 
-  // Handle payment status update
-  const handleUpdatePaymentStatus = async (
-    billingId: string,
-    currentStatus: string,
-  ) => {
-    const newStatus = currentStatus === "Paid" ? "Pending" : "Paid";
-    setUpdatingPayment(billingId);
+  // Open confirmation dialog before updating payment status
+  const openConfirmDialog = (billingId: string, currentStatus: string) => {
+    setPendingBillingId(billingId);
+    setPendingBillingStatus(currentStatus);
+    setShowConfirmDialog(true);
+  };
+
+  // Handle payment status update after confirmation
+  const handleUpdatePaymentStatus = async () => {
+    if (!pendingBillingId) return;
+
+    const newStatus = pendingBillingStatus === "Paid" ? "Pending" : "Paid";
+    setUpdatingPayment(pendingBillingId);
+    setShowConfirmDialog(false);
+
     try {
-      const response = await updatePaymentStatus(billingId, newStatus);
+      const response = await updatePaymentStatus(pendingBillingId, newStatus);
       if (response.success) {
         toast.success(`Payment status updated to ${newStatus}`);
         loadCompletedBillings();
@@ -145,6 +167,8 @@ export default function CustomerInvoicesPage() {
       );
     } finally {
       setUpdatingPayment(null);
+      setPendingBillingId(null);
+      setPendingBillingStatus("");
     }
   };
 
@@ -225,6 +249,13 @@ export default function CustomerInvoicesPage() {
     setItemsPerPage(Number(value));
     setCurrentPage(1);
   };
+
+  // Get the billing details for confirmation message
+  const getBillingForConfirmation = () => {
+    return billings.find((b) => b._id === pendingBillingId);
+  };
+
+  const billingToConfirm = getBillingForConfirmation();
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -410,7 +441,7 @@ export default function CustomerInvoicesPage() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() =>
-                                        handleUpdatePaymentStatus(
+                                        openConfirmDialog(
                                           billing._id,
                                           billing.paymentStatus || "Pending",
                                         )
@@ -715,6 +746,57 @@ export default function CustomerInvoicesPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog for Mark Paid */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark invoice{" "}
+              <span className="font-semibold">
+                {billingToConfirm?.invoiceNumber}
+              </span>{" "}
+              as <span className="font-semibold text-green-600">Paid</span>.
+              <br />
+              <br />
+              Customer:{" "}
+              <span className="font-semibold">
+                {billingToConfirm?.customerId?.name}
+              </span>
+              <br />
+              Amount:{" "}
+              <span className="font-semibold">
+                {formatCurrency(
+                  billingToConfirm?.finalTotal ||
+                    billingToConfirm?.grandTotal ||
+                    0,
+                )}
+              </span>
+              <br />
+              <br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowConfirmDialog(false);
+                setPendingBillingId(null);
+                setPendingBillingStatus("");
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUpdatePaymentStatus}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Yes, Mark as Paid
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
