@@ -6,8 +6,8 @@ import { getSuppliers, Supplier } from "@/lib/api/suppliers";
 import {
   DashboardData,
   DashboardStats,
-  Receivable,
   Payable,
+  Receivable,
 } from "@/lib/api/dashboard";
 import { getCompletedPurchases, PurchaseInvoice } from "@/lib/api/purchases";
 

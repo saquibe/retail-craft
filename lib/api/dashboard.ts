@@ -1,3 +1,4 @@
+// lib/api/dashboard.ts
 import axiosInstance from "./axios";
 export interface DashboardStats {
   totalSales: number;
@@ -20,6 +21,30 @@ export interface DashboardStats {
   avgProfitMarginPercent: number;
   avgCartValue: number;
   avgBills: number;
+}
+
+export interface Receivable {
+  id: string;
+  customerName: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  status: "paid" | "pending";
+}
+
+export interface Payable {
+  id: string;
+  supplierName: string;
+  billNo: string;
+  billDate: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  status: "paid" | "pending";
 }
 
 export interface DashboardData {
