@@ -405,9 +405,14 @@ export default function SupplierInvoicesPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right font-semibold">
-                              {formatCurrency(
-                                purchase.finalTotal || purchase.grandTotal || 0,
-                              )}
+                              {(() => {
+                                const finalTotal =
+                                  purchase.finalTotal ||
+                                  purchase.grandTotal ||
+                                  0;
+                                const roundedTotal = Math.round(finalTotal);
+                                return formatCurrency(roundedTotal);
+                              })()}
                             </TableCell>
                             <TableCell>
                               <Badge
@@ -544,7 +549,7 @@ export default function SupplierInvoicesPage() {
                                     })}
                                   </div>
 
-                                  {/* Summary Section */}
+                                  {/* Summary Section with Rounded Total */}
                                   <div className="mt-4 pt-3 border-t">
                                     <div className="space-y-2">
                                       <div className="flex justify-between text-sm">
@@ -627,18 +632,64 @@ export default function SupplierInvoicesPage() {
                                             </span>
                                           </div>
                                         )}
-                                      <div className="flex justify-between text-base font-bold pt-2 mt-2 border-t border-dashed">
-                                        <span className="text-gray-800">
-                                          Final Amount:
-                                        </span>
-                                        <span className="text-green-600 text-lg">
-                                          ₹
-                                          {(
-                                            purchase.finalTotal ||
-                                            purchase.grandTotal
-                                          )?.toFixed(2)}
-                                        </span>
-                                      </div>
+
+                                      {/* Rounded Total Calculation */}
+                                      {(() => {
+                                        const finalTotal =
+                                          purchase.finalTotal ||
+                                          purchase.grandTotal ||
+                                          0;
+                                        const roundedTotal =
+                                          Math.round(finalTotal);
+                                        const roundOffAmount =
+                                          roundedTotal - finalTotal;
+
+                                        return (
+                                          <>
+                                            {roundOffAmount !== 0 && (
+                                              <div className="flex justify-between text-sm text-gray-500">
+                                                <span>Original Amount:</span>
+                                                <span className="line-through">
+                                                  ₹{finalTotal.toFixed(2)}
+                                                </span>
+                                              </div>
+                                            )}
+
+                                            <div className="flex justify-between text-base font-bold pt-2 mt-2 border-t border-dashed">
+                                              <span className="text-gray-800">
+                                                Final Amount:
+                                              </span>
+                                              <span className="text-green-600 text-lg">
+                                                ₹{roundedTotal.toFixed(2)}
+                                              </span>
+                                            </div>
+
+                                            {roundOffAmount !== 0 && (
+                                              <div className="flex justify-between text-sm">
+                                                <span className="text-gray-500">
+                                                  Rounded Off:
+                                                </span>
+                                                <span
+                                                  className={
+                                                    roundOffAmount > 0
+                                                      ? "text-blue-600"
+                                                      : "text-red-600"
+                                                  }
+                                                >
+                                                  {roundOffAmount > 0
+                                                    ? `+₹${roundOffAmount.toFixed(
+                                                        2,
+                                                      )}`
+                                                    : `-₹${Math.abs(
+                                                        roundOffAmount,
+                                                      ).toFixed(2)}`}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
+
                                       {purchase.paymentMode === "Pay Later" &&
                                         purchase.remarks && (
                                           <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
@@ -788,11 +839,14 @@ export default function SupplierInvoicesPage() {
               <br />
               Amount:{" "}
               <span className="font-semibold">
-                {formatCurrency(
-                  purchaseToConfirm?.finalTotal ||
+                {(() => {
+                  const finalTotal =
+                    purchaseToConfirm?.finalTotal ||
                     purchaseToConfirm?.grandTotal ||
-                    0,
-                )}
+                    0;
+                  const roundedTotal = Math.round(finalTotal);
+                  return formatCurrency(roundedTotal);
+                })()}
               </span>
               <br />
               <br />

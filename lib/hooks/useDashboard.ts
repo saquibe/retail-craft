@@ -50,7 +50,8 @@ export interface ReceivableTransaction {
   pendingAmount: number;
   status: "pending" | "paid";
   paymentMode?: string;
-  daysOverdue?: number;
+  daysSinceInvoice?: number;
+  invoiceStatus?: "paid" | "pending" | "pay_later"; // NEW: Invoice status
 }
 
 export interface PayableTransaction {
@@ -64,7 +65,8 @@ export interface PayableTransaction {
   pendingAmount: number;
   status: "pending" | "paid";
   paymentMode?: string;
-  daysOverdue?: number;
+  daysSinceInvoice?: number;
+  invoiceStatus?: "paid" | "pending" | "pay_later"; // NEW: Invoice status
 }
 
 interface DashboardData {
@@ -84,32 +86,53 @@ export function useDashboard(
   const [dateRange, setDateRange] = useState(initialRange);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
+  // Calculate days since invoice date
+  const calculateDaysSinceInvoice = (invoiceDate: string): number => {
+    const today = new Date();
+    const invoice = new Date(invoiceDate);
+
+    today.setHours(0, 0, 0, 0);
+    invoice.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - invoice.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0;
+  };
+
+  // Calculate due date (30 days from invoice for Pay Later)
   const calculateDueDate = (
-    createdAt: string,
+    invoiceDate: string,
     paymentMode?: string,
   ): string => {
-    const created = new Date(createdAt);
+    const invoice = new Date(invoiceDate);
     if (paymentMode === "Pay Later") {
-      const due = new Date(created);
+      const due = new Date(invoice);
       due.setDate(due.getDate() + 30);
       return due.toISOString();
     }
-    return created.toISOString();
+    return invoice.toISOString();
   };
 
-  const calculateDaysOverdue = (dueDate: string): number => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = today.getTime() - due.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
+  // Calculate invoice status
+  const getInvoiceStatus = (
+    paymentMode: string | undefined,
+    paymentStatus: string | undefined,
+    pendingAmount: number,
+  ): "paid" | "pending" | "pay_later" => {
+    if (paymentStatus === "Paid" || pendingAmount === 0) {
+      return "paid";
+    }
+    if (paymentMode === "Pay Later") {
+      return "pay_later";
+    }
+    return "pending";
   };
 
   const calculateStatus = (pendingAmount: number): "pending" | "paid" => {
     return pendingAmount > 0 ? "pending" : "paid";
   };
 
-  // Function to mark payment as paid for Receivable (Billing)
+  // Mark payment as paid for Receivable (Billing)
   const markReceivableAsPaid = async (id: string): Promise<void> => {
     setUpdatingPayment(id);
     try {
@@ -130,7 +153,7 @@ export function useDashboard(
     }
   };
 
-  // Function to mark payment as paid for Payable (Purchase)
+  // Mark payment as paid for Payable (Purchase)
   const markPayableAsPaid = async (id: string): Promise<void> => {
     setUpdatingPayment(id);
     try {
@@ -153,7 +176,6 @@ export function useDashboard(
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      // Fetch all required data in parallel
       const [
         billingsResponse,
         purchasesResponse,
@@ -181,7 +203,7 @@ export function useDashboard(
         case "year":
           startDate = new Date(now.setFullYear(now.getFullYear() - 1));
           break;
-        default: // month
+        default:
           startDate = new Date(now.setMonth(now.getMonth() - 1));
       }
 
@@ -210,40 +232,46 @@ export function useDashboard(
 
           totalSales += finalAmount;
           totalPaid += paidAmount;
-          toReceive += pendingAmount;
+
+          // Only add to "toReceive" if payment is pending or Pay Later
+          if (pendingAmount > 0 || billing.paymentMode === "Pay Later") {
+            toReceive += pendingAmount;
+          }
+
           totalCartValue += finalAmount;
 
-          // Calculate sold quantity
           billing.items?.forEach((item) => {
             soldQty += item.quantity;
-          });
-
-          // Calculate gross profit (simplified - you may need purchase price)
-          billing.items?.forEach((item) => {
-            const profit = item.price * item.quantity * 0.2; // Assuming 20% profit margin
+            const profit = item.price * item.quantity * 0.2;
             grossProfit += profit;
           });
 
-          // Add to receivables if pending amount > 0 or Pay Later
-          if (pendingAmount > 0 || billing.paymentMode === "Pay Later") {
-            const dueDate = calculateDueDate(
-              billing.createdAt,
-              billing.paymentMode,
-            );
-            receivables.push({
-              id: billing._id,
-              customerName: billing.customerId?.name || "Unknown",
-              invoiceNo: billing.invoiceNumber,
-              invoiceDate: billing.createdAt,
-              dueDate: dueDate,
-              amount: finalAmount,
-              paidAmount: paidAmount,
-              pendingAmount: pendingAmount,
-              status: calculateStatus(pendingAmount),
-              paymentMode: billing.paymentMode,
-              daysOverdue: calculateDaysOverdue(dueDate),
-            });
-          }
+          // Include ALL invoices for display, but mark status appropriately
+          const dueDate = calculateDueDate(
+            billing.createdAt,
+            billing.paymentMode,
+          );
+          const daysSinceInvoice = calculateDaysSinceInvoice(billing.createdAt);
+          const invoiceStatus = getInvoiceStatus(
+            billing.paymentMode,
+            billing.paymentStatus,
+            pendingAmount,
+          );
+
+          receivables.push({
+            id: billing._id,
+            customerName: billing.customerId?.name || "Unknown",
+            invoiceNo: billing.invoiceNumber,
+            invoiceDate: billing.createdAt,
+            dueDate: dueDate,
+            amount: finalAmount,
+            paidAmount: paidAmount,
+            pendingAmount: pendingAmount,
+            status: calculateStatus(pendingAmount),
+            paymentMode: billing.paymentMode,
+            daysSinceInvoice: daysSinceInvoice,
+            invoiceStatus: invoiceStatus, // NEW: Track invoice status
+          });
         });
       }
 
@@ -271,33 +299,43 @@ export function useDashboard(
 
           totalPurchase += finalAmount;
           totalExpense += paidAmount;
-          toPay += pendingAmount;
 
-          // Calculate purchase quantity
+          // Only add to "toPay" if payment is pending or Pay Later
+          if (pendingAmount > 0 || purchase.paymentMode === "Pay Later") {
+            toPay += pendingAmount;
+          }
+
           purchase.items?.forEach((item) => {
             purchaseQty += item.quantity;
           });
 
-          // Add to payables if pending amount > 0 or Pay Later
-          if (pendingAmount > 0 || purchase.paymentMode === "Pay Later") {
-            const dueDate = calculateDueDate(
-              purchase.invoiceDate,
-              purchase.paymentMode,
-            );
-            payables.push({
-              id: purchase._id,
-              supplierName: purchase.supplierId?.name || "Unknown",
-              billNo: purchase.invoiceNumber,
-              billDate: purchase.invoiceDate,
-              dueDate: dueDate,
-              amount: finalAmount,
-              paidAmount: paidAmount,
-              pendingAmount: pendingAmount,
-              status: calculateStatus(pendingAmount),
-              paymentMode: purchase.paymentMode,
-              daysOverdue: calculateDaysOverdue(dueDate),
-            });
-          }
+          const dueDate = calculateDueDate(
+            purchase.invoiceDate,
+            purchase.paymentMode,
+          );
+          const daysSinceInvoice = calculateDaysSinceInvoice(
+            purchase.invoiceDate,
+          );
+          const invoiceStatus = getInvoiceStatus(
+            purchase.paymentMode,
+            purchase.paymentStatus,
+            pendingAmount,
+          );
+
+          payables.push({
+            id: purchase._id,
+            supplierName: purchase.supplierId?.name || "Unknown",
+            billNo: purchase.invoiceNumber,
+            billDate: purchase.invoiceDate,
+            dueDate: dueDate,
+            amount: finalAmount,
+            paidAmount: paidAmount,
+            pendingAmount: pendingAmount,
+            status: calculateStatus(pendingAmount),
+            paymentMode: purchase.paymentMode,
+            daysSinceInvoice: daysSinceInvoice,
+            invoiceStatus: invoiceStatus, // NEW: Track invoice status
+          });
         });
       }
 
@@ -314,7 +352,6 @@ export function useDashboard(
         });
       }
 
-      // Calculate averages
       const avgCartValue =
         totalInvoices > 0 ? totalCartValue / totalInvoices : 0;
       const avgBills = totalInvoices > 0 ? totalInvoices : 0;

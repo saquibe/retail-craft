@@ -21,6 +21,7 @@ import {
   CheckCircle,
   Loader2,
   AlertCircle,
+  MessageSquare,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -38,6 +39,7 @@ export interface Transaction {
   status: "pending" | "paid";
   paymentMode?: string;
   daysOverdue?: number;
+  invoiceStatus?: "paid" | "pay_later" | "pending";
 }
 
 interface TransactionTableProps {
@@ -268,10 +270,19 @@ export function TransactionTable({
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusBadge(item.status)}>
-                        {item.status.charAt(0).toUpperCase() +
-                          item.status.slice(1)}
-                      </Badge>
+                      {item.invoiceStatus === "paid" ? (
+                        <Badge className="bg-green-100 text-green-800">
+                          <CheckCircle className="w-3 h-3 mr-1" /> Paid
+                        </Badge>
+                      ) : item.invoiceStatus === "pay_later" ? (
+                        <Badge className="bg-orange-100 text-orange-800">
+                          <MessageSquare className="w-3 h-3 mr-1" /> Pay Later
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-yellow-100 text-yellow-800">
+                          <AlertCircle className="w-3 h-3 mr-1" /> Pending
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

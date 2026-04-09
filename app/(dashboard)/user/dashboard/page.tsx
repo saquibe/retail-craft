@@ -96,7 +96,8 @@ export default function UserDashboardPage() {
               pendingAmount: p.pendingAmount,
               status: p.status,
               paymentMode: p.paymentMode,
-              daysOverdue: p.daysOverdue,
+              daysSinceInvoice: p.daysSinceInvoice,
+              invoiceStatus: p.invoiceStatus, // Pass invoice status
             })) as Transaction[]
           }
           onViewDetails={(id) => handleViewDetails(id, "payable")}

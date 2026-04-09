@@ -40,6 +40,9 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  Power,
+  AlertTriangle,
+  Box,
 } from "lucide-react";
 import {
   getProducts,
@@ -103,7 +106,9 @@ export default function InventoryPage() {
     // Stock status filter
     if (stockStatusFilter !== "all") {
       if (stockStatusFilter === "low") {
-        filtered = filtered.filter((product) => product.quantity <= 10);
+        filtered = filtered.filter(
+          (product) => product.quantity <= 5 && product.quantity > 0,
+        );
       } else if (stockStatusFilter === "out") {
         filtered = filtered.filter((product) => product.quantity === 0);
       } else if (stockStatusFilter === "in") {
@@ -237,7 +242,7 @@ export default function InventoryPage() {
           Out of Stock
         </Badge>
       );
-    } else if (quantity <= 10) {
+    } else if (quantity <= 5) {
       return (
         <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
           Low Stock ({quantity})
@@ -277,9 +282,11 @@ export default function InventoryPage() {
 
   // Calculate low stock count
   const lowStockCount = products.filter(
-    (p) => p.quantity <= 10 && p.quantity > 0,
+    (p) => p.quantity <= 5 && p.quantity > 0,
   ).length;
+
   const outOfStockCount = products.filter((p) => p.quantity === 0).length;
+  const inStockCount = products.filter((p) => p.quantity > 0).length;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -308,7 +315,9 @@ export default function InventoryPage() {
                 <p className="text-sm text-gray-500">Total Products</p>
                 <p className="text-2xl font-bold">{products.length}</p>
               </div>
-              <Package className="w-8 h-8 text-indigo-500 opacity-50" />
+              <div className="p-3 bg-blue-100 rounded-full">
+                <Package className="w-6 h-6 text-blue-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -316,12 +325,14 @@ export default function InventoryPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Stock</p>
+                <p className="text-sm text-gray-500">Total Units</p>
                 <p className="text-2xl font-bold">
                   {products.reduce((sum, p) => sum + p.quantity, 0)}
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500 opacity-50" />
+              <div className="p-3 bg-green-100 rounded-full">
+                <Box className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -329,12 +340,14 @@ export default function InventoryPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Low Stock Items</p>
+                <p className="text-sm text-gray-500">Low Stock</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {lowStockCount}
                 </p>
               </div>
-              <TrendingDown className="w-8 h-8 text-yellow-500 opacity-50" />
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-yellow-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -342,12 +355,14 @@ export default function InventoryPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Out of Stock</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {outOfStockCount}
+                <p className="text-sm text-gray-500">In Stock Products</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {inStockCount}
                 </p>
               </div>
-              <AlertCircle className="w-8 h-8 text-red-500 opacity-50" />
+              <div className="p-3 bg-green-100 rounded-full">
+                <Power className="w-6 h-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -376,7 +391,7 @@ export default function InventoryPage() {
               <SelectContent>
                 <SelectItem value="all">All Products</SelectItem>
                 <SelectItem value="in">In Stock</SelectItem>
-                <SelectItem value="low">Low Stock (≤ 10)</SelectItem>
+                <SelectItem value="low">Low Stock (≤ 5)</SelectItem>
                 <SelectItem value="out">Out of Stock</SelectItem>
               </SelectContent>
             </Select>
