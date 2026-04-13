@@ -455,10 +455,10 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
           <span>₹{billing.totalTax?.toFixed(2) || "0.00"}</span>
         </div>
 
-        <div className="total-row">
+        {/* <div className="total-row">
           <span>Subtotal (Inc. Tax)</span>
           <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
-        </div>
+        </div> */}
 
         {/* Freight Charge */}
         {billing.freightCharge && billing.freightCharge > 0 && (
