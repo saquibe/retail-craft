@@ -214,3 +214,18 @@ export const searchProducts = async (
     throw error;
   }
 };
+
+// =====================================================
+// GET /api/products/export/csv - Export products as CSV
+// =====================================================
+export const exportProductsToCSV = async (): Promise<Blob> => {
+  try {
+    const response = await axiosInstance.get("/products/export/csv", {
+      responseType: "blob",
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Export products to CSV error:", error);
+    throw error;
+  }
+};

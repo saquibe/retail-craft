@@ -106,6 +106,10 @@ export function PurchaseInvoicePrint({
                 {format(new Date(purchase.invoiceDate), "dd MMM yyyy")}
               </p>
               <p className="text-sm">
+                <span className="font-bold">Ref. Invoice No:</span>{" "}
+                {purchase.referenceInvoiceNumber || "-"}
+              </p>
+              <p className="text-sm">
                 <span className="font-bold">Payment Mode:</span>{" "}
                 {purchase.paymentMode || "N/A"}
               </p>

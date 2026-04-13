@@ -110,6 +110,7 @@ export default function SupplierInvoicesPage() {
     const filtered = purchases.filter(
       (purchase) =>
         purchase.invoiceNumber.toLowerCase().includes(searchLower) ||
+        purchase.referenceInvoiceNumber?.toLowerCase().includes(searchLower) ||
         purchase.supplierId?.name?.toLowerCase().includes(searchLower) ||
         purchase.supplierId?.email?.toLowerCase().includes(searchLower) ||
         purchase.supplierId?.mobile?.includes(searchLower) ||
@@ -289,7 +290,7 @@ export default function SupplierInvoicesPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search by invoice, supplier, items, payment mode, payment status..."
+                placeholder="Search by invoice, ref. invoice, supplier, items, payment mode, payment status..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -342,6 +343,7 @@ export default function SupplierInvoicesPage() {
                         <TableHead className="w-8"></TableHead>
                         <TableHead>Invoice #</TableHead>
                         <TableHead>Date</TableHead>
+                        <TableHead>Ref. Invoice #</TableHead>
                         <TableHead>Supplier</TableHead>
                         <TableHead>Items</TableHead>
                         <TableHead className="text-right">
@@ -381,6 +383,9 @@ export default function SupplierInvoicesPage() {
                                   "dd/MM/yyyy",
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-gray-500">
+                              {purchase.referenceInvoiceNumber || "-"}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
@@ -474,7 +479,10 @@ export default function SupplierInvoicesPage() {
                           </TableRow>
                           {expandedPurchase === purchase._id && (
                             <TableRow>
-                              <TableCell colSpan={9} className="bg-gray-50 p-4">
+                              <TableCell
+                                colSpan={10}
+                                className="bg-gray-50 p-4"
+                              >
                                 <div className="space-y-3">
                                   <h4 className="font-medium flex items-center gap-2">
                                     <Package className="w-4 h-4" /> Items
@@ -496,7 +504,7 @@ export default function SupplierInvoicesPage() {
                                               {item.productName}
                                             </p>
                                             <p className="text-xs text-gray-500">
-                                              Barcode: {item.barCode}
+                                              Item Code: {item.itemCode}
                                             </p>
                                           </div>
                                           <div className="flex gap-4">

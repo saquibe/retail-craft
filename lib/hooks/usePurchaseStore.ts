@@ -23,6 +23,7 @@ interface PurchaseSession {
   discount: number;
   freightCharge: number;
   purchaseId?: string;
+  referenceInvoiceNumber?: string;
   lastUpdated: string;
 }
 
@@ -48,6 +49,7 @@ export const usePurchaseStore = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [freightCharge, setFreightCharge] = useState(0);
+  const [referenceInvoiceNumber, setReferenceInvoiceNumber] = useState("");
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -64,6 +66,7 @@ export const usePurchaseStore = () => {
         setDiscount(session.discount || 0);
         setFreightCharge(session.freightCharge || 0);
         setPurchaseId(session.purchaseId);
+        setReferenceInvoiceNumber(session.referenceInvoiceNumber || "");
       } catch (error) {
         console.error("🔴 [STORE] Error loading purchase session:", error);
       }
@@ -85,6 +88,7 @@ export const usePurchaseStore = () => {
       discount,
       freightCharge,
       purchaseId,
+      referenceInvoiceNumber,
       lastUpdated: new Date().toISOString(),
     };
 
@@ -111,6 +115,7 @@ export const usePurchaseStore = () => {
     discount,
     freightCharge,
     purchaseId,
+    referenceInvoiceNumber,
     isLoaded,
   ]);
 
@@ -231,6 +236,7 @@ export const usePurchaseStore = () => {
 
       if (response.success && response.data) {
         setPurchaseId(response.data._id);
+        setReferenceInvoiceNumber(response.data.referenceInvoiceNumber || "");
         setPurchaseData(response.data);
         // toast.success("Purchase session created");
         return true;
@@ -294,6 +300,7 @@ export const usePurchaseStore = () => {
     setDiscount(0);
     setFreightCharge(0);
     setPurchaseId(undefined);
+    setReferenceInvoiceNumber("");
     setPurchaseData(null);
     setIsCreating(false);
     setIsLoading(false);
@@ -591,6 +598,7 @@ export const usePurchaseStore = () => {
     discount,
     freightCharge,
     purchaseId,
+    referenceInvoiceNumber,
     isLoaded,
     isLoading,
     purchaseData,

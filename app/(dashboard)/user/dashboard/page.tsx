@@ -17,6 +17,8 @@ export default function UserDashboardPage() {
     loading,
     refreshing,
     dateRange,
+    customStartDate,
+    customEndDate,
     changeDateRange,
     refresh,
     markReceivableAsPaid,
@@ -56,6 +58,8 @@ export default function UserDashboardPage() {
       <DashboardHeader
         userName={user?.name}
         dateRange={dateRange}
+        customStartDate={customStartDate}
+        customEndDate={customEndDate}
         onDateRangeChange={changeDateRange}
         onRefresh={refresh}
         refreshing={refreshing}
@@ -77,7 +81,7 @@ export default function UserDashboardPage() {
         />
       ) : (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-          No receivables found
+          No receivables found for selected date range
         </div>
       )}
 
@@ -97,7 +101,7 @@ export default function UserDashboardPage() {
               status: p.status,
               paymentMode: p.paymentMode,
               daysSinceInvoice: p.daysSinceInvoice,
-              invoiceStatus: p.invoiceStatus, // Pass invoice status
+              invoiceStatus: p.invoiceStatus,
             })) as Transaction[]
           }
           onViewDetails={(id) => handleViewDetails(id, "payable")}
@@ -106,7 +110,7 @@ export default function UserDashboardPage() {
         />
       ) : (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-          No payables found
+          No payables found for selected date range
         </div>
       )}
     </div>

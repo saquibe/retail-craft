@@ -4,6 +4,7 @@ export interface PurchaseItem {
   productId: string;
   productName: string;
   barCode: string;
+  itemCode: string;
   quantity: number;
   purchasePrice: number;
   taxPercent: number;
@@ -39,6 +40,7 @@ export interface PurchaseInvoice {
     gstIn: string;
   };
   invoiceNumber: string;
+  referenceInvoiceNumber?: string;
   invoiceDate: string;
   placeOfSupply: string;
   reverseCharge: string;

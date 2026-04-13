@@ -386,7 +386,7 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
             <tr key={index}>
               <td className="product-col">
                 <div className="product-name">{item.productName}</div>
-                <div className="product-code">{item.barCode}</div>
+                <div className="product-code">{item.itemCode}</div>
               </td>
               <td className="qty-col text-right">{item.quantity}</td>
               <td className="qty-col text-right">Pcs.</td>

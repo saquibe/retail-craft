@@ -39,6 +39,7 @@ import {
   MapPin,
   Repeat,
   Layers,
+  FileText,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getSuppliers, Supplier } from "@/lib/api/suppliers";
@@ -61,6 +62,7 @@ export default function PurchasesPage() {
     placeOfSupply,
     reverseCharge,
     purchaseId,
+    referenceInvoiceNumber,
     isLoaded,
     isLoading,
     totals,
@@ -618,7 +620,6 @@ export default function PurchasesPage() {
                     )}
                 </div>
               </div>
-
               {/* Selected Supplier Display */}
               {selectedSupplier && (
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
@@ -664,7 +665,6 @@ export default function PurchasesPage() {
                   </div>
                 </div>
               )}
-
               {/* Invoice Number Input */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -679,7 +679,6 @@ export default function PurchasesPage() {
                   className={!selectedSupplier ? "bg-gray-50" : ""}
                 />
               </div>
-
               {/* Place of Supply Input */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -695,7 +694,6 @@ export default function PurchasesPage() {
                   className={!selectedSupplier ? "bg-gray-50" : ""}
                 />
               </div>
-
               {/* Invoice Date Input */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -711,7 +709,6 @@ export default function PurchasesPage() {
                   className={!selectedSupplier ? "bg-gray-50" : ""}
                 />
               </div>
-
               {selectedSupplier &&
                 invoiceNumber &&
                 invoiceDate &&
@@ -748,7 +745,6 @@ export default function PurchasesPage() {
                     </Button>
                   </div>
                 )}
-
               {/* Show message when all fields are filled but session not created */}
               {selectedSupplier &&
                 invoiceNumber &&
@@ -765,7 +761,6 @@ export default function PurchasesPage() {
                     </p>
                   </div>
                 )}
-
               {/* Show session created message */}
               {purchaseId && (
                 <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
@@ -775,7 +770,18 @@ export default function PurchasesPage() {
                   </p>
                 </div>
               )}
-
+              {/* Show Reference Invoice Number */}
+              {purchaseId && referenceInvoiceNumber && (
+                <div className="flex items-center gap-2 text-blue-600 bg-blue-50 p-3 rounded-lg mt-2">
+                  <FileText className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-sm">
+                    Reference Invoice:{" "}
+                    <span className="font-semibold">
+                      {referenceInvoiceNumber}
+                    </span>
+                  </p>
+                </div>
+              )}
               {/* Required Message */}
               {(!selectedSupplier ||
                 !invoiceNumber ||
@@ -1040,6 +1046,9 @@ export default function PurchasesPage() {
                               <div>
                                 <p className="font-medium">
                                   {item.productName}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Item Code: {item.itemCode || item.barCode}
                                 </p>
                               </div>
                             </TableCell>

@@ -6,6 +6,7 @@ export interface BillingItem {
   productId: string;
   productName: string;
   barCode: string;
+  itemCode: string;
   quantity: number;
   price: number;
   taxPercent: number;

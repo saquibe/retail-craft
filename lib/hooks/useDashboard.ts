@@ -51,7 +51,7 @@ export interface ReceivableTransaction {
   status: "pending" | "paid";
   paymentMode?: string;
   daysSinceInvoice?: number;
-  invoiceStatus?: "paid" | "pending" | "pay_later"; // NEW: Invoice status
+  invoiceStatus?: "paid" | "pending" | "pay_later";
 }
 
 export interface PayableTransaction {
@@ -66,7 +66,7 @@ export interface PayableTransaction {
   status: "pending" | "paid";
   paymentMode?: string;
   daysSinceInvoice?: number;
-  invoiceStatus?: "paid" | "pending" | "pay_later"; // NEW: Invoice status
+  invoiceStatus?: "paid" | "pending" | "pay_later";
 }
 
 interface DashboardData {
@@ -76,7 +76,9 @@ interface DashboardData {
 }
 
 export function useDashboard(
-  initialRange: "today" | "week" | "month" | "year" = "month",
+  initialRange: "today" | "week" | "month" | "year" | "custom" = "month",
+  initialStartDate?: Date,
+  initialEndDate?: Date,
 ) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
     null,
@@ -84,6 +86,12 @@ export function useDashboard(
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dateRange, setDateRange] = useState(initialRange);
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(
+    initialStartDate,
+  );
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(
+    initialEndDate,
+  );
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
   // Calculate days since invoice date
@@ -191,21 +199,40 @@ export function useDashboard(
       ]);
 
       // Calculate date range filter
-      const now = new Date();
       let startDate: Date;
-      switch (dateRange) {
-        case "today":
-          startDate = new Date(now.setHours(0, 0, 0, 0));
-          break;
-        case "week":
-          startDate = new Date(now.setDate(now.getDate() - 7));
-          break;
-        case "year":
-          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-          break;
-        default:
-          startDate = new Date(now.setMonth(now.getMonth() - 1));
+      let endDate: Date = new Date();
+      endDate.setHours(23, 59, 59, 999);
+
+      if (dateRange === "custom" && customStartDate && customEndDate) {
+        startDate = new Date(customStartDate);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(customEndDate);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        const now = new Date();
+        switch (dateRange) {
+          case "today":
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+            endDate = new Date(now.setHours(23, 59, 59, 999));
+            break;
+          case "week":
+            startDate = new Date(now.setDate(now.getDate() - 7));
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case "year":
+            startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          default: // month
+            startDate = new Date(now.setMonth(now.getMonth() - 1));
+            startDate.setHours(0, 0, 0, 0);
+        }
       }
+
+      const isDateInRange = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date >= startDate && date <= endDate;
+      };
 
       // Process Billings for Sales Stats
       let totalSales = 0;
@@ -219,8 +246,8 @@ export function useDashboard(
       const receivables: ReceivableTransaction[] = [];
 
       if (billingsResponse.success && billingsResponse.data) {
-        const filteredBillings = billingsResponse.data.filter(
-          (b: Billing) => new Date(b.createdAt) >= startDate,
+        const filteredBillings = billingsResponse.data.filter((b: Billing) =>
+          isDateInRange(b.createdAt),
         );
 
         totalInvoices = filteredBillings.length;
@@ -233,7 +260,6 @@ export function useDashboard(
           totalSales += finalAmount;
           totalPaid += paidAmount;
 
-          // Only add to "toReceive" if payment is pending or Pay Later
           if (pendingAmount > 0 || billing.paymentMode === "Pay Later") {
             toReceive += pendingAmount;
           }
@@ -246,7 +272,6 @@ export function useDashboard(
             grossProfit += profit;
           });
 
-          // Include ALL invoices for display, but mark status appropriately
           const dueDate = calculateDueDate(
             billing.createdAt,
             billing.paymentMode,
@@ -270,7 +295,7 @@ export function useDashboard(
             status: calculateStatus(pendingAmount),
             paymentMode: billing.paymentMode,
             daysSinceInvoice: daysSinceInvoice,
-            invoiceStatus: invoiceStatus, // NEW: Track invoice status
+            invoiceStatus: invoiceStatus,
           });
         });
       }
@@ -286,7 +311,7 @@ export function useDashboard(
 
       if (purchasesResponse.success && purchasesResponse.data) {
         const filteredPurchases = purchasesResponse.data.filter(
-          (p: PurchaseInvoice) => new Date(p.invoiceDate) >= startDate,
+          (p: PurchaseInvoice) => isDateInRange(p.invoiceDate),
         );
 
         totalBills = filteredPurchases.length;
@@ -300,7 +325,6 @@ export function useDashboard(
           totalPurchase += finalAmount;
           totalExpense += paidAmount;
 
-          // Only add to "toPay" if payment is pending or Pay Later
           if (pendingAmount > 0 || purchase.paymentMode === "Pay Later") {
             toPay += pendingAmount;
           }
@@ -334,7 +358,7 @@ export function useDashboard(
             status: calculateStatus(pendingAmount),
             paymentMode: purchase.paymentMode,
             daysSinceInvoice: daysSinceInvoice,
-            invoiceStatus: invoiceStatus, // NEW: Track invoice status
+            invoiceStatus: invoiceStatus,
           });
         });
       }
@@ -393,14 +417,22 @@ export function useDashboard(
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dateRange]);
+  }, [dateRange, customStartDate, customEndDate]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const changeDateRange = (range: "today" | "week" | "month" | "year") => {
+  const changeDateRange = (
+    range: "today" | "week" | "month" | "year" | "custom",
+    startDate?: Date,
+    endDate?: Date,
+  ) => {
     setDateRange(range);
+    if (range === "custom" && startDate && endDate) {
+      setCustomStartDate(startDate);
+      setCustomEndDate(endDate);
+    }
     setLoading(true);
     fetchDashboardData();
   };
@@ -415,6 +447,8 @@ export function useDashboard(
     loading,
     refreshing,
     dateRange,
+    customStartDate,
+    customEndDate,
     changeDateRange,
     refresh,
     markReceivableAsPaid,

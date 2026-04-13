@@ -1,6 +1,6 @@
 {
-  "name": "MyWebSite",
-  "short_name": "MySite",
+  "name": "RetailCraft",
+  "short_name": "RetailCraft",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

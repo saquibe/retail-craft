@@ -877,6 +877,7 @@ export default function BillingPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Barcode</TableHead>
                         <TableHead className="text-right">
                           Price (Inc. Tax)
                         </TableHead>
@@ -911,9 +912,12 @@ export default function BillingPage() {
                                   {item.productName}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  Code: {item.itemCode || item.barCode}
+                                  Item Code: {item.itemCode || item.barCode}
                                 </p>
                               </div>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {item.barCode}
                             </TableCell>
                             <TableCell className="text-right">
                               ₹{price.toFixed(2)}

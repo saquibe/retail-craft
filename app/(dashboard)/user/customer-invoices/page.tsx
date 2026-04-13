@@ -493,7 +493,7 @@ export default function CustomerInvoicesPage() {
                                             {item.productName}
                                           </p>
                                           <p className="text-xs text-gray-500">
-                                            Code: {item.barCode}
+                                            Item Code: {item.itemCode}
                                           </p>
                                         </div>
                                         <div className="flex gap-4">

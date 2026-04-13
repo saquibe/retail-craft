@@ -43,6 +43,7 @@ import {
   Power,
   AlertTriangle,
   Box,
+  Download,
 } from "lucide-react";
 import {
   getProducts,
@@ -51,6 +52,7 @@ import {
   ProductFormData,
   updateProduct,
   createProduct,
+  exportProductsToCSV,
 } from "@/lib/api/products";
 import ProductForm from "@/components/forms/ProductForm";
 import toast from "react-hot-toast";
@@ -67,6 +69,7 @@ export default function InventoryPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -257,6 +260,38 @@ export default function InventoryPage() {
     }
   };
 
+  // Handle export products to CSV
+  const handleExportCSV = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await exportProductsToCSV();
+
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Set filename with current date
+      const date = new Date().toISOString().split("T")[0];
+      link.setAttribute("download", `products_inventory_${date}.csv`);
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Products exported successfully");
+    } catch (error: any) {
+      console.error("Export error:", error);
+      toast.error(error.response?.data?.message || "Failed to export products");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Handle page change
   const goToPage = (page: number) => {
     setCurrentPage(page);
@@ -300,10 +335,25 @@ export default function InventoryPage() {
             Manage your products and stock levels
           </p>
         </div>
-        <Button onClick={handleCreateProduct} className="cursor-pointer">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Product
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleExportCSV}
+            variant="outline"
+            disabled={isExporting || products.length === 0}
+            className="cursor-pointer"
+          >
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            Export CSV
+          </Button>
+          <Button onClick={handleCreateProduct} className="cursor-pointer">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Product
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
