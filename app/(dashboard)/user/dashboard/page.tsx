@@ -1,3 +1,4 @@
+//app/(dhashboard)/user/dashboard/page.tsx
 "use client";
 
 import { useAuth } from "@/lib/context/AuthContext";
@@ -54,7 +55,7 @@ export default function UserDashboardPage() {
   const { stats, receivables, payables } = dashboardData;
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-6 sm:space-y-8 p-3 sm:p-4 md:p-6">
       <DashboardHeader
         userName={user?.name}
         dateRange={dateRange}
@@ -72,13 +73,15 @@ export default function UserDashboardPage() {
       />
 
       {receivables.length > 0 ? (
-        <TransactionTable
-          type="receivable"
-          data={receivables as Transaction[]}
-          onViewDetails={(id) => handleViewDetails(id, "receivable")}
-          onMarkPaid={markReceivableAsPaid}
-          updatingPaymentId={updatingPayment}
-        />
+        <div className="w-full overflow-x-auto">
+          <TransactionTable
+            type="receivable"
+            data={receivables as Transaction[]}
+            onViewDetails={(id) => handleViewDetails(id, "receivable")}
+            onMarkPaid={markReceivableAsPaid}
+            updatingPaymentId={updatingPayment}
+          />
+        </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
           No receivables found for selected date range
@@ -86,28 +89,30 @@ export default function UserDashboardPage() {
       )}
 
       {payables.length > 0 ? (
-        <TransactionTable
-          type="payable"
-          data={
-            payables.map((p) => ({
-              id: p.id,
-              supplierName: p.supplierName,
-              billNo: p.billNo,
-              invoiceDate: p.billDate,
-              dueDate: p.dueDate,
-              amount: p.amount,
-              paidAmount: p.paidAmount,
-              pendingAmount: p.pendingAmount,
-              status: p.status,
-              paymentMode: p.paymentMode,
-              daysSinceInvoice: p.daysSinceInvoice,
-              invoiceStatus: p.invoiceStatus,
-            })) as Transaction[]
-          }
-          onViewDetails={(id) => handleViewDetails(id, "payable")}
-          onMarkPaid={markPayableAsPaid}
-          updatingPaymentId={updatingPayment}
-        />
+        <div className="w-full overflow-x-auto">
+          <TransactionTable
+            type="payable"
+            data={
+              payables.map((p) => ({
+                id: p.id,
+                supplierName: p.supplierName,
+                billNo: p.billNo,
+                invoiceDate: p.billDate,
+                dueDate: p.dueDate,
+                amount: p.amount,
+                paidAmount: p.paidAmount,
+                pendingAmount: p.pendingAmount,
+                status: p.status,
+                paymentMode: p.paymentMode,
+                daysSinceInvoice: p.daysSinceInvoice,
+                invoiceStatus: p.invoiceStatus,
+              })) as Transaction[]
+            }
+            onViewDetails={(id) => handleViewDetails(id, "payable")}
+            onMarkPaid={markPayableAsPaid}
+            updatingPaymentId={updatingPayment}
+          />
+        </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
           No payables found for selected date range

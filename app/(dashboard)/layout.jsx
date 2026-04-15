@@ -1,3 +1,4 @@
+//app/(dashboard)/layout.jsx
 "use client";
 
 import { useAuth } from "@/lib/context/AuthContext";
@@ -33,12 +34,12 @@ export default function DashboardLayout({ children }) {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex overflow-x-hidden">
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      <div className="flex-1 flex flex-col lg:ml-64">
+      <div className="flex-1 flex flex-col w-full lg:ml-64">
         <Header setSidebarOpen={setSidebarOpen} />
-        <main className="p-4 md:p-6 mt-16">{children}</main>
+        <main className="p-3 sm:p-4 md:p-6 mt-16">{children}</main>
       </div>
     </div>
   );
