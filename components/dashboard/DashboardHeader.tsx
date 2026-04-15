@@ -104,25 +104,28 @@ export const DashboardHeader = ({
   };
 
   return (
-    <div className="flex justify-between items-center flex-wrap gap-4">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-500 mt-1">
           Welcome back, {userName || "User"}! Here's your business overview.
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-[260px] justify-start text-left font-normal cursor-pointer"
+              className="w-full sm:w-[260px] justify-start text-left font-normal cursor-pointer"
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {getDateRangeDisplay()}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
+          <PopoverContent
+            className="w-[95vw] sm:w-auto max-w-[600px] p-0"
+            align="end"
+          >
             <div className="p-4 border-b">
               <div className="flex gap-2 flex-wrap">
                 <Button
@@ -159,7 +162,7 @@ export const DashboardHeader = ({
               </div>
             </div>
             <div className="p-4">
-              <div className="flex gap-6">
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                 {/* Start Date Calendar */}
                 <div>
                   <div className="text-sm font-medium mb-2 text-center">
@@ -175,7 +178,7 @@ export const DashboardHeader = ({
                       setSelecting("end");
                     }}
                     disabled={getStartDateDisabled}
-                    className="rounded-lg border"
+                    className="rounded-lg border w-full"
                   />
                 </div>
                 {/* End Date Calendar */}
@@ -188,7 +191,7 @@ export const DashboardHeader = ({
                     selected={tempEndDate}
                     onSelect={setTempEndDate}
                     disabled={getEndDateDisabled}
-                    className="rounded-lg border"
+                    className="rounded-lg border w-full"
                   />
                 </div>
               </div>
