@@ -353,45 +353,47 @@ export default function ProductsPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Status Filter Tabs with Counts */}
-        <Tabs
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as any)}
-          className="w-full sm:w-auto"
-        >
-          <TabsList className="grid grid-cols-3 w-[500px]">
-            <TabsTrigger value="Active" className="relative cursor-pointer">
-              In Stock
-              <Badge
-                variant="secondary"
-                className="ml-2 bg-green-100 text-green-800"
+        {/* Tabs (1/4 width on desktop) */}
+        <div className="w-full sm:w-1/4">
+          <Tabs
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as any)}
+            className="w-full"
+          >
+            <TabsList className="flex w-full bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
+              <TabsTrigger
+                value="Active"
+                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow"
               >
-                {activeCount}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="Inactive" className="relative cursor-pointer">
-              Out of Stock
-              <Badge
-                variant="secondary"
-                className="ml-2 bg-gray-100 text-gray-800"
-              >
-                {inactiveCount}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="All" className="relative cursor-pointer">
-              All
-              <Badge
-                variant="secondary"
-                className="ml-2 bg-blue-100 text-blue-800"
-              >
-                {allCount}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+                In Stock
+                <span className="ml-2 text-green-600 text-xs">
+                  {activeCount}
+                </span>
+              </TabsTrigger>
 
-        {/* Search Bar */}
-        <div className="flex-1 relative">
+              <TabsTrigger
+                value="Inactive"
+                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow"
+              >
+                Out of Stock
+                <span className="ml-2 text-gray-600 text-xs">
+                  {inactiveCount}
+                </span>
+              </TabsTrigger>
+
+              <TabsTrigger
+                value="All"
+                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow"
+              >
+                All
+                <span className="ml-2 text-blue-600 text-xs">{allCount}</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Search (3/4 width on desktop) */}
+        <div className="w-full sm:w-3/4 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
             placeholder="Search products by name, barcode, color, or item code..."
@@ -400,7 +402,7 @@ export default function ProductsPage() {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-10"
+            className="pl-10 w-full"
           />
         </div>
       </div>
