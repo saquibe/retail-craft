@@ -78,7 +78,7 @@ export function PurchaseInvoicePrint({
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold">PURCHASE INVOICE</h1>
-          <p className="text-sm text-gray-600">
+          {/* <p className="text-sm text-gray-600">
             {purchase.branchId?.branchName}
           </p>
           <p className="text-sm text-gray-600">
@@ -87,7 +87,7 @@ export function PurchaseInvoicePrint({
           </p>
           <p className="text-sm text-gray-600">
             GST: {purchase.branchId?.branchGstNumber}
-          </p>
+          </p> */}
         </div>
 
         {/* Invoice Info */}
