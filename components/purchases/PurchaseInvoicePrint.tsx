@@ -88,9 +88,6 @@ export function PurchaseInvoicePrint({
           <p className="text-sm text-gray-600">
             GST: {purchase.branchId?.branchGstNumber}
           </p>
-          <p className="text-sm text-gray-600">
-            Phone: {purchase.branchId?.branchPhoneNumber}
-          </p>
         </div>
 
         {/* Invoice Info */}
@@ -190,7 +187,7 @@ export function PurchaseInvoicePrint({
                 <tr key={item.productId} className="border-b">
                   <td className="py-2">{index + 1}</td>
                   <td className="py-2">{item.productName}</td>
-                  <td className="py-2 font-mono">{item.barCode}</td>
+                  <td className="py-2 font-mono">{item.itemCode}</td>
                   <td className="text-right py-2">{item.quantity}</td>
                   <td className="text-right py-2">Pcs.</td>
                   <td className="text-right py-2">

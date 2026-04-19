@@ -72,6 +72,8 @@ export default function BillingPage() {
     paidAmount,
     isLoaded,
     billingId,
+    updatingProductId,
+    addingProduct,
     setSelectedCustomer,
     setDiscount,
     addToCart,
@@ -934,8 +936,16 @@ export default function BillingPage() {
                                       item.cartQuantity - 1,
                                     )
                                   }
+                                  disabled={
+                                    updatingProductId === item._id ||
+                                    item.cartQuantity <= 1
+                                  }
                                 >
-                                  <Minus className="h-3 w-3" />
+                                  {updatingProductId === item._id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Minus className="h-3 w-3" />
+                                  )}
                                 </Button>
                                 <span className="w-8 text-center">
                                   {item.cartQuantity}
@@ -950,9 +960,16 @@ export default function BillingPage() {
                                       item.cartQuantity + 1,
                                     )
                                   }
-                                  disabled={item.cartQuantity >= item.quantity}
+                                  disabled={
+                                    updatingProductId === item._id ||
+                                    item.cartQuantity >= item.quantity
+                                  }
                                 >
-                                  <Plus className="h-3 w-3" />
+                                  {updatingProductId === item._id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Plus className="h-3 w-3" />
+                                  )}
                                 </Button>
                               </div>
                             </TableCell>
@@ -1078,12 +1095,6 @@ export default function BillingPage() {
                     <span className="font-medium">₹{taxTotal.toFixed(2)}</span>
                   </div>
                 </div>
-
-                {/* 5. Subtotal after tax */}
-                {/* <div className="flex justify-between text-sm pt-2">
-                  <span className="text-gray-600">Subtotal (After Tax):</span>
-                  <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-                </div> */}
 
                 {/* 6. Freight Charge */}
                 <div className="flex justify-between items-center gap-4">

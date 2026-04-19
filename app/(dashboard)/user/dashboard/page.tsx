@@ -97,6 +97,7 @@ export default function UserDashboardPage() {
                 id: p.id,
                 supplierName: p.supplierName,
                 billNo: p.billNo,
+                referenceInvoiceNo: p.referenceInvoiceNo,
                 invoiceDate: p.billDate,
                 dueDate: p.dueDate,
                 amount: p.amount,

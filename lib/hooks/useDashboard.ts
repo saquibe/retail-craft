@@ -58,6 +58,7 @@ export interface PayableTransaction {
   id: string;
   supplierName: string;
   billNo: string;
+  referenceInvoiceNo?: string;
   billDate: string;
   dueDate: string;
   amount: number;
@@ -350,6 +351,7 @@ export function useDashboard(
             id: purchase._id,
             supplierName: purchase.supplierId?.name || "Unknown",
             billNo: purchase.invoiceNumber,
+            referenceInvoiceNo: purchase.referenceInvoiceNumber || "",
             billDate: purchase.invoiceDate,
             dueDate: dueDate,
             amount: finalAmount,

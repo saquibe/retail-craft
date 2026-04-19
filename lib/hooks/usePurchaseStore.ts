@@ -50,6 +50,12 @@ export const usePurchaseStore = () => {
   const [discount, setDiscount] = useState(0);
   const [freightCharge, setFreightCharge] = useState(0);
   const [referenceInvoiceNumber, setReferenceInvoiceNumber] = useState("");
+  const [updatingProductId, setUpdatingProductId] = useState<string | null>(
+    null,
+  );
+  const [updatingAction, setUpdatingAction] = useState<
+    "increment" | "decrement" | "remove" | null
+  >(null);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -400,19 +406,28 @@ export const usePurchaseStore = () => {
     [purchaseId],
   );
 
-  // Update quantity
   const updateQuantity = useCallback(
-    async (productId: string, newQuantity: number) => {
+    async (
+      productId: string,
+      newQuantity: number,
+      action: "increment" | "decrement",
+    ) => {
       if (!purchaseId) {
         toast.error("No active purchase session");
         return false;
+      }
+
+      if (updatingProductId === productId) {
+        return false; // Prevent concurrent updates
       }
 
       if (newQuantity < 1) {
         return await removeProduct(productId);
       }
 
-      setIsLoading(true);
+      setUpdatingProductId(productId);
+      setUpdatingAction(action);
+
       try {
         const response = await updatePurchaseQuantity({
           purchaseId,
@@ -433,13 +448,14 @@ export const usePurchaseStore = () => {
         );
         return false;
       } finally {
-        setIsLoading(false);
+        setUpdatingProductId(null);
+        setUpdatingAction(null);
       }
     },
-    [purchaseId],
+    [purchaseId, updatingProductId],
   );
 
-  // Remove product
+  // Remove product with loading prevention
   const removeProduct = useCallback(
     async (productId: string) => {
       if (!purchaseId) {
@@ -447,7 +463,13 @@ export const usePurchaseStore = () => {
         return false;
       }
 
-      setIsLoading(true);
+      if (updatingProductId === productId) {
+        return false; // Prevent concurrent updates
+      }
+
+      setUpdatingProductId(productId);
+      setUpdatingAction("remove");
+
       try {
         const response = await removeProductFromPurchase({
           purchaseId,
@@ -468,10 +490,11 @@ export const usePurchaseStore = () => {
         );
         return false;
       } finally {
-        setIsLoading(false);
+        setUpdatingProductId(null);
+        setUpdatingAction(null);
       }
     },
-    [purchaseId],
+    [purchaseId, updatingProductId],
   );
 
   // Complete purchase with payment details
@@ -604,6 +627,8 @@ export const usePurchaseStore = () => {
     purchaseData,
     totals,
     isCreating,
+    updatingProductId,
+    updatingAction,
     setSelectedSupplier: updateSupplier,
     setInvoiceNumber,
     setInvoiceDate,

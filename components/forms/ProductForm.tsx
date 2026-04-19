@@ -1,3 +1,5 @@
+// components/forms/ProductForm.tsx - Update the form component
+
 "use client";
 
 import { useForm, type Resolver } from "react-hook-form";
@@ -6,7 +8,7 @@ import { z } from "zod";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import { Percent, FileText, IndianRupee } from "lucide-react";
+import { Percent, FileText, IndianRupee, Loader2 } from "lucide-react";
 
 // Define the product schema
 const productSchema = z.object({
@@ -53,8 +55,7 @@ export default function ProductForm({
   const {
     register,
     handleSubmit,
-    control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormData>,
     defaultValues: {
@@ -74,15 +75,17 @@ export default function ProductForm({
     },
   });
 
-  const handleFormSubmit = (data: ProductFormData) => {
+  const handleFormSubmit = async (data: ProductFormData) => {
     // If in edit mode, remove quantity from the data before submitting
     if (isEditMode) {
       const { quantity, ...restData } = data;
-      onSubmit(restData as ProductFormData);
+      await onSubmit(restData as ProductFormData);
     } else {
-      onSubmit(data);
+      await onSubmit(data);
     }
   };
+
+  const isButtonDisabled = isLoading || isSubmitting;
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
@@ -94,14 +97,12 @@ export default function ProductForm({
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               Product Name *
             </label>
-            <div className="relative">
-              {/* <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
-              <Input
-                {...register("productName")}
-                error={errors.productName?.message}
-                placeholder="Enter product name"
-              />
-            </div>
+            <Input
+              {...register("productName")}
+              error={errors.productName?.message}
+              placeholder="Enter product name"
+              disabled={isButtonDisabled}
+            />
           </div>
 
           {/* Item Code */}
@@ -109,14 +110,12 @@ export default function ProductForm({
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               Item Code *
             </label>
-            <div className="relative">
-              {/* <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
-              <Input
-                {...register("itemCode")}
-                error={errors.itemCode?.message}
-                placeholder="Enter item code"
-              />
-            </div>
+            <Input
+              {...register("itemCode")}
+              error={errors.itemCode?.message}
+              placeholder="Enter item code"
+              disabled={isButtonDisabled}
+            />
           </div>
 
           {/* Barcode */}
@@ -124,15 +123,13 @@ export default function ProductForm({
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               Barcode *
             </label>
-            <div className="relative">
-              {/* <Barcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
-              <Input
-                type="number"
-                {...register("barCode")}
-                error={errors.barCode?.message}
-                placeholder="Enter barcode"
-              />
-            </div>
+            <Input
+              type="number"
+              {...register("barCode")}
+              error={errors.barCode?.message}
+              placeholder="Enter barcode"
+              disabled={isButtonDisabled}
+            />
           </div>
 
           {/* Color */}
@@ -140,14 +137,12 @@ export default function ProductForm({
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               Color *
             </label>
-            <div className="relative">
-              {/* <Palette className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
-              <Input
-                {...register("color")}
-                error={errors.color?.message}
-                placeholder="Enter color (e.g., Red, Blue, Black)"
-              />
-            </div>
+            <Input
+              {...register("color")}
+              error={errors.color?.message}
+              placeholder="Enter color (e.g., Red, Blue, Black)"
+              disabled={isButtonDisabled}
+            />
           </div>
 
           {/* Size */}
@@ -159,6 +154,7 @@ export default function ProductForm({
               {...register("size")}
               error={errors.size?.message}
               placeholder="Enter size (e.g., M, XL, 42, Custom)"
+              disabled={isButtonDisabled}
             />
           </div>
 
@@ -167,14 +163,12 @@ export default function ProductForm({
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               HSN Code *
             </label>
-            <div className="relative">
-              {/* <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" /> */}
-              <Input
-                {...register("hsnCode")}
-                error={errors.hsnCode?.message}
-                placeholder="Enter HSN code"
-              />
-            </div>
+            <Input
+              {...register("hsnCode")}
+              error={errors.hsnCode?.message}
+              placeholder="Enter HSN code"
+              disabled={isButtonDisabled}
+            />
           </div>
 
           {/* Sales Tax */}
@@ -191,11 +185,12 @@ export default function ProductForm({
                 error={errors.salesTax?.message}
                 placeholder="Enter sales tax percentage"
                 className="pl-10"
+                disabled={isButtonDisabled}
               />
             </div>
           </div>
 
-          {/* Purchase Tax - NEW FIELD */}
+          {/* Purchase Tax */}
           <div>
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               Purchase Tax (%) *
@@ -209,6 +204,7 @@ export default function ProductForm({
                 error={errors.purchaseTax?.message}
                 placeholder="Enter purchase tax percentage"
                 className="pl-10"
+                disabled={isButtonDisabled}
               />
             </div>
           </div>
@@ -232,6 +228,7 @@ export default function ProductForm({
                 error={errors.b2bSalePrice?.message}
                 placeholder="0.00"
                 className="pl-10"
+                disabled={isButtonDisabled}
               />
             </div>
           </div>
@@ -250,6 +247,7 @@ export default function ProductForm({
                 error={errors.b2cSalePrice?.message}
                 placeholder="0.00"
                 className="pl-10"
+                disabled={isButtonDisabled}
               />
             </div>
           </div>
@@ -268,6 +266,7 @@ export default function ProductForm({
                 error={errors.purchasePrice?.message}
                 placeholder="0.00"
                 className="pl-10"
+                disabled={isButtonDisabled}
               />
             </div>
           </div>
@@ -287,6 +286,7 @@ export default function ProductForm({
               error={errors.shortDescription?.message}
               placeholder="Enter a brief description of the product (optional)"
               rows={3}
+              disabled={isButtonDisabled}
             />
           </div>
         </div>
@@ -299,17 +299,25 @@ export default function ProductForm({
             type="button"
             variant="outline"
             onClick={onCancel}
+            disabled={isButtonDisabled}
             className="cursor-pointer"
           >
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={isLoading} className="cursor-pointer">
-          {isLoading
-            ? "Saving..."
-            : isEditMode
-            ? "Update Product"
-            : "Create Product"}
+        <Button
+          type="submit"
+          disabled={isButtonDisabled}
+          className="cursor-pointer min-w-[120px]"
+        >
+          {isButtonDisabled ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {isEditMode ? "Updating..." : "Creating..."}
+            </>
+          ) : (
+            <>{isEditMode ? "Update Product" : "Create Product"}</>
+          )}
         </Button>
       </div>
     </form>

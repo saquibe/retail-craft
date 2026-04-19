@@ -69,6 +69,8 @@ export default function PurchasesPage() {
     discount,
     freightCharge,
     isCreating,
+    updatingProductId,
+    updatingAction,
     setSelectedSupplier,
     setInvoiceNumber,
     setInvoiceDate,
@@ -109,6 +111,7 @@ export default function PurchasesPage() {
   const [paymentMode, setPaymentMode] = useState<string>("");
   const [payLaterRemarks, setPayLaterRemarks] = useState("");
   const [showRemarksInput, setShowRemarksInput] = useState(false);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
 
   // Load suppliers and products on mount
   useEffect(() => {
@@ -215,7 +218,6 @@ export default function PurchasesPage() {
     reverseCharge &&
     purchaseId;
 
-  // Add product from selection dialog
   const handleAddSelectedProduct = async (product: any) => {
     if (!selectedSupplier) {
       toast.error("Please select a supplier first");
@@ -227,6 +229,10 @@ export default function PurchasesPage() {
       return;
     }
 
+    // Prevent multiple clicks
+    if (isAddingProduct) return;
+
+    setIsAddingProduct(true);
     setIsScanning(true);
 
     try {
@@ -246,14 +252,20 @@ export default function PurchasesPage() {
       toast.error(error.response?.data?.message || "Failed to add product");
     } finally {
       setIsScanning(false);
+      setIsAddingProduct(false);
     }
   };
 
-  // Handle bulk add
+  // Update handleBulkAdd similarly
   const handleBulkAdd = async () => {
     if (!bulkProduct) return;
 
+    // Prevent multiple clicks
+    if (isAddingProduct) return;
+
+    setIsAddingProduct(true);
     setIsScanning(true);
+
     try {
       const result = await scanBarcode(
         bulkProduct.barCode,
@@ -278,6 +290,7 @@ export default function PurchasesPage() {
       toast.error(error.response?.data?.message || "Failed to add product");
     } finally {
       setIsScanning(false);
+      setIsAddingProduct(false);
     }
   };
 
@@ -1068,11 +1081,20 @@ export default function PurchasesPage() {
                                     updateQuantity(
                                       item.productId,
                                       item.quantity - 1,
+                                      "decrement",
                                     )
                                   }
-                                  disabled={isLoading}
+                                  disabled={
+                                    updatingProductId === item.productId ||
+                                    item.quantity <= 1
+                                  }
                                 >
-                                  <Minus className="h-3 w-3" />
+                                  {updatingProductId === item.productId &&
+                                  updatingAction === "decrement" ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Minus className="h-3 w-3" />
+                                  )}
                                 </Button>
                                 <span className="w-8 text-center font-medium">
                                   {item.quantity}
@@ -1085,11 +1107,19 @@ export default function PurchasesPage() {
                                     updateQuantity(
                                       item.productId,
                                       item.quantity + 1,
+                                      "increment",
                                     )
                                   }
-                                  disabled={isLoading}
+                                  disabled={
+                                    updatingProductId === item.productId
+                                  }
                                 >
-                                  <Plus className="h-3 w-3" />
+                                  {updatingProductId === item.productId &&
+                                  updatingAction === "increment" ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Plus className="h-3 w-3" />
+                                  )}
                                 </Button>
                               </div>
                             </TableCell>
@@ -1112,9 +1142,14 @@ export default function PurchasesPage() {
                                 size="icon"
                                 className="h-8 w-8 text-red-600"
                                 onClick={() => removeProduct(item.productId)}
-                                disabled={isLoading}
+                                disabled={updatingProductId === item.productId}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {updatingProductId === item.productId &&
+                                updatingAction === "remove" ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
                               </Button>
                             </TableCell>
                           </TableRow>

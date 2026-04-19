@@ -31,6 +31,7 @@ export interface Transaction {
   supplierName?: string;
   invoiceNo?: string;
   billNo?: string;
+  referenceInvoiceNo?: string; // Only for payable
   invoiceDate: string;
   dueDate: string;
   amount: number;
@@ -68,11 +69,15 @@ export function TransactionTable({
   const nameField = type === "receivable" ? "customerName" : "supplierName";
   const documentField = type === "receivable" ? "invoiceNo" : "billNo";
 
-  // Filter data
+  // Filter data - include reference invoice only for payable
   const filteredData = data.filter(
     (item) =>
       item[nameField]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item[documentField]?.toLowerCase().includes(searchTerm.toLowerCase()),
+      item[documentField]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (type === "payable" &&
+        item.referenceInvoiceNo
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase())),
   );
 
   // Sort data
@@ -153,6 +158,9 @@ export function TransactionTable({
     0,
   );
 
+  // Determine column count based on type
+  const columnCount = type === "payable" ? 11 : 10;
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       {/* Header with summary */}
@@ -168,7 +176,7 @@ export function TransactionTable({
           <Input
             placeholder={`Search ${
               type === "receivable" ? "customer" : "supplier"
-            }...`}
+            }, ${type === "payable" ? "ref. invoice, " : ""}invoice...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
@@ -197,6 +205,8 @@ export function TransactionTable({
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
+                {/* Reference Invoice column - ONLY for payable */}
+                {type === "payable" && <TableHead>Ref. Invoice #</TableHead>}
                 <TableHead>Invoice Date</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead className="text-center">Overdue</TableHead>
@@ -216,7 +226,7 @@ export function TransactionTable({
               {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={columnCount}
                     className="text-center py-8 text-gray-500"
                   >
                     No {type === "receivable" ? "receivables" : "payables"}{" "}
@@ -230,6 +240,12 @@ export function TransactionTable({
                       {item[nameField]}
                     </TableCell>
                     <TableCell>{item[documentField]}</TableCell>
+                    {/* Reference Invoice cell - ONLY for payable */}
+                    {type === "payable" && (
+                      <TableCell className="font-mono text-xs text-gray-500">
+                        {item.referenceInvoiceNo || "-"}
+                      </TableCell>
+                    )}
                     <TableCell>{formatDate(item.invoiceDate)}</TableCell>
                     <TableCell>{formatDate(item.dueDate)}</TableCell>
                     <TableCell className="text-center">
@@ -294,22 +310,6 @@ export function TransactionTable({
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {/* {item.status === "pending" && onMarkPaid && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleMarkPaid(item.id)}
-                            disabled={updatingPaymentId === item.id}
-                            title="Mark as Paid"
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            {updatingPaymentId === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <CheckCircle className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )} */}
                       </div>
                     </TableCell>
                   </TableRow>

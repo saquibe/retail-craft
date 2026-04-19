@@ -1,3 +1,4 @@
+// lib/hooks/useBillingStore.ts
 import { useState, useEffect } from "react";
 import { Customer } from "@/lib/api/customers";
 import { Product } from "@/lib/api/products";
@@ -40,6 +41,12 @@ export const useBillingStore = () => {
   const [billingId, setBillingId] = useState<string | undefined>();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Add loading states for individual product operations
+  const [updatingProductId, setUpdatingProductId] = useState<string | null>(
+    null,
+  );
+  const [addingProduct, setAddingProduct] = useState(false);
 
   // Load session from localStorage on mount
   useEffect(() => {
@@ -150,7 +157,7 @@ export const useBillingStore = () => {
     }
   };
 
-  // Add to cart
+  // Add to cart with loading prevention
   const addToCart = async (
     product: Product,
     selectedProductId?: string,
@@ -159,6 +166,13 @@ export const useBillingStore = () => {
       toast.error("Billing session not initialized");
       return false;
     }
+
+    // Prevent multiple rapid adds
+    if (addingProduct) {
+      return false;
+    }
+
+    setAddingProduct(true);
 
     try {
       const response = await addProductToBilling(
@@ -199,12 +213,15 @@ export const useBillingStore = () => {
       }
       toast.error(error.response?.data?.message || "Failed to add product");
       return false;
+    } finally {
+      setAddingProduct(false);
     }
   };
 
-  // Update quantity
+  // Update quantity with loading prevention
   const updateQuantity = async (productId: string, quantity: number) => {
     if (!billingId) return;
+    if (updatingProductId === productId) return; // Prevent concurrent updates
 
     const product = cart.find((item) => item._id === productId);
     if (!product) return;
@@ -213,6 +230,14 @@ export const useBillingStore = () => {
       await removeFromCart(productId);
       return;
     }
+
+    // Check stock limit before making API call
+    if (quantity > product.quantity) {
+      toast.error(`Only ${product.quantity} units available in stock`);
+      return;
+    }
+
+    setUpdatingProductId(productId);
 
     try {
       const response = await updateProductQuantity(
@@ -231,18 +256,24 @@ export const useBillingStore = () => {
     } catch (error: any) {
       console.error("Error updating quantity:", error);
       toast.error(error.response?.data?.message || "Failed to update quantity");
+    } finally {
+      setUpdatingProductId(null);
     }
   };
 
-  // Remove from cart
+  // Remove from cart with loading prevention
   const removeFromCart = async (productId: string) => {
     if (!billingId) {
       toast.error("No active billing session");
       return;
     }
 
+    if (updatingProductId === productId) return;
+
     const product = cart.find((item) => item._id === productId);
     if (!product) return;
+
+    setUpdatingProductId(productId);
 
     try {
       const response = await removeProductFromBilling(billingId, productId);
@@ -254,6 +285,8 @@ export const useBillingStore = () => {
     } catch (error: any) {
       console.error("Error removing item:", error);
       toast.error(error.response?.data?.message || "Failed to remove item");
+    } finally {
+      setUpdatingProductId(null);
     }
   };
 
@@ -357,6 +390,8 @@ export const useBillingStore = () => {
     billingId,
     isLoaded,
     isLoading,
+    updatingProductId,
+    addingProduct,
     setSelectedCustomer: updateCustomer,
     setDiscount,
     setPaymentMethod,
