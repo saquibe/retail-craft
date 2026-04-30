@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,9 @@ import {
   Truck,
   MessageSquare,
   Plus,
+  IndianRupee,
+  Wallet,
+  Clock,
 } from "lucide-react";
 import {
   getCompletedBillings,
@@ -64,6 +67,113 @@ import { ThermalInvoice } from "@/components/billing/ThermalInvoice";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import React from "react";
+
+// Counter Animation Component
+const AnimatedCounter = ({
+  targetValue,
+  duration = 1000,
+  formatter,
+}: {
+  targetValue: number;
+  duration?: number;
+  formatter: (value: number) => string;
+}) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTime: number | null = null;
+    let animationFrame: number;
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+
+      // Easing function for smooth animation
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const currentValue = targetValue * easeOutQuart;
+
+      setCount(currentValue);
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [targetValue, duration]);
+
+  return <span>{formatter(count)}</span>;
+};
+
+// Summary Card Component with Counter
+const SummaryCard = ({
+  title,
+  value,
+  count,
+  icon: Icon,
+  iconBgClass,
+  iconColorClass,
+  titleColorClass,
+  valueColorClass,
+  gradientClass,
+}: {
+  title: string;
+  value: number;
+  count: number;
+  icon: any;
+  iconBgClass: string;
+  iconColorClass: string;
+  titleColorClass: string;
+  valueColorClass: string;
+  gradientClass: string;
+}) => {
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  return (
+    <Card className={`bg-gradient-to-br ${gradientClass}`}>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className={`text-sm font-medium ${titleColorClass} mb-1`}>
+              {title}
+            </p>
+            <p className={`text-2xl md:text-3xl font-bold ${valueColorClass}`}>
+              <AnimatedCounter
+                targetValue={value}
+                duration={1000}
+                formatter={formatCurrency}
+              />
+            </p>
+            <p className={`text-xs ${titleColorClass} mt-1 opacity-75`}>
+              {count}{" "}
+              {title === "Total Sales"
+                ? "invoices"
+                : title === "Paid Amount"
+                ? "paid invoices"
+                : "pending invoices"}
+            </p>
+          </div>
+          <div className={`p-3 ${iconBgClass} rounded-full`}>
+            <Icon className={`w-6 h-6 ${iconColorClass}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default function CustomerInvoicesPage() {
   const router = useRouter();
@@ -136,6 +246,34 @@ export default function CustomerInvoicesPage() {
       setIsLoading(false);
     }
   };
+
+  // Calculate summary statistics
+  const summary = useMemo(() => {
+    let totalSales = 0;
+    let paidAmount = 0;
+    let unpaidAmount = 0;
+
+    billings.forEach((billing) => {
+      const finalTotal = billing.finalTotal || billing.grandTotal || 0;
+      const roundedTotal = Math.round(finalTotal);
+      totalSales += roundedTotal;
+
+      if (billing.paymentStatus === "Paid") {
+        paidAmount += roundedTotal;
+      } else {
+        unpaidAmount += roundedTotal;
+      }
+    });
+
+    return {
+      totalSales,
+      paidAmount,
+      unpaidAmount,
+      count: billings.length,
+      paidCount: billings.filter((b) => b.paymentStatus === "Paid").length,
+      unpaidCount: billings.filter((b) => b.paymentStatus !== "Paid").length,
+    };
+  }, [billings]);
 
   // Open confirmation dialog before updating payment status
   const openConfirmDialog = (billingId: string, currentStatus: string) => {
@@ -274,6 +412,43 @@ export default function CustomerInvoicesPage() {
           <Plus className="w-4 h-4 mr-2" />
           New Invoice
         </Button>
+      </div>
+
+      {/* Summary Cards with Counter Animation */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <SummaryCard
+          title="Total Sales"
+          value={summary.totalSales}
+          count={summary.count}
+          icon={IndianRupee}
+          iconBgClass="bg-blue-200"
+          iconColorClass="text-blue-700"
+          titleColorClass="text-blue-700"
+          valueColorClass="text-blue-900"
+          gradientClass="from-blue-50 to-blue-100 border-blue-200"
+        />
+        <SummaryCard
+          title="Paid Amount"
+          value={summary.paidAmount}
+          count={summary.paidCount}
+          icon={Wallet}
+          iconBgClass="bg-green-200"
+          iconColorClass="text-green-700"
+          titleColorClass="text-green-700"
+          valueColorClass="text-green-900"
+          gradientClass="from-green-50 to-green-100 border-green-200"
+        />
+        <SummaryCard
+          title="Unpaid Amount"
+          value={summary.unpaidAmount}
+          count={summary.unpaidCount}
+          icon={Clock}
+          iconBgClass="bg-orange-200"
+          iconColorClass="text-orange-700"
+          titleColorClass="text-orange-700"
+          valueColorClass="text-orange-900"
+          gradientClass="from-orange-50 to-orange-100 border-orange-200"
+        />
       </div>
 
       {/* Search Bar */}
@@ -818,11 +993,14 @@ export default function CustomerInvoicesPage() {
               <br />
               Amount:{" "}
               <span className="font-semibold">
-                {formatCurrency(
-                  billingToConfirm?.finalTotal ||
+                {(() => {
+                  const finalTotal =
+                    billingToConfirm?.finalTotal ||
                     billingToConfirm?.grandTotal ||
-                    0,
-                )}
+                    0;
+                  const roundedTotal = Math.round(finalTotal);
+                  return formatCurrency(roundedTotal);
+                })()}
               </span>
               <br />
               <br />

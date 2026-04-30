@@ -77,7 +77,7 @@ interface DashboardData {
 }
 
 export function useDashboard(
-  initialRange: "today" | "week" | "month" | "year" | "custom" = "month",
+  initialRange: "today" | "week" | "month" | "year" | "custom" = "today",
   initialStartDate?: Date,
   initialEndDate?: Date,
 ) {
@@ -211,6 +211,7 @@ export function useDashboard(
         endDate.setHours(23, 59, 59, 999);
       } else {
         const now = new Date();
+        now.setHours(0, 0, 0, 0);
         switch (dateRange) {
           case "today":
             startDate = new Date(now.setHours(0, 0, 0, 0));
@@ -224,15 +225,27 @@ export function useDashboard(
             startDate = new Date(now.setFullYear(now.getFullYear() - 1));
             startDate.setHours(0, 0, 0, 0);
             break;
-          default: // month
-            startDate = new Date(now.setMonth(now.getMonth() - 1));
+          default:
+            startDate = new Date(now);
+            startDate.setMonth(now.getMonth() - 1);
             startDate.setHours(0, 0, 0, 0);
         }
       }
 
+      // console.log("Date Range:", {
+      //   dateRange,
+      //   startDate: startDate.toISOString(),
+      //   endDate: endDate.toISOString(),
+      // });
+
       const isDateInRange = (dateStr: string) => {
         const date = new Date(dateStr);
-        return date >= startDate && date <= endDate;
+        date.setHours(0, 0, 0, 0);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return date >= start && date <= end;
       };
 
       // Process Billings for Sales Stats

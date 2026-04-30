@@ -14,7 +14,6 @@ import {
   deleteProduct,
 } from "@/lib/api/products";
 import ProductForm from "@/components/forms/ProductForm";
-import { StockManager } from "@/components/inventory/StockManager";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +36,6 @@ import {
   Plus,
   Search,
   Edit,
-  Loader2,
   Package,
   Barcode,
   Tag,
@@ -99,13 +97,12 @@ export default function ProductsPage() {
     if (!selectedProduct) return;
 
     try {
-      // Call your delete API endpoint here
       const response = await deleteProduct(selectedProduct._id);
       if (response.success) {
         toast.success("Product deleted successfully!");
         setIsDeleteDialogOpen(false);
         setSelectedProduct(null);
-        fetchAllProducts(); // Refresh the product list
+        fetchAllProducts();
         fetchStockSummary();
         fetchLowStockCount();
       }
@@ -123,7 +120,6 @@ export default function ProductsPage() {
   const fetchAllProducts = async () => {
     try {
       setIsLoading(true);
-      // Pass "All" to get all products regardless of status
       const response = await getProducts("All");
       if (response.success && response.data) {
         setAllProducts(response.data);
@@ -167,7 +163,7 @@ export default function ProductsPage() {
     fetchAllProducts();
     fetchStockSummary();
     fetchLowStockCount();
-  }, []); // Remove statusFilter dependency
+  }, []);
 
   // Calculate counts for tabs based on actual data
   const activeCount = useMemo(
@@ -191,7 +187,7 @@ export default function ProductsPage() {
       } else if (statusFilter === "Inactive") {
         if (product.quantity > 0) return false; // Only show products with quantity = 0
       }
-      // 'All' shows everything, no filtering
+      // 4'All' shows everything, no filtering
 
       // Then apply search filter
       return (

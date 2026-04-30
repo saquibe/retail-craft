@@ -228,7 +228,7 @@ export default function ProductForm({
                 error={errors.b2bSalePrice?.message}
                 placeholder="0.00"
                 className="pl-10"
-                disabled={isButtonDisabled}
+                disabled={isButtonDisabled || isEditMode}
               />
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function ProductForm({
                 error={errors.b2cSalePrice?.message}
                 placeholder="0.00"
                 className="pl-10"
-                disabled={isButtonDisabled}
+                disabled={isButtonDisabled || isEditMode}
               />
             </div>
           </div>

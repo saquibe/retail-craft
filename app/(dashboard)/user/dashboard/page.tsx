@@ -25,7 +25,7 @@ export default function UserDashboardPage() {
     markReceivableAsPaid,
     markPayableAsPaid,
     updatingPayment,
-  } = useDashboard("month");
+  } = useDashboard("today");
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-IN", {

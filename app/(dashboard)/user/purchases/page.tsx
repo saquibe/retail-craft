@@ -118,7 +118,6 @@ export default function PurchasesPage() {
     loadSuppliers();
     loadProducts();
   }, []);
-
   // Set default place of supply if not set
   useEffect(() => {
     if (!placeOfSupply) {
@@ -1030,10 +1029,11 @@ export default function PurchasesPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Barcode</TableHead>
+                        <TableHead className="text-center">Barcode</TableHead>
                         <TableHead className="text-right">
                           Purchase Price
                         </TableHead>
+                        <TableHead className="text-right">MRP</TableHead>
                         <TableHead className="text-center">Quantity</TableHead>
                         <TableHead className="text-center">Unit</TableHead>
                         <TableHead className="text-right">SGST</TableHead>
@@ -1065,11 +1065,17 @@ export default function PurchasesPage() {
                                 </p>
                               </div>
                             </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
+                            <TableCell className="text-center font-mono text-sm">
                               {item.barCode}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-center">
                               ₹{item.purchasePrice.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              ₹
+                              {products
+                                .find((p) => p._id === item.productId)
+                                ?.b2cSalePrice?.toFixed(2)}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center justify-center gap-2">
@@ -1569,7 +1575,7 @@ export default function PurchasesPage() {
             <div className="text-center">
               <p className="text-lg font-medium">{bulkProduct?.productName}</p>
               <p className="text-sm text-gray-500 mt-1">
-                Price: ₹{bulkProduct?.purchasePrice}
+                Purchase Price: ₹{bulkProduct?.purchasePrice}
               </p>
             </div>
 

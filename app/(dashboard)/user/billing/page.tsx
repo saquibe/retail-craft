@@ -1,4 +1,4 @@
-//app/(dashboard)/user/billing/page.tsx
+// app/(dashboard)/user/billing/page.tsx
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -65,6 +65,8 @@ interface BillingItem extends Product {
 export default function BillingPage() {
   const { user } = useAuth();
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const {
     selectedCustomer,
     cart,
@@ -108,6 +110,7 @@ export default function BillingPage() {
   const [freightCharge, setFreightCharge] = useState(0);
   const [payLaterRemarks, setPayLaterRemarks] = useState("");
   const [showRemarksInput, setShowRemarksInput] = useState(false);
+  const [isAddingFromEnter, setIsAddingFromEnter] = useState(false);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -123,6 +126,21 @@ export default function BillingPage() {
       }, 100);
     }
   }, [selectedCustomer, isLoaded]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const loadProducts = async () => {
     try {
@@ -199,9 +217,15 @@ export default function BillingPage() {
       if (fullProduct) {
         const success = await addToCart(fullProduct, product._id);
         if (success) {
+          // toast.success(`${fullProduct.productName} added to cart`);
           setShowProductSelectionDialog(false);
           setMultipleProducts([]);
           setProductSearch("");
+
+          // Refocus the input after adding from selection dialog
+          setTimeout(() => {
+            barcodeInputRef.current?.focus();
+          }, 100);
         }
       }
     } catch (error: any) {
@@ -212,8 +236,10 @@ export default function BillingPage() {
     }
   };
 
-  // Handle barcode scan (combined input)
-  const handleBarcodeScan = async (e: React.FormEvent) => {
+  // Handle barcode scan when Enter key is pressed
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+
     e.preventDefault();
 
     if (!selectedCustomer) {
@@ -230,25 +256,66 @@ export default function BillingPage() {
 
     if (!cleanInput) return;
 
+    // Prevent double execution
+    if (isAddingFromEnter) return;
+
+    setIsAddingFromEnter(true);
     setLoading(true);
 
     try {
-      const result = await addToCart({ barCode: cleanInput } as Product);
-      if (result) {
+      // Search for the product by barcode/name
+      const searchResponse = await searchProducts(cleanInput);
+
+      if (
+        !searchResponse.success ||
+        !searchResponse.data ||
+        searchResponse.data.length === 0
+      ) {
+        toast.error("Product not found");
         setProductSearch("");
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
+        return;
       }
-    } catch (error: any) {
-      if (error.multiple && error.data && Array.isArray(error.data)) {
-        setMultipleProducts(error.data);
+
+      const foundProducts = searchResponse.data;
+
+      // If multiple products found
+      if (foundProducts.length > 1) {
+        setMultipleProducts(foundProducts);
         setSelectedBarcode(cleanInput);
         setShowProductSelectionDialog(true);
         setProductSearch("");
-      } else {
-        toast.error(error?.message || "Failed to add product");
-        setProductSearch("");
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
+        return;
       }
+
+      // Single product found - add to cart
+      const product = foundProducts[0];
+      const result = await addToCart(product);
+
+      if (result) {
+        // toast.success(`${product.productName} added to cart`);
+        setProductSearch("");
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
+      }
+    } catch (error: any) {
+      console.error("Error in handleKeyPress:", error);
+      toast.error(error?.message || "Failed to add product");
+      setProductSearch("");
+      setTimeout(() => {
+        barcodeInputRef.current?.focus();
+      }, 100);
     } finally {
       setLoading(false);
+      setTimeout(() => {
+        setIsAddingFromEnter(false);
+      }, 500);
     }
   };
 
@@ -269,8 +336,14 @@ export default function BillingPage() {
     try {
       const result = await addToCart(product);
       if (result) {
+        toast.success(`${product.productName} added to cart`);
         setProductSearch("");
         setShowSearchResults(false);
+
+        // Refocus the input after adding product
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
       }
     } catch (error: any) {
       if (error.multiple && error.data && Array.isArray(error.data)) {
@@ -283,6 +356,10 @@ export default function BillingPage() {
         toast.error(error?.message || "Failed to add product");
         setProductSearch("");
         setShowSearchResults(false);
+
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
       }
     } finally {
       setLoading(false);
@@ -351,9 +428,9 @@ export default function BillingPage() {
     return cart.reduce((sum, item) => {
       const price =
         selectedCustomer.customerType === "B2B"
-          ? item.b2bSalePrice
-          : item.b2cSalePrice;
-      return sum + price * item.cartQuantity;
+          ? item.b2bSalePrice || 0
+          : item.b2cSalePrice || 0;
+      return sum + price * (item.cartQuantity || 0);
     }, 0);
   }, [cart, selectedCustomer]);
 
@@ -363,12 +440,12 @@ export default function BillingPage() {
     return cart.reduce((sum, item) => {
       const price =
         selectedCustomer.customerType === "B2B"
-          ? item.b2bSalePrice
-          : item.b2cSalePrice;
+          ? item.b2bSalePrice || 0
+          : item.b2cSalePrice || 0;
       const tax = item.salesTax || 0;
-      const priceWithQty = price * item.cartQuantity;
+      const priceWithQty = price * (item.cartQuantity || 0);
       const taxAmount = (priceWithQty * tax) / (100 + tax);
-      return sum + taxAmount;
+      return sum + (isNaN(taxAmount) ? 0 : taxAmount);
     }, 0);
   }, [cart, selectedCustomer]);
 
@@ -378,13 +455,13 @@ export default function BillingPage() {
     return cart.reduce((sum, item) => {
       const price =
         selectedCustomer.customerType === "B2B"
-          ? item.b2bSalePrice
-          : item.b2cSalePrice;
+          ? item.b2bSalePrice || 0
+          : item.b2cSalePrice || 0;
       const tax = item.salesTax || 0;
-      const priceWithQty = price * item.cartQuantity;
+      const priceWithQty = price * (item.cartQuantity || 0);
       const taxAmount = (priceWithQty * tax) / (100 + tax);
       const baseAmount = priceWithQty - taxAmount;
-      return sum + baseAmount;
+      return sum + (isNaN(baseAmount) ? 0 : baseAmount);
     }, 0);
   }, [cart, selectedCustomer]);
 
@@ -411,7 +488,6 @@ export default function BillingPage() {
       return;
     }
 
-    // Validate Pay Later remarks
     if (
       paymentMode === "Pay Later" &&
       (!payLaterRemarks || payLaterRemarks.trim() === "")
@@ -455,12 +531,14 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 print:p-0">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6 print:p-0">
       {/* Header with Reset Button */}
-      <div className="flex justify-between items-center print:hidden">
-        <h1 className="text-2xl md:text-3xl font-bold">Billing to Customer</h1>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 print:hidden">
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">
+          Billing to Customer
+        </h1>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Badge variant="outline" className="text-xs md:text-sm">
             {format(new Date(), "dd MMM yyyy, hh:mm a")}
           </Badge>
           {(selectedCustomer || cart.length > 0) && (
@@ -486,10 +564,10 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Left Column - Customer & Products */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Customer Selection Card - Keep as is */}
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
+          {/* Customer Selection Card */}
           <Card
             className={`print:hidden border-2 ${
               !selectedCustomer ? "border-red-200 bg-red-50/50" : ""
@@ -497,20 +575,20 @@ export default function BillingPage() {
           >
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <UserPlus className="w-5 h-5" />
+                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 md:w-5 md:h-5" />
                   Customer Details
                   {!selectedCustomer && (
-                    <Badge variant="destructive" className="ml-2">
+                    <Badge variant="destructive" className="ml-2 text-xs">
                       Required
                     </Badge>
                   )}
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Customer Search - Keep as is */}
-              <div className="flex gap-2">
+            <CardContent className="space-y-3 md:space-y-4">
+              {/* Customer Search */}
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -521,7 +599,7 @@ export default function BillingPage() {
                       setShowCustomerResults(true);
                     }}
                     onFocus={() => setShowCustomerResults(true)}
-                    className="pl-10"
+                    className="pl-10 text-sm"
                     disabled={!!selectedCustomer}
                   />
 
@@ -541,20 +619,20 @@ export default function BillingPage() {
                               className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
                               onClick={() => handleSelectCustomer(customer)}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
                                   {customer.customerType === "B2B" ? (
-                                    <Building2 className="w-4 h-4 text-purple-600" />
+                                    <Building2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
                                   ) : (
-                                    <User className="w-4 h-4 text-green-600" />
+                                    <User className="w-4 h-4 text-green-600 flex-shrink-0" />
                                   )}
-                                  <div>
-                                    <span className="font-medium">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-medium text-sm truncate block">
                                       {customer.name}
                                     </span>
                                     {customer.customerType === "B2B" &&
                                       customer.companyName && (
-                                        <span className="text-sm text-gray-500 ml-2">
+                                        <span className="text-xs text-gray-500 block truncate">
                                           {customer.companyName}
                                         </span>
                                       )}
@@ -568,7 +646,7 @@ export default function BillingPage() {
                                   {customer.customerType}
                                 </Badge>
                               </div>
-                              <div className="text-sm text-gray-500 mt-1">
+                              <div className="text-xs text-gray-500 mt-1 truncate">
                                 {customer.email && (
                                   <span>{customer.email} • </span>
                                 )}
@@ -578,7 +656,7 @@ export default function BillingPage() {
                               </div>
                               {customer.customerType === "B2B" &&
                                 customer.gstIn && (
-                                  <div className="text-xs text-gray-400 mt-1">
+                                  <div className="text-xs text-gray-400 mt-1 truncate">
                                     GST: {customer.gstIn}
                                   </div>
                                 )}
@@ -586,13 +664,13 @@ export default function BillingPage() {
                           ))
                         ) : (
                           <div className="p-4 text-center text-gray-500">
-                            No customers found.{" "}
+                            <p className="text-sm mb-2">No customers found.</p>
                             <button
                               onClick={() => {
                                 setShowCustomerResults(false);
                                 setShowNewCustomerDialog(true);
                               }}
-                              className="text-indigo-600 hover:underline"
+                              className="text-indigo-600 hover:underline text-sm"
                             >
                               Create new customer
                             </button>
@@ -607,6 +685,8 @@ export default function BillingPage() {
                   onClick={() => setShowNewCustomerDialog(true)}
                   disabled={!!selectedCustomer}
                   variant={selectedCustomer ? "outline" : "default"}
+                  size="sm"
+                  className="w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   New Customer
@@ -615,25 +695,25 @@ export default function BillingPage() {
 
               {/* Selected Customer Display */}
               {selectedCustomer && (
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-start gap-3">
+                <div className="bg-green-50 p-3 md:p-4 rounded-lg border border-green-200">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-start gap-2 md:gap-3 min-w-0 flex-1">
                       <div
-                        className={`p-2 rounded-full ${
+                        className={`p-1.5 md:p-2 rounded-full flex-shrink-0 ${
                           selectedCustomer.customerType === "B2B"
                             ? "bg-purple-100"
                             : "bg-green-100"
                         }`}
                       >
                         {selectedCustomer.customerType === "B2B" ? (
-                          <Building2 className="w-5 h-5 text-purple-600" />
+                          <Building2 className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
                         ) : (
-                          <User className="w-5 h-5 text-green-600" />
+                          <User className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
                         )}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-lg">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-base md:text-lg truncate">
                             {selectedCustomer.name}
                           </p>
                           <Badge
@@ -646,18 +726,18 @@ export default function BillingPage() {
                         </div>
                         {selectedCustomer.customerType === "B2B" && (
                           <>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-xs md:text-sm text-gray-600 truncate">
                               {selectedCustomer.companyName}
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-xs md:text-sm text-gray-500 truncate">
                               GST: {selectedCustomer.gstIn}
                             </p>
                           </>
                         )}
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-xs md:text-sm text-gray-500 mt-1 truncate">
                           {selectedCustomer.email} • {selectedCustomer.mobile}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1 truncate">
                           {selectedCustomer.address}, {selectedCustomer.city},{" "}
                           {selectedCustomer.state}, {selectedCustomer.country}
                         </p>
@@ -676,10 +756,9 @@ export default function BillingPage() {
                           clearCart();
                         }
                       }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                     >
-                      <X className="w-4 h-4 mr-1" />
-                      Change
+                      <X className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -688,8 +767,8 @@ export default function BillingPage() {
               {/* Customer Required Message */}
               {!selectedCustomer && (
                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
-                  <AlertCircle className="w-4 h-4" />
-                  <p className="text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-xs md:text-sm">
                     Please select a customer to start billing
                   </p>
                 </div>
@@ -702,8 +781,8 @@ export default function BillingPage() {
             className={`print:hidden ${!selectedCustomer ? "opacity-50" : ""}`}
           >
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Search className="w-5 h-5" />
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <Search className="w-4 h-4 md:w-5 md:h-5" />
                 Search or Scan Product
                 {!selectedCustomer && (
                   <Lock className="w-4 h-4 text-gray-400 ml-2" />
@@ -711,7 +790,7 @@ export default function BillingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2">
+              <div className="relative" ref={searchContainerRef}>
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -719,122 +798,109 @@ export default function BillingPage() {
                     type="text"
                     placeholder={
                       selectedCustomer
-                        ? "Search by name/barcode or scan barcode..."
+                        ? "Search by name/barcode or scan barcode... (Press Enter to add)"
                         : "Select a customer first"
                     }
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
+                    onKeyDown={handleKeyPress}
                     onFocus={() =>
                       selectedCustomer && setShowSearchResults(true)
                     }
-                    className="pl-10"
+                    className="pl-10 text-sm"
                     disabled={!selectedCustomer || loading}
                   />
-                  {isSearching && (
+                  {(isSearching || loading) && (
                     <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
                   )}
+                </div>
 
-                  {/* Search Results Dropdown */}
-                  {showSearchResults &&
-                    selectedCustomer &&
-                    productSearch.trim() !== "" && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
-                        {isSearching ? (
-                          <div className="p-4 text-center">
-                            <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-                          </div>
-                        ) : searchResults.length > 0 ? (
-                          searchResults.map((product) => (
-                            <div
-                              key={product._id}
-                              className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                              onClick={() => handleSearchResultClick(product)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <Package className="w-4 h-4 text-gray-400" />
-                                    <span className="font-medium">
-                                      {product.productName}
-                                    </span>
-                                    {product.quantity <= 0 && (
-                                      <Badge
-                                        variant="destructive"
-                                        className="text-xs"
-                                      >
-                                        Out of Stock
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-sm text-gray-500 mt-1">
-                                    <span className="text-xs">
-                                      Barcode: {product.barCode}
-                                    </span>
-                                    {product.color && (
-                                      <span className="ml-2 text-xs">
-                                        Color: {product.color}
-                                      </span>
-                                    )}
-                                    {product.size && (
-                                      <span className="ml-2 text-xs">
-                                        Size: {product.size}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    Stock: {product.quantity} units
-                                  </div>
+                {/* Search Results Dropdown */}
+                {showSearchResults &&
+                  selectedCustomer &&
+                  productSearch.trim() !== "" && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 md:max-h-80 overflow-y-auto">
+                      {isSearching ? (
+                        <div className="p-4 text-center">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        searchResults.map((product) => (
+                          <div
+                            key={product._id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                            onClick={() => handleSearchResultClick(product)}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  <span className="font-medium text-sm truncate">
+                                    {product.productName}
+                                  </span>
+                                  {product.quantity <= 0 && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs"
+                                    >
+                                      Out of Stock
+                                    </Badge>
+                                  )}
                                 </div>
-                                <div className="text-right">
-                                  <div className="text-sm font-medium text-indigo-600">
-                                    ₹
-                                    {selectedCustomer?.customerType === "B2B"
-                                      ? product.b2bSalePrice
-                                      : product.b2cSalePrice}
-                                  </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  <span className="break-all">
+                                    Barcode: {product.barCode}
+                                  </span>
+                                  {product.color && (
+                                    <span className="ml-2">
+                                      Color: {product.color}
+                                    </span>
+                                  )}
+                                  {product.size && (
+                                    <span className="ml-2">
+                                      Size: {product.size}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Stock: {product.quantity} units
+                                </div>
+                              </div>
+                              <div className="text-left sm:text-right">
+                                <div className="text-sm font-medium text-indigo-600">
+                                  ₹
+                                  {selectedCustomer?.customerType === "B2B"
+                                    ? (product.b2bSalePrice || 0).toFixed(2)
+                                    : (product.b2cSalePrice || 0).toFixed(2)}
                                 </div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="p-4 text-center text-gray-500">
-                            No products found matching "{productSearch}"
                           </div>
-                        )}
-                      </div>
-                    )}
-                </div>
-                <Button
-                  type="button"
-                  disabled={
-                    !selectedCustomer || loading || !productSearch.trim()
-                  }
-                  variant={
-                    selectedCustomer && productSearch.trim()
-                      ? "default"
-                      : "outline"
-                  }
-                  onClick={handleBarcodeScan}
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Add"
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          <p className="text-sm">
+                            No products found matching "{productSearch}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </Button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Type to search by name/barcode or scan barcode. If multiple
-                products found, you'll be prompted to select one.
+                Type to search by name/barcode or scan barcode. Click on any
+                product or press Enter to add to cart.
               </p>
             </CardContent>
           </Card>
 
-          {/* Cart Table Card - Keep as is */}
+          {/* Cart Table Card - Mobile Responsive */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-lg">Current Bill</CardTitle>
+              <div className="flex justify-between items-center flex-wrap gap-2">
+                <CardTitle className="text-base md:text-lg">
+                  Current Bill
+                </CardTitle>
                 {cart.length > 0 && (
                   <Button
                     variant="ghost"
@@ -849,15 +915,24 @@ export default function BillingPage() {
               </div>
             </CardHeader>
             {cart.length > 0 && (
-              <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-lg mx-6">
+              <div className="flex justify-between items-center mb-4 p-3 bg-gray-50 rounded-lg mx-4 md:mx-6">
                 <div>
-                  <span className="text-sm text-gray-600">Total Products:</span>
-                  <span className="ml-2 font-semibold">{cart.length}</span>
+                  <span className="text-xs md:text-sm text-gray-600">
+                    Total Products:
+                  </span>
+                  <span className="ml-2 font-semibold text-sm md:text-base">
+                    {cart.length}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Total Quantity:</span>
-                  <span className="ml-2 font-semibold">
-                    {cart.reduce((sum, item) => sum + item.cartQuantity, 0)}
+                  <span className="text-xs md:text-sm text-gray-600">
+                    Total Quantity:
+                  </span>
+                  <span className="ml-2 font-semibold text-sm md:text-base">
+                    {cart.reduce(
+                      (sum, item) => sum + (item.cartQuantity || 0),
+                      0,
+                    )}
                   </span>
                 </div>
               </div>
@@ -866,141 +941,165 @@ export default function BillingPage() {
               {cart.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                  <p>No items in cart</p>
-                  <p className="text-sm">
+                  <p className="text-sm md:text-base">No items in cart</p>
+                  <p className="text-xs md:text-sm mt-1">
                     {selectedCustomer
                       ? "Search or scan barcode to add products"
                       : "Select a customer to start"}
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Barcode</TableHead>
-                        <TableHead className="text-right">
-                          Price (Inc. Tax)
-                        </TableHead>
-                        <TableHead className="text-center">Qty</TableHead>
-                        <TableHead className="text-right">Unit</TableHead>
-                        <TableHead className="text-right">SGST</TableHead>
-                        <TableHead className="text-right">CGST</TableHead>
-                        <TableHead className="text-right">Base Amt</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead className="text-right w-[100px]">
-                          Action
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {cart.map((item) => {
-                        const price =
-                          selectedCustomer?.customerType === "B2B"
-                            ? item.b2bSalePrice
-                            : item.b2cSalePrice;
-                        const tax = item.salesTax || 0;
-                        const priceWithQty = price * item.cartQuantity;
-                        const taxAmount = (priceWithQty * tax) / (100 + tax);
-                        const baseAmount = priceWithQty - taxAmount;
-                        const itemTotal = priceWithQty;
+                <div className="overflow-x-auto -mx-4 md:mx-0">
+                  <div className="min-w-[640px] md:min-w-full">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs md:text-sm">
+                            Product
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm">
+                            Barcode
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm">
+                            Price
+                          </TableHead>
+                          <TableHead className="text-center text-xs md:text-sm">
+                            Qty
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm hidden sm:table-cell">
+                            Unit
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm hidden md:table-cell">
+                            SGST
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm hidden md:table-cell">
+                            CGST
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm hidden lg:table-cell">
+                            Base Amt
+                          </TableHead>
+                          <TableHead className="text-right text-xs md:text-sm">
+                            Total
+                          </TableHead>
+                          <TableHead className="text-right w-[70px] md:w-[100px]">
+                            Action
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {cart.map((item) => {
+                          const price =
+                            selectedCustomer?.customerType === "B2B"
+                              ? item.b2bSalePrice || 0
+                              : item.b2cSalePrice || 0;
+                          const tax = item.salesTax || 0;
+                          const priceWithQty = price * (item.cartQuantity || 0);
+                          const taxAmount = (priceWithQty * tax) / (100 + tax);
+                          const baseAmount = priceWithQty - taxAmount;
+                          const itemTotal = priceWithQty;
 
-                        return (
-                          <TableRow key={item._id}>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">
-                                  {item.productName}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  Item Code: {item.itemCode || item.barCode}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {item.barCode}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              ₹{price.toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-2">
+                          return (
+                            <TableRow key={item._id}>
+                              <TableCell className="py-2">
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {item.productName}
+                                  </p>
+                                  <p className="text-xs text-gray-500 hidden sm:block">
+                                    Item Code: {item.itemCode || item.barCode}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-xs">
+                                {item.barCode}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                ₹{price.toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center justify-center gap-1 md:gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7 md:h-8 md:w-8"
+                                    onClick={() =>
+                                      updateQuantity(
+                                        item._id,
+                                        (item.cartQuantity || 0) - 1,
+                                      )
+                                    }
+                                    disabled={
+                                      updatingProductId === item._id ||
+                                      (item.cartQuantity || 0) <= 1
+                                    }
+                                  >
+                                    {updatingProductId === item._id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Minus className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                  <span className="w-6 md:w-8 text-center text-sm">
+                                    {item.cartQuantity || 0}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7 md:h-8 md:w-8"
+                                    onClick={() =>
+                                      updateQuantity(
+                                        item._id,
+                                        (item.cartQuantity || 0) + 1,
+                                      )
+                                    }
+                                    disabled={
+                                      updatingProductId === item._id ||
+                                      (item.cartQuantity || 0) >=
+                                        (item.quantity || 0)
+                                    }
+                                  >
+                                    {updatingProductId === item._id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Plus className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right text-xs hidden sm:table-cell">
+                                Pcs.
+                              </TableCell>
+                              <TableCell className="text-right text-xs hidden md:table-cell">
+                                ₹{(taxAmount / 2).toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right text-xs hidden md:table-cell">
+                                ₹{(taxAmount / 2).toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right text-xs hidden lg:table-cell">
+                                ₹{baseAmount.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-sm">
+                                ₹{itemTotal.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right">
                                 <Button
-                                  variant="outline"
+                                  type="button"
+                                  variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 cursor-pointer"
-                                  onClick={() =>
-                                    updateQuantity(
-                                      item._id,
-                                      item.cartQuantity - 1,
-                                    )
-                                  }
-                                  disabled={
-                                    updatingProductId === item._id ||
-                                    item.cartQuantity <= 1
-                                  }
+                                  className="h-7 w-7 md:h-8 md:w-8 text-red-600"
+                                  onClick={() => removeFromCart(item._id)}
                                 >
-                                  {updatingProductId === item._id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Minus className="h-3 w-3" />
-                                  )}
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                                <span className="w-8 text-center">
-                                  {item.cartQuantity}
-                                </span>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-8 w-8 cursor-pointer"
-                                  onClick={() =>
-                                    updateQuantity(
-                                      item._id,
-                                      item.cartQuantity + 1,
-                                    )
-                                  }
-                                  disabled={
-                                    updatingProductId === item._id ||
-                                    item.cartQuantity >= item.quantity
-                                  }
-                                >
-                                  {updatingProductId === item._id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Plus className="h-3 w-3" />
-                                  )}
-                                </Button>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">Pcs.</TableCell>
-                            <TableCell className="text-right">
-                              ₹{(taxAmount / 2).toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              ₹{(taxAmount / 2).toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              ₹{baseAmount.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              ₹{itemTotal.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-600 cursor-pointer hover:bg-red-50"
-                                onClick={() => removeFromCart(item._id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1008,16 +1107,20 @@ export default function BillingPage() {
         </div>
 
         {/* Right Column - Payment Summary */}
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           <Card className="sticky top-6">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Payment Summary</CardTitle>
+              <CardTitle className="text-base md:text-lg">
+                Payment Summary
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 md:space-y-4">
               {/* Customer Type Badge */}
               {selectedCustomer && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Customer Type:</span>
+                  <span className="text-xs md:text-sm text-gray-600">
+                    Customer Type:
+                  </span>
                   <Badge
                     className={
                       selectedCustomer.customerType === "B2B"
@@ -1032,16 +1135,16 @@ export default function BillingPage() {
 
               {/* Price Breakdown */}
               <div className="space-y-2">
-                {/* 1. Base Amount */}
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-gray-600">Base Amount:</span>
                   <span className="font-medium">₹{baseTotal.toFixed(2)}</span>
                 </div>
 
-                {/* 2. Discount on Base Amount */}
-                <div className="flex justify-between items-center gap-4">
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="text-sm text-gray-600">Discount (%):</span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs md:text-sm text-gray-600">
+                      Discount (%):
+                    </span>
                     <Input
                       type="number"
                       min="0"
@@ -1057,49 +1160,46 @@ export default function BillingPage() {
                       className="w-20 h-8 text-sm"
                       disabled={cart.length === 0}
                     />
-                    <span className="text-sm text-gray-500">%</span>
+                    <span className="text-xs text-gray-500">%</span>
                   </div>
                   {discount > 0 && (
                     <div className="text-right">
-                      <span className="ml-2 font-medium text-red-600">
+                      <span className="ml-2 font-medium text-red-600 text-xs md:text-sm">
                         -₹{discountAmount.toFixed(2)}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* 3. Amount after Discount */}
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-gray-600">Amount after Discount:</span>
                   <span className="font-medium">
                     ₹{(baseTotal - discountAmount).toFixed(2)}
                   </span>
                 </div>
 
-                {/* 4. Tax Breakdown (SGST & CGST) */}
                 <div className="space-y-1 pt-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs md:text-sm">
                     <span className="text-gray-600">SGST:</span>
                     <span className="font-medium">
                       ₹{(taxTotal / 2).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs md:text-sm">
                     <span className="text-gray-600">CGST:</span>
                     <span className="font-medium">
                       ₹{(taxTotal / 2).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total Tax (GST):</span>
+                  <div className="flex justify-between text-xs md:text-sm">
+                    <span className="text-gray-600">Total Tax:</span>
                     <span className="font-medium">₹{taxTotal.toFixed(2)}</span>
                   </div>
                 </div>
 
-                {/* 6. Freight Charge */}
-                <div className="flex justify-between items-center gap-4">
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs md:text-sm text-gray-600">
                       Freight Charge:
                     </span>
                     <Input
@@ -1116,11 +1216,11 @@ export default function BillingPage() {
                       className="w-24 h-8 text-sm"
                       disabled={cart.length === 0}
                     />
-                    <span className="text-sm text-gray-500">₹</span>
+                    <span className="text-xs text-gray-500">₹</span>
                   </div>
                   {freightCharge > 0 && (
                     <div className="text-right">
-                      <span className="ml-2 font-medium text-blue-600">
+                      <span className="ml-2 font-medium text-blue-600 text-xs md:text-sm">
                         +₹{freightCharge.toFixed(2)}
                       </span>
                     </div>
@@ -1129,17 +1229,15 @@ export default function BillingPage() {
 
                 <Separator className="my-2" />
 
-                {/* 7. Grand Total (Before Rounding) */}
-                <div className="flex justify-between font-bold text-lg">
+                <div className="flex justify-between font-bold text-base md:text-lg">
                   <span>Grand Total:</span>
                   <span className="text-indigo-600">
                     ₹{grandTotal.toFixed(2)}
                   </span>
                 </div>
 
-                {/* 8. Rounded Off */}
                 {roundOffAmount !== 0 && (
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs md:text-sm">
                     <span className="text-gray-600">Rounded Off:</span>
                     <span
                       className={`font-medium ${
@@ -1153,8 +1251,7 @@ export default function BillingPage() {
                   </div>
                 )}
 
-                {/* 9. Final Rounded Total */}
-                <div className="flex justify-between font-bold text-xl pt-2 border-t-2 border-gray-200">
+                <div className="flex justify-between font-bold text-lg md:text-xl pt-2 border-t-2 border-gray-200">
                   <span>Rounded Total:</span>
                   <span className="text-green-600">
                     ₹{roundedGrandTotal.toFixed(2)}
@@ -1162,17 +1259,16 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              {/* Payment Mode Selection - Same as before */}
+              {/* Payment Mode Selection */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">
+                <Label className="text-xs md:text-sm font-medium text-gray-700">
                   Payment Mode <span className="text-red-500">*</span>
                 </Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {/* Payment buttons - keep as is */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <Button
                     type="button"
                     variant={paymentMode === "Cash" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer text-xs md:text-sm ${
                       paymentMode === "Cash"
                         ? "bg-green-600 hover:bg-green-700"
                         : "hover:bg-green-50"
@@ -1189,7 +1285,7 @@ export default function BillingPage() {
                   <Button
                     type="button"
                     variant={paymentMode === "UPI" ? "default" : "outline"}
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer text-xs md:text-sm ${
                       paymentMode === "UPI"
                         ? "bg-blue-600 hover:bg-blue-700"
                         : "hover:bg-blue-50"
@@ -1210,7 +1306,7 @@ export default function BillingPage() {
                         ? "default"
                         : "outline"
                     }
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer text-xs md:text-sm ${
                       paymentMode === "Debit/Credit Card"
                         ? "bg-purple-600 hover:bg-purple-700"
                         : "hover:bg-purple-50"
@@ -1229,7 +1325,7 @@ export default function BillingPage() {
                     variant={
                       paymentMode === "Pay Later" ? "default" : "outline"
                     }
-                    className={`cursor-pointer ${
+                    className={`cursor-pointer text-xs md:text-sm ${
                       paymentMode === "Pay Later"
                         ? "bg-orange-600 hover:bg-orange-700"
                         : "hover:bg-orange-50"
@@ -1244,17 +1340,16 @@ export default function BillingPage() {
                   </Button>
                 </div>
 
-                {/* Remarks Input for Pay Later */}
                 {showRemarksInput && paymentMode === "Pay Later" && (
                   <div className="mt-3">
-                    <Label className="text-sm font-medium text-gray-700 mb-1 block">
+                    <Label className="text-xs md:text-sm font-medium text-gray-700 mb-1 block">
                       Remarks <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                      placeholder="Enter reason for Pay Later (e.g., Credit sale, Due payment, etc.)"
+                      placeholder="Enter reason for Pay Later..."
                       value={payLaterRemarks}
                       onChange={(e) => setPayLaterRemarks(e.target.value)}
-                      className="w-full"
+                      className="w-full text-sm"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Required: Please provide remarks for this Pay Later
@@ -1333,6 +1428,7 @@ export default function BillingPage() {
               Multiple products found with barcode "{selectedBarcode}". Please
               select one:
             </p>
+
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {multipleProducts.map((product) => (
                 <div
@@ -1340,10 +1436,12 @@ export default function BillingPage() {
                   className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => handleAddSelectedProduct(product)}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{product.productName}</p>
-                      <div className="text-sm text-gray-500 mt-1">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {product.productName}
+                      </p>
+                      <div className="text-xs text-gray-500 mt-1">
                         {product.color && <span>Color: {product.color}</span>}
                         {product.size && (
                           <span className="ml-2">Size: {product.size}</span>
@@ -1352,15 +1450,23 @@ export default function BillingPage() {
                       <div className="text-xs text-gray-400 mt-1">
                         Stock: {product.quantity} units
                       </div>
+                      <div className="text-xs text-gray-500 mt-1 break-all">
+                        Barcode: {product.barCode}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-indigo-600">
+                    <div className="text-left sm:text-right">
+                      <p className="font-semibold text-indigo-600 text-sm">
                         ₹
                         {selectedCustomer?.customerType === "B2B"
-                          ? product.b2bSalePrice
-                          : product.b2cSalePrice}
+                          ? (product.b2bSalePrice || 0).toFixed(2)
+                          : (product.b2cSalePrice || 0).toFixed(2)}
                       </p>
-                      <Button size="sm" variant="outline" className="mt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 w-full sm:w-auto"
+                      >
                         Select
                       </Button>
                     </div>
@@ -1372,7 +1478,7 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Print Layout - Keep as is */}
+      {/* Print Layout */}
       <div
         className="hidden print:block mt-10"
         style={{
@@ -1422,10 +1528,10 @@ export default function BillingPage() {
             {cart.map((item) => {
               const price =
                 selectedCustomer?.customerType === "B2B"
-                  ? item.b2bSalePrice
-                  : item.b2cSalePrice;
+                  ? item.b2bSalePrice || 0
+                  : item.b2cSalePrice || 0;
               const tax = item.salesTax || 0;
-              const priceWithQty = price * item.cartQuantity;
+              const priceWithQty = price * (item.cartQuantity || 0);
               const taxAmount = (priceWithQty * tax) / (100 + tax);
               const itemTotal = priceWithQty;
 
@@ -1433,7 +1539,7 @@ export default function BillingPage() {
                 <tr key={item._id} className="border-b">
                   <td className="py-2">{item.productName}</td>
                   <td className="text-right py-2">₹{price.toFixed(2)}</td>
-                  <td className="text-center py-2">{item.cartQuantity}</td>
+                  <td className="text-center py-2">{item.cartQuantity || 0}</td>
                   <td className="text-right py-2">{tax}%</td>
                   <td className="text-right py-2">₹{taxAmount.toFixed(2)}</td>
                   <td className="text-right py-2">₹{itemTotal.toFixed(2)}</td>

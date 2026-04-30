@@ -7,6 +7,7 @@ export interface PurchaseItem {
   itemCode: string;
   quantity: number;
   purchasePrice: number;
+  b2cSalePrice: number;
   taxPercent: number;
   taxAmount: number;
   totalAmount: number;
@@ -72,7 +73,7 @@ export interface AddProductData {
   purchaseId: string;
   barCode: string;
   quantity: number;
-  productId?: string; // For multi-product selection
+  productId?: string;
 }
 
 export interface UpdateQuantityData {
