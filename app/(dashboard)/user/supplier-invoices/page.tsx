@@ -558,6 +558,12 @@ export default function SupplierInvoicesPage() {
                                   "dd/MM/yyyy",
                                 )}
                               </div>
+                              <div className="text-xs text-gray-400">
+                                {format(
+                                  new Date(purchase.createdAt),
+                                  "hh:mm a",
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="font-mono text-xs text-gray-500">
                               {purchase.referenceInvoiceNumber || "-"}

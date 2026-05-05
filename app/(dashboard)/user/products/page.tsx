@@ -359,7 +359,7 @@ export default function ProductsPage() {
             <TabsList className="flex w-full bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
               <TabsTrigger
                 value="Active"
-                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow"
+                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow cursor-pointer"
               >
                 In Stock
                 <span className="ml-2 text-green-600 text-xs">
@@ -369,7 +369,7 @@ export default function ProductsPage() {
 
               <TabsTrigger
                 value="Inactive"
-                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow"
+                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow cursor-pointer"
               >
                 Out of Stock
                 <span className="ml-2 text-gray-600 text-xs">
@@ -379,7 +379,7 @@ export default function ProductsPage() {
 
               <TabsTrigger
                 value="All"
-                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow"
+                className="flex-shrink-0 px-4 py-2 text-xs sm:text-sm rounded-md data-[state=active]:bg-white data-[state=active]:shadow cursor-pointer"
               >
                 All
                 <span className="ml-2 text-blue-600 text-xs">{allCount}</span>

@@ -82,16 +82,28 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       >
         <div className="p-4 flex flex-col h-full">
           {/* Mobile Close */}
-          <div className="flex justify-between items-center mb-6 lg:hidden">
-            <h1 className="text-xl font-bold">RetailCraft</h1>
-            <button onClick={() => setSidebarOpen(false)}>
+          <div className="flex justify-between items-start -m-4 mb-6 lg:hidden bg-white p-2  border-gray-900 border-2">
+            <img
+              src="/retail-craft.jpeg"
+              alt="RetailCraft Logo"
+              className="h-16 w-auto object-contain"
+            />
+
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="mt-2 mr-2 text-black"
+            >
               <FiX size={22} />
             </button>
           </div>
 
-          <h1 className="text-2xl font-bold text-center mb-8 hidden lg:block">
-            RetailCraft
-          </h1>
+          <div className="hidden lg:block -mx-4 -mt-4 mb-8 bg-white border-gray-900 border-2">
+            <img
+              src="/retail-craft.jpeg"
+              alt="RetailCraft Logo"
+              className="w-full h-32 object-contain"
+            />
+          </div>
 
           <nav className="space-y-2 flex-1">
             {menuItems.map((item) => {

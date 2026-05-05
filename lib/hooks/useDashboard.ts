@@ -183,8 +183,12 @@ export function useDashboard(
     }
   };
 
+  // lib/hooks/useDashboard.ts - Replace the date filtering logic
+
   const fetchDashboardData = useCallback(async () => {
     try {
+      setLoading(true);
+
       const [
         billingsResponse,
         purchasesResponse,
@@ -199,10 +203,9 @@ export function useDashboard(
         getSuppliers(),
       ]);
 
-      // Calculate date range filter
+      // Calculate date range filter - Fix timezone issues
       let startDate: Date;
       let endDate: Date = new Date();
-      endDate.setHours(23, 59, 59, 999);
 
       if (dateRange === "custom" && customStartDate && customEndDate) {
         startDate = new Date(customStartDate);
@@ -211,18 +214,27 @@ export function useDashboard(
         endDate.setHours(23, 59, 59, 999);
       } else {
         const now = new Date();
-        now.setHours(0, 0, 0, 0);
+
         switch (dateRange) {
           case "today":
-            startDate = new Date(now.setHours(0, 0, 0, 0));
-            endDate = new Date(now.setHours(23, 59, 59, 999));
+            startDate = new Date(now);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(now);
+            endDate.setHours(23, 59, 59, 999);
             break;
           case "week":
-            startDate = new Date(now.setDate(now.getDate() - 7));
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 7);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case "month":
+            startDate = new Date(now);
+            startDate.setMonth(now.getMonth() - 1);
             startDate.setHours(0, 0, 0, 0);
             break;
           case "year":
-            startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+            startDate = new Date(now);
+            startDate.setFullYear(now.getFullYear() - 1);
             startDate.setHours(0, 0, 0, 0);
             break;
           default:
@@ -232,20 +244,28 @@ export function useDashboard(
         }
       }
 
-      // console.log("Date Range:", {
-      //   dateRange,
-      //   startDate: startDate.toISOString(),
-      //   endDate: endDate.toISOString(),
-      // });
+      // Debug logging
+      // console.log("=== DASHBOARD DATA FETCH ===");
+      // console.log("Date Range:", dateRange);
+      // console.log("Start Date (local):", startDate.toLocaleString());
+      // console.log("End Date (local):", endDate.toLocaleString());
+      // console.log("Start Date (UTC):", startDate.toISOString());
+      // console.log("End Date (UTC):", endDate.toISOString());
 
+      // Improved date comparison that handles timezone correctly
       const isDateInRange = (dateStr: string) => {
         const date = new Date(dateStr);
-        date.setHours(0, 0, 0, 0);
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return date >= start && date <= end;
+        // Reset to start of day for comparison
+        const compareDate = new Date(date);
+        compareDate.setHours(0, 0, 0, 0);
+
+        const compareStart = new Date(startDate);
+        compareStart.setHours(0, 0, 0, 0);
+
+        const compareEnd = new Date(endDate);
+        compareEnd.setHours(23, 59, 59, 999);
+
+        return compareDate >= compareStart && compareDate <= compareEnd;
       };
 
       // Process Billings for Sales Stats
@@ -260,9 +280,23 @@ export function useDashboard(
       const receivables: ReceivableTransaction[] = [];
 
       if (billingsResponse.success && billingsResponse.data) {
+        // Log all billings with their dates
+        // console.log(
+        //   "All Billings:",
+        //   billingsResponse.data.map((b) => ({
+        //     invoiceNumber: b.invoiceNumber,
+        //     createdAt: b.createdAt,
+        //     localDate: new Date(b.createdAt).toLocaleDateString(),
+        //   })),
+        // );
+
         const filteredBillings = billingsResponse.data.filter((b: Billing) =>
           isDateInRange(b.createdAt),
         );
+
+        // console.log(
+        //   `Billings: ${billingsResponse.data.length} total, ${filteredBillings.length} in range`,
+        // );
 
         totalInvoices = filteredBillings.length;
 
@@ -324,9 +358,54 @@ export function useDashboard(
       const payables: PayableTransaction[] = [];
 
       if (purchasesResponse.success && purchasesResponse.data) {
+        // Log all purchases with their dates
+        // console.log(
+        //   "All Purchases:",
+        //   purchasesResponse.data.map((p) => ({
+        //     invoiceNumber: p.invoiceNumber,
+        //     invoiceDate: p.invoiceDate,
+        //     localDate: new Date(p.invoiceDate).toLocaleDateString(),
+        //     status: p.status,
+        //     paymentStatus: p.paymentStatus,
+        //   })),
+        // );
+
         const filteredPurchases = purchasesResponse.data.filter(
           (p: PurchaseInvoice) => isDateInRange(p.invoiceDate),
         );
+
+        // console.log(
+        //   `Purchases: ${purchasesResponse.data.length} total, ${filteredPurchases.length} in range`,
+        // );
+
+        // Log purchases that are today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const todayPurchases = purchasesResponse.data.filter(
+          (p: PurchaseInvoice) => {
+            const purchaseDate = new Date(p.invoiceDate);
+            purchaseDate.setHours(0, 0, 0, 0);
+            return purchaseDate.getTime() === today.getTime();
+          },
+        );
+
+        if (todayPurchases.length > 0) {
+          // console.log(
+          //   "Today's purchases:",
+          //   todayPurchases.map((p) => ({
+          //     invoiceNumber: p.invoiceNumber,
+          //     invoiceDate: p.invoiceDate,
+          //     localDate: new Date(p.invoiceDate).toLocaleString(),
+          //     amount: p.finalTotal || p.grandTotal,
+          //   })),
+          // );
+        } else {
+          // console.log(
+          //   "No purchases found for today's date:",
+          //   today.toLocaleDateString(),
+          // );
+        }
 
         totalBills = filteredPurchases.length;
 
@@ -378,6 +457,13 @@ export function useDashboard(
         });
       }
 
+      // console.log("Purchase Summary:", {
+      //   totalPurchase,
+      //   totalBills,
+      //   purchaseQty,
+      //   toPay,
+      // });
+
       // Process Products for Inventory Stats
       let totalProducts = 0;
       let stockQty = 0;
@@ -393,7 +479,7 @@ export function useDashboard(
 
       const avgCartValue =
         totalInvoices > 0 ? totalCartValue / totalInvoices : 0;
-      const avgBills = totalInvoices > 0 ? totalInvoices : 0;
+      const avgBills = totalBills > 0 ? totalBills : 0;
       const avgProfitMargin =
         totalInvoices > 0 ? grossProfit / totalInvoices : 0;
       const avgProfitMarginPercent =

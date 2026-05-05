@@ -68,7 +68,7 @@ export const getAllInventory = async (): Promise<
 > => {
   try {
     const response = await axiosInstance.get("/stocks");
-    console.log("Inventory response:", response.data);
+    // console.log("Inventory response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Get all inventory error:", error);

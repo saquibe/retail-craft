@@ -54,18 +54,18 @@ export default function UserProfile() {
       try {
         setIsFetching(true);
         const response = await getUserProfile();
-        console.log("Fetched user profile:", response);
+        // console.log("Fetched user profile:", response);
 
         // Get current branch info from user context (from login)
         const currentBranchName = user?.branchName;
         const currentBranchCode = user?.branchCode;
         const currentBranchId = user?.branchId;
 
-        console.log("Current branch info from user context:", {
-          currentBranchName,
-          currentBranchCode,
-          currentBranchId,
-        });
+        // console.log("Current branch info from user context:", {
+        //   currentBranchName,
+        //   currentBranchCode,
+        //   currentBranchId,
+        // });
 
         // Merge profile data with existing branch info from user context
         const mergedProfile = {
@@ -77,7 +77,7 @@ export default function UserProfile() {
             currentBranchId || response.branchId?._id || response.branchId,
         };
 
-        console.log("Merged profile:", mergedProfile);
+        // console.log("Merged profile:", mergedProfile);
         setProfileData(mergedProfile);
 
         reset({
@@ -127,7 +127,7 @@ export default function UserProfile() {
         formData.append("profilePicture", profileImage);
       }
 
-      console.log("Submitting form data");
+      // console.log("Submitting form data");
       const response = await updateUserProfile(formData);
 
       if (response) {
@@ -141,11 +141,11 @@ export default function UserProfile() {
         const currentBranchCode = user?.branchCode;
         const currentBranchId = user?.branchId;
 
-        console.log("Preserving branch info:", {
-          currentBranchName,
-          currentBranchCode,
-          currentBranchId,
-        });
+        // console.log("Preserving branch info:", {
+        //   currentBranchName,
+        //   currentBranchCode,
+        //   currentBranchId,
+        // });
 
         // Update user in context while preserving branch info
         if (updateUser) {
@@ -178,7 +178,7 @@ export default function UserProfile() {
 
   // Helper function to get branch info from various sources
   const getBranchInfo = () => {
-    console.log("Getting branch info from:", { profileData, user });
+    // console.log("Getting branch info from:", { profileData, user });
 
     // Try from profileData first (merged data)
     if (profileData) {
@@ -213,7 +213,7 @@ export default function UserProfile() {
   }
 
   const branchInfo = getBranchInfo();
-  console.log("Branch info to display:", branchInfo);
+  // console.log("Branch info to display:", branchInfo);
 
   return (
     <div className="space-y-6">
