@@ -774,11 +774,11 @@ export default function CustomerInvoicesPage() {
                                           </div>
                                         )}
 
-                                      {billing.discount &&
-                                        billing.discount > 0 && (
+                                      {billing.discountAmount &&
+                                        billing.discountAmount > 0 && (
                                           <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">
-                                              Discount ({billing.discount}%):
+                                              Discount
                                             </span>
                                             <span className="text-red-600 font-medium">
                                               -₹

@@ -433,10 +433,10 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
         </div>
 
         {/* Discount Section */}
-        {billing.discount && billing.discount > 0 && (
+        {billing.discountAmount && billing.discountAmount > 0 && (
           <>
             <div className="total-row">
-              <span>Discount ({billing.discount}%)</span>
+              <span>Discount</span>
               <span className="text-red-600">
                 -₹{billing.discountAmount?.toFixed(2) || "0.00"}
               </span>

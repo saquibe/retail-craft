@@ -70,14 +70,14 @@ export default function BillingPage() {
   const {
     selectedCustomer,
     cart,
-    discount,
+    discountAmount,
     paidAmount,
     isLoaded,
     billingId,
     updatingProductId,
     addingProduct,
     setSelectedCustomer,
-    setDiscount,
+    setDiscountAmount,
     addToCart,
     updateQuantity,
     removeFromCart,
@@ -465,7 +465,6 @@ export default function BillingPage() {
     }, 0);
   }, [cart, selectedCustomer]);
 
-  const discountAmount = (subtotal * discount) / 100;
   const grandTotal = subtotal - discountAmount + freightCharge;
   const balance = paidAmount - grandTotal;
   const roundedGrandTotal = Math.round(grandTotal);
@@ -501,7 +500,7 @@ export default function BillingPage() {
     try {
       const billingId = await generateInvoice(
         paymentMode,
-        discount,
+        discountAmount,
         freightCharge,
         payLaterRemarks,
       );
@@ -1140,29 +1139,36 @@ export default function BillingPage() {
                   <span className="font-medium">₹{baseTotal.toFixed(2)}</span>
                 </div>
 
+                {/* Discount on Base Amount - Now Flat Amount */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <span className="text-xs md:text-sm text-gray-600">
-                      Discount (%):
+                      Discount (₹):
                     </span>
                     <Input
                       type="number"
                       min="0"
-                      max="100"
                       step="1"
-                      value={discount}
+                      value={discountAmount}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val) && val >= 0 && val <= 100) {
-                          setDiscount(val);
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val >= 0) {
+                          // Optional: Add max validation
+                          if (val <= baseTotal) {
+                            setDiscountAmount(val);
+                          } else {
+                            toast.error(
+                              `Discount cannot exceed ₹${baseTotal.toFixed(2)}`,
+                            );
+                          }
                         }
                       }}
-                      className="w-20 h-8 text-sm"
+                      className="w-28 h-8 text-sm"
                       disabled={cart.length === 0}
                     />
-                    <span className="text-xs text-gray-500">%</span>
+                    <span className="text-xs text-gray-500">₹</span>
                   </div>
-                  {discount > 0 && (
+                  {discountAmount > 0 && (
                     <div className="text-right">
                       <span className="ml-2 font-medium text-red-600 text-xs md:text-sm">
                         -₹{discountAmount.toFixed(2)}
@@ -1171,6 +1177,7 @@ export default function BillingPage() {
                   )}
                 </div>
 
+                {/* Amount after Discount */}
                 <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-gray-600">Amount after Discount:</span>
                   <span className="font-medium">
@@ -1553,7 +1560,7 @@ export default function BillingPage() {
           <p>Base Amount: ₹{baseTotal.toFixed(2)}</p>
           <p>Total Tax: ₹{taxTotal.toFixed(2)}</p>
           <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
-          {discount > 0 && <p>Discount: -₹{discountAmount.toFixed(2)}</p>}
+          {discountAmount > 0 && <p>Discount: -₹{discountAmount.toFixed(2)}</p>}
           <p className="text-lg font-bold">
             Grand Total: ₹{grandTotal.toFixed(2)}
           </p>

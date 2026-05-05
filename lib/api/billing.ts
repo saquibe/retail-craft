@@ -133,14 +133,14 @@ export const updateProductQuantity = async (
 export const completeBilling = async (
   billingId: string,
   paymentMode: string,
-  discount: number = 0,
+  discountAmount: number = 0,
   freightCharge: number = 0,
   remarks?: string,
 ): Promise<ApiResponse<Billing>> => {
   try {
     const payload: any = {
       paymentMode,
-      discount,
+      discountAmount,
       freightCharge,
     };
 
@@ -168,6 +168,7 @@ export const getBillingById = async (
 ): Promise<ApiResponse<Billing>> => {
   try {
     const response = await axiosInstance.get(`/billing/${billingId}`);
+    console.log("Get billing response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Get billing error:", error);
@@ -183,6 +184,7 @@ export const deleteBilling = async (
 ): Promise<ApiResponse<null>> => {
   try {
     const response = await axiosInstance.delete(`/billing/${billingId}`);
+    // console.log("Delete billing response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Delete billing error:", error);
@@ -198,6 +200,7 @@ export const getCompletedBillings = async (): Promise<
 > => {
   try {
     const response = await axiosInstance.get("/billing/complete/all");
+    // console.log("Get completed billings response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Get completed billings error:", error);
