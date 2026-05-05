@@ -179,13 +179,13 @@ export const updatePurchaseQuantity = async (
 // Update completePurchase function
 export const completePurchase = async (
   id: string,
-  discount: number = 0,
+  discountAmount: number = 0,
   freightCharge: number = 0,
   paymentMode: string = "Cash",
   remarks?: string,
 ): Promise<ApiResponse<PurchaseInvoice>> => {
   try {
-    const payload: any = { discount, freightCharge, paymentMode };
+    const payload: any = { discountAmount, freightCharge, paymentMode };
     if (paymentMode === "Pay Later" && remarks) {
       payload.remarks = remarks;
     }
@@ -223,6 +223,7 @@ export const deletePurchase = async (
 ): Promise<ApiResponse<null>> => {
   try {
     const response = await axiosInstance.delete(`/purchase-invoice/${id}`);
+    // console.log("Delete purchase response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Delete purchase error:", error);
@@ -238,6 +239,7 @@ export const getCompletedPurchases = async (): Promise<
 > => {
   try {
     const response = await axiosInstance.get("/purchase-invoice/complete/all");
+    // console.log("Get completed purchases response:", response.data);
     return response.data;
   } catch (error) {
     console.error("Get completed purchases error:", error);

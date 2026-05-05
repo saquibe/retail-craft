@@ -500,7 +500,7 @@ export const usePurchaseStore = () => {
   // Complete purchase with payment details
   const completePurchaseInvoice = useCallback(
     async (
-      discountPercentage: number = 0,
+      discountAmount: number = 0,
       freightChargeValue: number = 0,
       paymentMode: string = "Cash",
       remarks?: string,
@@ -543,7 +543,7 @@ export const usePurchaseStore = () => {
       try {
         const response = await completePurchase(
           purchaseId,
-          discountPercentage,
+          discountAmount,
           freightChargeValue,
           paymentMode,
           remarks,
@@ -588,8 +588,7 @@ export const usePurchaseStore = () => {
       ) || 0;
 
     const totalTax = items?.reduce((sum, item) => sum + item.taxAmount, 0) || 0;
-    const grandTotal = baseTotal + totalTax;
-    const discountAmount = (baseTotal * discount) / 100;
+    const discountAmount = discount;
     const afterDiscount = baseTotal - discountAmount;
     const finalTotal = afterDiscount + totalTax + freightCharge;
 
@@ -600,7 +599,7 @@ export const usePurchaseStore = () => {
     return {
       subTotal: baseTotal,
       totalTax,
-      grandTotal,
+      grandTotal: baseTotal + totalTax,
       discountAmount,
       afterDiscount,
       finalTotal,

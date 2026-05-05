@@ -239,12 +239,10 @@ export function PurchaseInvoicePrint({
           </p>
 
           {/* Discount Section */}
-          {purchase.discount && purchase.discount > 0 && (
+          {purchase.discountAmount && purchase.discountAmount > 0 && (
             <>
               <p className="text-sm">
-                <span className="font-bold inline-block w-32">
-                  Discount ({purchase.discount}%):
-                </span>
+                <span className="font-bold inline-block w-32">Discount:</span>
                 <span className="inline-block w-32 text-red-600">
                   -₹{purchase.discountAmount?.toFixed(2) || "0.00"}
                 </span>
@@ -262,7 +260,6 @@ export function PurchaseInvoicePrint({
               </p>
             </>
           )}
-
           <p className="text-sm">
             <span className="font-bold inline-block w-32">SGST:</span>
             <span className="inline-block w-32">
@@ -281,7 +278,6 @@ export function PurchaseInvoicePrint({
               ₹{purchase.totalTax?.toFixed(2) || "0.00"}
             </span>
           </p>
-
           {/* Freight Charge Display */}
           {purchase.freightCharge && purchase.freightCharge > 0 && (
             <p className="text-sm">
@@ -293,13 +289,11 @@ export function PurchaseInvoicePrint({
               </span>
             </p>
           )}
-
           {/* Grand Total (Before Rounding) */}
           <p className="text-sm">
             <span className="font-bold inline-block w-32">Grand Total:</span>
             <span className="inline-block w-32">₹{finalTotal.toFixed(2)}</span>
           </p>
-
           {/* Rounded Off */}
           {roundOffAmount !== 0 && (
             <p className="text-sm">
@@ -315,7 +309,6 @@ export function PurchaseInvoicePrint({
               </span>
             </p>
           )}
-
           {/* Final Rounded Total */}
           <p className="text-lg font-bold">
             <span className="inline-block w-32">NET PAYABLE:</span>

@@ -807,11 +807,11 @@ export default function SupplierInvoicesPage() {
                                             </span>
                                           </div>
                                         )}
-                                      {purchase.discount &&
-                                        purchase.discount > 0 && (
+                                      {purchase.discountAmount &&
+                                        purchase.discountAmount > 0 && (
                                           <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">
-                                              Discount ({purchase.discount}%):
+                                              Discount:
                                             </span>
                                             <span className="text-red-600 font-medium">
                                               -₹
@@ -821,7 +821,6 @@ export default function SupplierInvoicesPage() {
                                             </span>
                                           </div>
                                         )}
-
                                       {/* Rounded Total Calculation */}
                                       {(() => {
                                         const finalTotal =
@@ -878,7 +877,6 @@ export default function SupplierInvoicesPage() {
                                           </>
                                         );
                                       })()}
-
                                       {purchase.paymentMode === "Pay Later" &&
                                         purchase.remarks && (
                                           <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">

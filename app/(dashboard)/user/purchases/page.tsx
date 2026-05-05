@@ -1186,26 +1186,33 @@ export default function PurchasesPage() {
                   </span>
                 </div>
 
-                {/* 2. Discount on Base Amount */}
-                <div className="flex justify-between items-center gap-4">
+                {/* Discount on Base Amount - Flat Amount */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div className="flex items-center gap-2 flex-1">
-                    <span className="text-sm text-gray-600">Discount (%):</span>
+                    <span className="text-sm text-gray-600">Discount (₹):</span>
                     <Input
                       type="number"
                       min="0"
-                      max="100"
                       step="1"
                       value={discount}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val) && val >= 0 && val <= 100) {
-                          setDiscount(val);
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val) && val >= 0) {
+                          if (val <= totals.subTotal) {
+                            setDiscount(val);
+                          } else {
+                            toast.error(
+                              `Discount cannot exceed ₹${totals.subTotal.toFixed(
+                                2,
+                              )}`,
+                            );
+                          }
                         }
                       }}
-                      className="w-20 h-8 text-sm"
+                      className="w-28 h-8 text-sm"
                       disabled={items.length === 0}
                     />
-                    <span className="text-sm text-gray-500">%</span>
+                    <span className="text-sm text-gray-500">₹</span>
                   </div>
                   {discount > 0 && (
                     <div className="text-right">
@@ -1216,7 +1223,7 @@ export default function PurchasesPage() {
                   )}
                 </div>
 
-                {/* 3. Amount after Discount */}
+                {/* Amount after Discount */}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Amount after Discount:</span>
                   <span className="font-medium">
