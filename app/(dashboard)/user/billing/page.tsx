@@ -111,6 +111,15 @@ export default function BillingPage() {
   const [payLaterRemarks, setPayLaterRemarks] = useState("");
   const [showRemarksInput, setShowRemarksInput] = useState(false);
   const [isAddingFromEnter, setIsAddingFromEnter] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Load products and customers on mount
   useEffect(() => {
@@ -537,8 +546,17 @@ export default function BillingPage() {
           Billing to Customer
         </h1>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Badge variant="outline" className="text-xs md:text-sm">
-            {format(new Date(), "dd MMM yyyy, hh:mm a")}
+          <Badge
+            variant="outline"
+            className="text-xs md:text-sm font-mono tabular-nums"
+            style={{
+              minWidth: "210px",
+              display: "inline-flex",
+              justifyContent: "center",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {format(currentTime, "dd MMM yyyy, hh:mm:ss a")}
           </Badge>
           {(selectedCustomer || cart.length > 0) && (
             <Button

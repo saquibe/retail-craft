@@ -112,6 +112,15 @@ export default function PurchasesPage() {
   const [payLaterRemarks, setPayLaterRemarks] = useState("");
   const [showRemarksInput, setShowRemarksInput] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Load suppliers and products on mount
   useEffect(() => {
@@ -497,8 +506,17 @@ export default function PurchasesPage() {
           <p className="text-gray-500">Receive stock from suppliers</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-sm">
-            {format(new Date(), "dd MMM yyyy, hh:mm a")}
+          <Badge
+            variant="outline"
+            className="text-xs md:text-sm font-mono tabular-nums"
+            style={{
+              minWidth: "210px",
+              display: "inline-flex",
+              justifyContent: "center",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {format(currentTime, "dd MMM yyyy, hh:mm:ss a")}
           </Badge>
           {(selectedSupplier || items.length > 0) && (
             <Button
