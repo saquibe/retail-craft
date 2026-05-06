@@ -433,42 +433,53 @@ export function ThermalInvoice({ billing, onPrinted }: ThermalInvoiceProps) {
         </div>
 
         {/* Discount Section */}
-        {billing.discountAmount && billing.discountAmount > 0 && (
+        {(billing.discountAmount ?? 0) > 0 && (
           <>
             <div className="total-row">
               <span>Discount</span>
-              <span className="text-red-600">
-                -₹{billing.discountAmount?.toFixed(2) || "0.00"}
+
+              <span
+                style={{
+                  fontStyle: "italic",
+                  color: "#555",
+                }}
+              >
+                -₹{billing.discountAmount!.toFixed(2)}
               </span>
             </div>
+
             <div className="total-row">
               <span>Amount after Discount</span>
+
               <span>
-                ₹{(billing.subTotal - (billing.discountAmount || 0)).toFixed(2)}
+                ₹
+                {(
+                  (billing.subTotal || 0) - (billing.discountAmount || 0)
+                ).toFixed(2)}
               </span>
             </div>
           </>
+        )}
+
+        {/* Freight Charge */}
+        {(billing.freightCharge ?? 0) > 0 && (
+          <div className="total-row">
+            <span>Freight Charge</span>
+
+            <span
+              style={{
+                color: "#555",
+              }}
+            >
+              +₹{billing.freightCharge!.toFixed(2)}
+            </span>
+          </div>
         )}
 
         <div className="total-row">
           <span>Total Tax (GST)</span>
           <span>₹{billing.totalTax?.toFixed(2) || "0.00"}</span>
         </div>
-
-        {/* <div className="total-row">
-          <span>Subtotal (Inc. Tax)</span>
-          <span>₹{billing.grandTotal?.toFixed(2) || "0.00"}</span>
-        </div> */}
-
-        {/* Freight Charge */}
-        {billing.freightCharge && billing.freightCharge > 0 && (
-          <div className="total-row">
-            <span>Freight Charge</span>
-            <span className="text-blue-600">
-              +₹{billing.freightCharge?.toFixed(2) || "0.00"}
-            </span>
-          </div>
-        )}
 
         {/* Grand Total */}
         <div className="total-row">

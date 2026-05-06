@@ -706,6 +706,7 @@ export default function CustomerInvoicesPage() {
                                   {/* Summary Section */}
                                   <div className="mt-4 pt-3 border-t">
                                     <div className="space-y-2">
+                                      {/* Base Amount */}
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">
                                           Base Amount:
@@ -716,6 +717,38 @@ export default function CustomerInvoicesPage() {
                                             "0.00"}
                                         </span>
                                       </div>
+
+                                      {/* Discount */}
+                                      {(billing.discountAmount ?? 0) > 0 && (
+                                        <>
+                                          <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600">
+                                              Discount:
+                                            </span>
+                                            <span className="font-medium text-red-700">
+                                              -₹
+                                              {billing.discountAmount!.toFixed(
+                                                2,
+                                              )}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600 italic">
+                                              Amount after Discount:
+                                            </span>
+                                            <span className="font-medium">
+                                              ₹
+                                              {(
+                                                (billing.subTotal || 0) -
+                                                billing.discountAmount!
+                                              ).toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </>
+                                      )}
+
+                                      {/* SGST */}
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">
                                           SGST:
@@ -727,6 +760,8 @@ export default function CustomerInvoicesPage() {
                                           ).toFixed(2)}
                                         </span>
                                       </div>
+
+                                      {/* CGST */}
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">
                                           CGST:
@@ -738,6 +773,8 @@ export default function CustomerInvoicesPage() {
                                           ).toFixed(2)}
                                         </span>
                                       </div>
+
+                                      {/* Total Tax */}
                                       <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">
                                           Total Tax:
@@ -748,65 +785,57 @@ export default function CustomerInvoicesPage() {
                                             "0.00"}
                                         </span>
                                       </div>
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">
-                                          Subtotal:
-                                        </span>
-                                        <span className="font-medium">
-                                          ₹
-                                          {billing.grandTotal?.toFixed(2) ||
-                                            "0.00"}
-                                        </span>
-                                      </div>
 
-                                      {billing.freightCharge &&
-                                        billing.freightCharge > 0 && (
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">
-                                              Freight Charge:
-                                            </span>
-                                            <span className="text-blue-600 font-medium">
-                                              +₹
-                                              {billing.freightCharge?.toFixed(
-                                                2,
-                                              )}
-                                            </span>
-                                          </div>
-                                        )}
+                                      {/* Freight Charge */}
+                                      {(billing.freightCharge ?? 0) > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-600">
+                                            Freight Charge:
+                                          </span>
+                                          <span className="font-medium text-blue-500">
+                                            +₹
+                                            {billing.freightCharge!.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      )}
 
-                                      {billing.discountAmount &&
-                                        billing.discountAmount > 0 && (
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">
-                                              Discount
-                                            </span>
-                                            <span className="text-red-600 font-medium">
-                                              -₹
-                                              {billing.discountAmount?.toFixed(
-                                                2,
-                                              )}
-                                            </span>
-                                          </div>
-                                        )}
-
-                                      {/* Rounded Total Calculation */}
+                                      {/* Total Amount Before Round Off */}
                                       {(() => {
-                                        const finalTotal =
+                                        const totalAmount =
                                           billing.finalTotal ||
                                           billing.grandTotal ||
                                           0;
-                                        const roundedTotal =
-                                          Math.round(finalTotal);
+
+                                        const roundedAmount =
+                                          Math.round(totalAmount);
+
                                         const roundOffAmount =
-                                          roundedTotal - finalTotal;
+                                          roundedAmount - totalAmount;
 
                                         return (
                                           <>
+                                            <div className="flex justify-between text-sm">
+                                              <span className="text-gray-600">
+                                                Total Amount:
+                                              </span>
+                                              <span className="font-medium">
+                                                ₹{totalAmount.toFixed(2)}
+                                              </span>
+                                            </div>
+
                                             {roundOffAmount !== 0 && (
-                                              <div className="flex justify-between text-sm text-gray-500">
-                                                <span>Original Amount:</span>
-                                                <span className="line-through">
-                                                  ₹{finalTotal.toFixed(2)}
+                                              <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600">
+                                                  Round Off:
+                                                </span>
+                                                <span className="font-medium text-gray-700">
+                                                  {roundOffAmount > 0
+                                                    ? "+"
+                                                    : "-"}
+                                                  ₹
+                                                  {Math.abs(
+                                                    roundOffAmount,
+                                                  ).toFixed(2)}
                                                 </span>
                                               </div>
                                             )}
@@ -815,47 +844,25 @@ export default function CustomerInvoicesPage() {
                                               <span className="text-gray-800">
                                                 Final Amount:
                                               </span>
-                                              <span className="text-green-600 text-lg">
-                                                ₹{roundedTotal.toFixed(2)}
+                                              <span className="text-green-700">
+                                                ₹{roundedAmount.toFixed(2)}
                                               </span>
                                             </div>
-
-                                            {roundOffAmount !== 0 && (
-                                              <div className="flex justify-between text-sm">
-                                                <span className="text-gray-500">
-                                                  Rounded Off:
-                                                </span>
-                                                <span
-                                                  className={
-                                                    roundOffAmount > 0
-                                                      ? "text-blue-600"
-                                                      : "text-red-600"
-                                                  }
-                                                >
-                                                  {roundOffAmount > 0
-                                                    ? `+₹${roundOffAmount.toFixed(
-                                                        2,
-                                                      )}`
-                                                    : `-₹${Math.abs(
-                                                        roundOffAmount,
-                                                      ).toFixed(2)}`}
-                                                </span>
-                                              </div>
-                                            )}
                                           </>
                                         );
                                       })()}
 
+                                      {/* Pay Later Remarks */}
                                       {billing.paymentMode === "Pay Later" &&
                                         billing.remarks && (
-                                          <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                          <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                             <div className="flex items-start gap-2">
-                                              <MessageSquare className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                                              <MessageSquare className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
                                               <div>
-                                                <p className="text-xs font-medium text-orange-800">
+                                                <p className="text-xs font-medium text-gray-700">
                                                   Payment Remarks:
                                                 </p>
-                                                <p className="text-sm text-orange-700">
+                                                <p className="text-sm text-gray-600">
                                                   {billing.remarks}
                                                 </p>
                                               </div>

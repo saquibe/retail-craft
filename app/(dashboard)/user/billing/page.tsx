@@ -1455,49 +1455,76 @@ export default function BillingPage() {
             </p>
 
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {multipleProducts.map((product) => (
-                <div
-                  key={product._id}
-                  className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => handleAddSelectedProduct(product)}
-                >
-                  <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">
-                        {product.productName}
-                      </p>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {product.color && <span>Color: {product.color}</span>}
-                        {product.size && (
-                          <span className="ml-2">Size: {product.size}</span>
-                        )}
+              {multipleProducts.map((product) => {
+                const isOutOfStock = product.quantity === 0;
+
+                return (
+                  <div
+                    key={product._id}
+                    className={`p-3 border rounded-lg transition-colors ${
+                      isOutOfStock
+                        ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
+                        : "hover:bg-gray-50 cursor-pointer"
+                    }`}
+                    onClick={() =>
+                      !isOutOfStock && handleAddSelectedProduct(product)
+                    }
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">
+                          {product.productName}
+                          {isOutOfStock && (
+                            <span className="ml-2 text-xs text-red-600 font-normal">
+                              (Out of Stock)
+                            </span>
+                          )}
+                        </p>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {product.color && <span>Color: {product.color}</span>}
+                          {product.size && (
+                            <span className="ml-2">Size: {product.size}</span>
+                          )}
+                        </div>
+                        <div
+                          className={`text-xs mt-1 ${
+                            isOutOfStock ? "text-red-500" : "text-gray-400"
+                          }`}
+                        >
+                          Stock: {product.quantity} units
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 break-all">
+                          Barcode: {product.barCode}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        Stock: {product.quantity} units
+                      <div className="text-left sm:text-right">
+                        <p className="font-semibold text-indigo-600 text-sm">
+                          ₹
+                          {selectedCustomer?.customerType === "B2B"
+                            ? (product.b2bSalePrice || 0).toFixed(2)
+                            : (product.b2cSalePrice || 0).toFixed(2)}
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isOutOfStock ? "outline" : "default"}
+                          className={`mt-2 w-full sm:w-auto ${
+                            isOutOfStock
+                              ? "cursor-not-allowed opacity-50"
+                              : "cursor-pointer bg-indigo-600 hover:bg-indigo-700"
+                          }`}
+                          disabled={isOutOfStock}
+                          onClick={() =>
+                            !isOutOfStock && handleAddSelectedProduct(product)
+                          }
+                        >
+                          {isOutOfStock ? "Out of Stock" : "Select"}
+                        </Button>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1 break-all">
-                        Barcode: {product.barCode}
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="font-semibold text-indigo-600 text-sm">
-                        ₹
-                        {selectedCustomer?.customerType === "B2B"
-                          ? (product.b2bSalePrice || 0).toFixed(2)
-                          : (product.b2cSalePrice || 0).toFixed(2)}
-                      </p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="mt-2 w-full sm:w-auto"
-                      >
-                        Select
-                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </DialogContent>
