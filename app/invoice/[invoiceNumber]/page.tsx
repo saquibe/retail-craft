@@ -322,19 +322,21 @@ export default function PublicInvoicePage() {
               {/* Summary */}
               <div className="border-t-2 border-gray-300 pt-4">
                 <div className="space-y-2 text-right">
+                  {/* Base Amount */}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="font-semibold">Base Amount:</span>
 
                     <span>{formatCurrency(invoice.subTotal)}</span>
                   </div>
 
-                  {invoice.discountAmount && invoice.discountAmount > 0 && (
+                  {/* Show Discount ONLY if greater than 0 */}
+                  {(invoice.discountAmount ?? 0) > 0 && (
                     <>
                       <div className="flex justify-between text-sm text-gray-700">
                         <span className="font-semibold">Discount:</span>
 
                         <span className="italic">
-                          -{formatCurrency(invoice.discountAmount)}
+                          -{formatCurrency(invoice.discountAmount ?? 0)}
                         </span>
                       </div>
 
@@ -348,38 +350,32 @@ export default function PublicInvoicePage() {
                     </>
                   )}
 
+                  {/* Total Tax */}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="font-semibold">Total Tax:</span>
 
                     <span>{formatCurrency(invoice.totalTax)}</span>
                   </div>
 
-                  {invoice.freightCharge && invoice.freightCharge > 0 && (
+                  {/* Show Freight ONLY if greater than 0 */}
+                  {(invoice.freightCharge ?? 0) > 0 && (
                     <div className="flex justify-between text-sm text-gray-700">
                       <span className="font-semibold">Freight Charge:</span>
 
-                      <span>+{formatCurrency(invoice.freightCharge)}</span>
+                      <span>+{formatCurrency(invoice.freightCharge ?? 0)}</span>
                     </div>
                   )}
 
+                  {/* Grand Total */}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="font-semibold">Grand Total:</span>
 
                     <span>{formatCurrency(finalTotal)}</span>
                   </div>
 
-                  {roundOffAmount !== 0 && (
-                    <div className="flex justify-between text-sm text-gray-700">
-                      <span className="font-semibold">Rounded Off:</span>
+                  {/* Removed Rounded Off Section */}
 
-                      <span>
-                        {roundOffAmount > 0
-                          ? `+${formatCurrency(roundOffAmount)}`
-                          : `-${formatCurrency(Math.abs(roundOffAmount))}`}
-                      </span>
-                    </div>
-                  )}
-
+                  {/* Net Payable */}
                   <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200 text-gray-900">
                     <span>NET PAYABLE:</span>
 
@@ -400,12 +396,27 @@ export default function PublicInvoicePage() {
               </div>
 
               {/* Footer */}
-              <div className="mt-8 text-center text-sm text-gray-500 border-t border-gray-200 pt-4">
-                <p className="italic">Thank you for your business!</p>
+              <div className="mt-8 border-t border-gray-200 pt-4 text-sm text-gray-500">
+                <div className="space-y-2">
+                  <p className="font-semibold text-gray-700">Returns Policy:</p>
 
-                <p className="text-xs mt-1 italic text-gray-400">
-                  This is a computer generated invoice.
-                </p>
+                  <p className="italic text-gray-500">
+                    Goods once sold will not be returned or exchanged. Please
+                    check the product at the time of delivery.
+                  </p>
+
+                  <p className="pt-2 italic">Thank you for your business!</p>
+                </div>
+
+                <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
+                  <p className="text-xs italic text-gray-400">
+                    This is a computer generated invoice.
+                  </p>
+
+                  <p className="text-xs font-semibold text-gray-600">
+                    For {invoice.branchId?.branchName}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
