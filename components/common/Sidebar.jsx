@@ -6,7 +6,6 @@ import {
   FiHome,
   FiUsers,
   FiPackage,
-  FiLogOut,
   FiSettings,
   FiUser,
   FiX,
@@ -16,7 +15,6 @@ import {
   FiClipboard,
 } from "react-icons/fi";
 import { useAuth } from "@/lib/context/AuthContext";
-import { useEffect, useState } from "react";
 
 const adminMenuItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: FiHome },
@@ -51,15 +49,11 @@ const userMenuItems = [
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   if (!user) return null;
 
   const menuItems = user?.type === "admin" ? adminMenuItems : userMenuItems;
-
-  const handleLogout = async () => {
-    await logout();
-  };
 
   return (
     <>
@@ -82,7 +76,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       >
         <div className="p-4 flex flex-col h-full">
           {/* Mobile Close */}
-          <div className="flex justify-between items-start -m-4 mb-6 lg:hidden bg-white p-2  border-gray-900 border-2">
+          <div className="flex justify-between items-start -m-4 mb-6 lg:hidden bg-white p-2 border-gray-900 border-2">
             <img
               src="/retail-craft.jpeg"
               alt="RetailCraft Logo"
@@ -97,11 +91,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
             </button>
           </div>
 
-          <div className="hidden lg:block -mx-4 -mt-4 mb-8 bg-white border-gray-900 border-2">
+          <div className="hidden lg:block -mx-4 -mt-4 mb-4 bg-white border-gray-900 border-4">
             <img
               src="/retail-craft.jpeg"
               alt="RetailCraft Logo"
-              className="w-full h-32 object-contain"
+              className="w-full h-17 object-contain"
             />
           </div>
 
@@ -128,13 +122,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
             })}
           </nav>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-gray-800 text-gray-300 cursor-pointer"
-          >
-            <FiLogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
+          {/* Logout button removed from here */}
         </div>
       </div>
     </>
