@@ -8,6 +8,7 @@ export interface PublicInvoice {
     name: string;
     mobile: string;
     email?: string;
+    address?: string;
   };
   branchId: {
     branchName: string;

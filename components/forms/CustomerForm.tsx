@@ -95,7 +95,7 @@ export default function CustomerForm({
       name: initialData?.name || "",
       email: initialData?.email || "",
       mobile: initialData?.mobile || "",
-      address: initialData?.address || "",
+      address: initialData?.address || "Kukatpally",
       country: initialData?.country || "India",
       state: initialData?.state || "Telangana",
       city: initialData?.city || "Hyderabad",
