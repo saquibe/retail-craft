@@ -1,4 +1,4 @@
-// lib/api/public.ts
+// lib/api/public.invoice.ts
 import axiosInstance from "./axios";
 
 export interface PublicInvoice {
@@ -40,10 +40,9 @@ export interface PublicInvoice {
 }
 
 export const getPublicInvoice = async (
-  invoiceNumber: string,
+  shortInvoiceCode: string,
 ): Promise<{ success: boolean; data?: PublicInvoice; message?: string }> => {
   try {
-    const shortInvoiceCode = invoiceNumber.split("/").pop();
     const response = await axiosInstance.get(
       `/public-invoice/?INV=${shortInvoiceCode}`,
     );

@@ -1,4 +1,4 @@
-// app/invoice/[invoiceNumber]/page.tsx
+// app/invoice/[INV]/page.tsx
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -7,12 +7,11 @@ import { format } from "date-fns";
 import { Loader2, AlertCircle, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getPublicInvoice, PublicInvoice } from "@/lib/api/public.invoice";
 
 export default function PublicInvoicePage() {
   const params = useParams();
-  const invoiceNumber = params.invoiceNumber as string;
+  const shortInvoiceCode = params.INV as string;
   const invoiceRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -20,16 +19,15 @@ export default function PublicInvoicePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (invoiceNumber) {
+    if (shortInvoiceCode) {
       fetchInvoice();
     }
-  }, [invoiceNumber]);
+  }, [shortInvoiceCode]);
 
   const fetchInvoice = async () => {
     setLoading(true);
     try {
-      const response = await getPublicInvoice(invoiceNumber);
-
+      const response = await getPublicInvoice(shortInvoiceCode);
       if (response.success && response.data) {
         setInvoice(response.data);
       } else {
@@ -72,11 +70,9 @@ export default function PublicInvoicePage() {
         <Card className="max-w-md w-full mx-4 border-gray-200 shadow-sm">
           <CardContent className="text-center py-12">
             <AlertCircle className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
               Invoice Not Found
             </h2>
-
             <p className="text-gray-500 italic">
               {error || "The invoice you're looking for doesn't exist."}
             </p>
@@ -88,8 +84,6 @@ export default function PublicInvoicePage() {
 
   const finalTotal = invoice.finalTotal || invoice.grandTotal;
   const roundedGrandTotal = Math.round(finalTotal);
-  const roundOffAmount = roundedGrandTotal - finalTotal;
-
   const amountAfterDiscount =
     (invoice.subTotal || 0) - (invoice.discountAmount || 0);
 
@@ -180,11 +174,10 @@ export default function PublicInvoicePage() {
                   </p>
 
                   <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Payment Status:</span>
-
-                    <Badge className="ml-2 bg-gray-100 text-gray-700 border border-gray-200">
+                    <span className="font-semibold">Payment Status:</span>{" "}
+                    <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
                       {invoice.paymentStatus || "Pending"}
-                    </Badge>
+                    </span>
                   </p>
                 </div>
 
@@ -217,23 +210,18 @@ export default function PublicInvoicePage() {
                       <th className="text-left py-2 font-semibold text-gray-700">
                         Sl No.
                       </th>
-
                       <th className="text-left py-2 font-semibold text-gray-700">
                         Product
                       </th>
-
                       <th className="text-center py-2 font-semibold text-gray-700">
                         Qty
                       </th>
-
                       <th className="text-center py-2 font-semibold text-gray-700">
                         Unit
                       </th>
-
                       <th className="text-right py-2 font-semibold text-gray-700">
                         Price
                       </th>
-
                       <th className="text-right py-2 font-semibold text-gray-700">
                         Total
                       </th>
@@ -244,25 +232,19 @@ export default function PublicInvoicePage() {
                     {invoice.items.map((item, index) => (
                       <tr key={index} className="border-b border-gray-200">
                         <td className="py-3 text-gray-700">{index + 1}</td>
-
                         <td className="py-3 text-gray-700">
                           {item.productName}
-
                           <div className="text-xs text-gray-500 italic">
                             Code: {item.itemCode}
                           </div>
                         </td>
-
                         <td className="text-center py-3 text-gray-700">
                           {item.quantity}
                         </td>
-
                         <td className="text-center py-3 text-gray-700">Pcs.</td>
-
                         <td className="text-right py-3 text-gray-700">
                           {formatCurrency(item.price)}
                         </td>
-
                         <td className="text-right py-3 font-medium text-gray-800">
                           {formatCurrency(item.price * item.quantity)}
                         </td>
@@ -281,15 +263,12 @@ export default function PublicInvoicePage() {
                         <th className="text-left py-2 font-semibold text-gray-700">
                           Tax Rate
                         </th>
-
                         <th className="text-right py-2 font-semibold text-gray-700">
                           Taxable Amt.
                         </th>
-
                         <th className="text-right py-2 font-semibold text-gray-700">
                           CGST
                         </th>
-
                         <th className="text-right py-2 font-semibold text-gray-700">
                           SGST
                         </th>
@@ -300,15 +279,12 @@ export default function PublicInvoicePage() {
                       {Object.values(itemsByTax).map((item: any, index) => (
                         <tr key={index} className="border-b border-gray-200">
                           <td className="py-3 text-gray-700">{item.rate}%</td>
-
                           <td className="text-right py-3 text-gray-700">
                             {formatCurrency(item.taxableAmt)}
                           </td>
-
                           <td className="text-right py-3 text-gray-700">
                             {formatCurrency(item.cgst)}
                           </td>
-
                           <td className="text-right py-3 text-gray-700">
                             {formatCurrency(item.sgst)}
                           </td>
@@ -322,10 +298,8 @@ export default function PublicInvoicePage() {
               {/* Summary */}
               <div className="border-t-2 border-gray-300 pt-4">
                 <div className="space-y-2 text-right">
-                  {/* Base Amount */}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="font-semibold">Base Amount:</span>
-
                     <span>{formatCurrency(invoice.subTotal)}</span>
                   </div>
 
@@ -334,26 +308,21 @@ export default function PublicInvoicePage() {
                     <>
                       <div className="flex justify-between text-sm text-gray-700">
                         <span className="font-semibold">Discount:</span>
-
                         <span className="italic">
                           -{formatCurrency(invoice.discountAmount ?? 0)}
                         </span>
                       </div>
-
                       <div className="flex justify-between text-sm text-gray-700">
                         <span className="font-semibold">
                           Amount after Discount:
                         </span>
-
                         <span>{formatCurrency(amountAfterDiscount)}</span>
                       </div>
                     </>
                   )}
 
-                  {/* Total Tax */}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="font-semibold">Total Tax:</span>
-
                     <span>{formatCurrency(invoice.totalTax)}</span>
                   </div>
 
@@ -361,24 +330,17 @@ export default function PublicInvoicePage() {
                   {(invoice.freightCharge ?? 0) > 0 && (
                     <div className="flex justify-between text-sm text-gray-700">
                       <span className="font-semibold">Freight Charge:</span>
-
                       <span>+{formatCurrency(invoice.freightCharge ?? 0)}</span>
                     </div>
                   )}
 
-                  {/* Grand Total */}
                   <div className="flex justify-between text-sm text-gray-700">
                     <span className="font-semibold">Grand Total:</span>
-
                     <span>{formatCurrency(finalTotal)}</span>
                   </div>
 
-                  {/* Removed Rounded Off Section */}
-
-                  {/* Net Payable */}
                   <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200 text-gray-900">
                     <span>NET PAYABLE:</span>
-
                     <span>{formatCurrency(roundedGrandTotal)}</span>
                   </div>
                 </div>
@@ -389,7 +351,6 @@ export default function PublicInvoicePage() {
                 <p className="text-sm font-semibold text-gray-800">
                   Amount in Words
                 </p>
-
                 <p className="text-sm italic text-gray-600 mt-1">
                   {numberToWords(roundedGrandTotal)} Only
                 </p>
@@ -399,12 +360,10 @@ export default function PublicInvoicePage() {
               <div className="mt-8 border-t border-gray-200 pt-4 text-sm text-gray-500">
                 <div className="space-y-2">
                   <p className="font-semibold text-gray-700">Returns Policy:</p>
-
                   <p className="italic text-gray-500">
                     Goods once sold will not be returned or exchanged. Please
                     check the product at the time of delivery.
                   </p>
-
                   <p className="pt-2 italic">Thank you for your business!</p>
                 </div>
 
@@ -412,7 +371,6 @@ export default function PublicInvoicePage() {
                   <p className="text-xs italic text-gray-400">
                     This is a computer generated invoice.
                   </p>
-
                   <p className="text-xs font-semibold text-gray-600">
                     For {invoice.branchId?.branchName}
                   </p>
@@ -440,7 +398,6 @@ function numberToWords(num: number): string {
     "Eight",
     "Nine",
   ];
-
   const teens = [
     "Ten",
     "Eleven",
@@ -453,7 +410,6 @@ function numberToWords(num: number): string {
     "Eighteen",
     "Nineteen",
   ];
-
   const tens = [
     "",
     "",
@@ -471,17 +427,13 @@ function numberToWords(num: number): string {
 
   const convertLessThanThousand = (n: number): string => {
     if (n === 0) return "";
-
     if (n < 10) return units[n];
-
     if (n < 20) return teens[n - 10];
-
     if (n < 100) {
       return (
         tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + units[n % 10] : "")
       );
     }
-
     return (
       units[Math.floor(n / 100)] +
       " Hundred" +
@@ -495,14 +447,12 @@ function numberToWords(num: number): string {
   if (remainingNum >= 100000) {
     result +=
       convertLessThanThousand(Math.floor(remainingNum / 100000)) + " Lakh ";
-
     remainingNum %= 100000;
   }
 
   if (remainingNum >= 1000) {
     result +=
       convertLessThanThousand(Math.floor(remainingNum / 1000)) + " Thousand ";
-
     remainingNum %= 1000;
   }
 
