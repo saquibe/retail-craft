@@ -1510,7 +1510,8 @@ export default function BillingPage() {
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="mt-2 w-full sm:w-auto cursor-pointer bg-indigo-600 text-white hover:bg-indigo-800 hover:text-white"
+                          className="mt-2 w-full sm:w-auto cursor-pointer bg-indigo-600 text-white hover:bg-indigo-8
+                          00 hover:text-white"
                         >
                           Select
                         </Button>

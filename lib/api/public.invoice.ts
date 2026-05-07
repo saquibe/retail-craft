@@ -43,8 +43,9 @@ export const getPublicInvoice = async (
   invoiceNumber: string,
 ): Promise<{ success: boolean; data?: PublicInvoice; message?: string }> => {
   try {
+    const shortInvoiceCode = invoiceNumber.split("/").pop();
     const response = await axiosInstance.get(
-      `/public-invoice?invoiceNumber=${invoiceNumber}`,
+      `/public-invoice/?INV=${shortInvoiceCode}`,
     );
     return response.data;
   } catch (error: any) {

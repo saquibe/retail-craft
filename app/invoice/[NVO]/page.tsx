@@ -8,7 +8,7 @@ import { Loader2, AlertCircle, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getPublicInvoice, PublicInvoice } from "@/lib/api/public";
+import { getPublicInvoice, PublicInvoice } from "@/lib/api/public.invoice";
 
 export default function PublicInvoicePage() {
   const params = useParams();
