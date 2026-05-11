@@ -349,11 +349,11 @@ export default function PublicInvoicePage() {
               {/* Amount in Words */}
               <div className="mt-6 pt-4 border-t border-gray-200 text-center">
                 <p className="text-sm font-semibold text-gray-800">
-                  Amount in Words
-                </p>
-                <p className="text-sm italic text-gray-600 mt-1">
                   {numberToWords(roundedGrandTotal)} Only
                 </p>
+                {/* <p className="text-sm italic text-gray-600 mt-1">
+                  {numberToWords(roundedGrandTotal)} Only
+                </p> */}
               </div>
 
               {/* Footer */}

@@ -1,30 +1,20 @@
 // app/invoice/page.tsx
-"use client";
+import { Suspense } from "react";
+import InvoiceRedirect from "./InvoiceRedirect";
 
-import { useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-
-export default function InvoiceQueryPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  useEffect(() => {
-    const invoiceCode = searchParams.get("INV");
-
-    if (invoiceCode) {
-      router.replace(`/invoice/${invoiceCode}`);
-    } else {
-      router.replace("/");
-    }
-  }, [searchParams, router]);
-
-  // Show loading while redirecting
+export default function InvoicePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto"></div>
-        <p className="mt-4 text-gray-600">Redirecting to invoice...</p>
-      </div>
-    </div>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <InvoiceRedirect />
+    </Suspense>
   );
 }
