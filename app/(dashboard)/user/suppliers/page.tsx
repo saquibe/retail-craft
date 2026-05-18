@@ -58,6 +58,7 @@ export default function SuppliersPage() {
   const { user } = useAuth();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -102,15 +103,22 @@ export default function SuppliersPage() {
   // Handle create supplier
   const handleCreateSupplier = async (data: SupplierFormData) => {
     try {
+      setIsSubmitting(true);
+
       const response = await createSupplier(data);
+
       if (response.success) {
         toast.success("Supplier created successfully!");
         setIsCreateOpen(false);
-        fetchSuppliers();
+
+        await fetchSuppliers();
       }
     } catch (error: any) {
       console.error("Create supplier error:", error);
+
       toast.error(error.response?.data?.message || "Failed to create supplier");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -119,16 +127,24 @@ export default function SuppliersPage() {
     if (!selectedSupplier) return;
 
     try {
+      setIsSubmitting(true);
+
       const response = await updateSupplier(selectedSupplier._id, data);
+
       if (response.success) {
         toast.success("Supplier updated successfully!");
+
         setIsEditOpen(false);
         setSelectedSupplier(null);
-        fetchSuppliers();
+
+        await fetchSuppliers();
       }
     } catch (error: any) {
       console.error("Update supplier error:", error);
+
       toast.error(error.response?.data?.message || "Failed to update supplier");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -298,7 +314,7 @@ export default function SuppliersPage() {
           </DialogHeader>
           <SupplierForm
             onSubmit={handleCreateSupplier}
-            isLoading={isLoading}
+            isLoading={isSubmitting}
             onCancel={() => setIsCreateOpen(false)}
           />
         </DialogContent>
@@ -324,7 +340,7 @@ export default function SuppliersPage() {
                 gstIn: selectedSupplier.gstIn,
               }}
               onSubmit={handleUpdateSupplier}
-              isLoading={isLoading}
+              isLoading={isSubmitting}
               onCancel={() => {
                 setIsEditOpen(false);
                 setSelectedSupplier(null);
